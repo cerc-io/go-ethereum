@@ -17,20 +17,22 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
+package builder_test
 
 import (
+	"math/big"
+
 	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
+
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"math/big"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/statediff"
-	"github.com/onsi/gomega"
+	statediff "github.com/ethereum/go-ethereum/statediff/builder"
 )
 
 

@@ -17,16 +17,35 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
+package extractor
 
 import (
-	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/statediff/builder"
+	"github.com/ethereum/go-ethereum/statediff/publisher"
 )
 
-func TestStateDiff(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "StateDiff Suite")
+type Extractor interface {
+	ExtractStateDiff(parent, current types.Block) (string, error)
+}
+
+type extractor struct {
+	Builder builder.Builder   // Interface for building state diff objects from two blocks
+	Publisher publisher.Publisher // Interface for publishing state diff objects to a datastore (e.g. IPFS)
+}
+
+func NewExtractor(b builder.Builder, p publisher.Publisher) (*extractor, error) {
+	return &extractor{
+		Builder:   b,
+		Publisher: p,
+	}, nil
+}
+
+func (e *extractor) ExtractStateDiff(parent, current types.Block) (string, error) {
+	stateDiff, err := e.Builder.BuildStateDiff(parent.Root(), current.Root(), current.Number().Int64(), current.Hash())
+	if err != nil {
+		return "", err
+	}
+
+	return e.Publisher.PublishStateDiff(stateDiff)
 }

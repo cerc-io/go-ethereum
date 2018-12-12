@@ -17,42 +17,16 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package ipfs
+package publisher_test
 
 import (
-	"context"
+	"testing"
 
-	"github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/repo/fsrepo"
-	ipld "gx/ipfs/QmWi2BYBL5gJ3CiAiQchg6rn1A8iBsrWy51EYxvHVjFvLb/go-ipld-format"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-type Adder interface {
-	Add(node ipld.Node) error
-}
-
-type adder struct {
-	n   *core.IpfsNode
-	ctx context.Context
-}
-
-func (a adder) Add(node ipld.Node) error {
-	return a.n.DAG.Add(a.n.Context(), node) // For some reason DAG.Add method is not being exposed by the ipld.DAGService
-}
-
-func NewAdder(repoPath string) (*adder, error) {
-	r, err := fsrepo.Open(repoPath)
-	if err != nil {
-		return nil, err
-	}
-	ctx := context.Background()
-	cfg := &core.BuildCfg{
-		Online: false,
-		Repo:   r,
-	}
-	ipfsNode, err := core.NewNode(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return &adder{n: ipfsNode, ctx: ctx}, nil
+func TestStateDiffPublisher(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "StateDiff Publisher Suite")
 }

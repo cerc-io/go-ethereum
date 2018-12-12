@@ -17,33 +17,4 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff
-
-import (
-	"github.com/ethereum/go-ethereum/core/types"
-)
-
-type Extractor interface {
-	ExtractStateDiff(parent, current types.Block) (string, error)
-}
-
-type extractor struct {
-	Builder Builder   // Interface for building state diff objects from two blocks
-	Publisher Publisher // Interface for publishing state diff objects to a datastore (e.g. IPFS)
-}
-
-func NewExtractor(builder Builder, publisher Publisher) (*extractor, error) {
-	return &extractor{
-		Builder:   builder,
-		Publisher: publisher,
-	}, nil
-}
-
-func (e *extractor) ExtractStateDiff(parent, current types.Block) (string, error) {
-	stateDiff, err := e.Builder.BuildStateDiff(parent.Root(), current.Root(), current.Number().Int64(), current.Hash())
-	if err != nil {
-		return "", err
-	}
-
-	return e.Publisher.PublishStateDiff(stateDiff)
-}
+package publisher_test

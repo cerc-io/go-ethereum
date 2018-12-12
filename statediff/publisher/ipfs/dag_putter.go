@@ -23,9 +23,9 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	ipld "gx/ipfs/QmWi2BYBL5gJ3CiAiQchg6rn1A8iBsrWy51EYxvHVjFvLb/go-ipld-format"
-	"github.com/ethereum/go-ethereum/statediff"
-	"github.com/ethereum/go-ethereum/common"
+	ipld "gx/ipfs/QmcKKBwfz6FyQdHR2jsXrrF6XeSBXYL86anmWNewpFpoF5/go-ipld-format"
+
+	"github.com/ethereum/go-ethereum/statediff/builder"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 )
 
 type DagPutter interface {
-	DagPut(sd *statediff.StateDiff) (string, error)
+	DagPut(sd *builder.StateDiff) (string, error)
 }
 
 type dagPutter struct {
@@ -44,7 +44,7 @@ func NewDagPutter(adder Adder) *dagPutter {
 	return &dagPutter{Adder: adder}
 }
 
-func (bhdp *dagPutter) DagPut(sd *statediff.StateDiff) (string, error) {
+func (bhdp *dagPutter) DagPut(sd *builder.StateDiff) (string, error) {
 	nd, err := bhdp.getNode(sd)
 	if err != nil {
 		return "", err
@@ -56,7 +56,7 @@ func (bhdp *dagPutter) DagPut(sd *statediff.StateDiff) (string, error) {
 	return nd.Cid().String(), nil
 }
 
-func (bhdp *dagPutter) getNode(sd *statediff.StateDiff) (ipld.Node, error) {
+func (bhdp *dagPutter) getNode(sd *builder.StateDiff) (ipld.Node, error) {
 
 	var buff bytes.Buffer
 	enc := gob.NewEncoder(&buff)

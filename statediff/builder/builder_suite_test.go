@@ -17,7 +17,7 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
+package builder_test
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestStateDiff(t *testing.T) {
+func TestStateDiffBuilder(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "StateDiff Suite")
+	RunSpecs(t, "StateDiff Builder Suite")
 }

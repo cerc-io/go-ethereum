@@ -17,16 +17,22 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
+package ipfs
 
 import (
-	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	mh "gx/ipfs/QmZyZDi491cCNTLfAhwcaDii2Kg4pwKRkhqQzURGDvY6ua/go-multihash"
+	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
 )
 
-func TestStateDiff(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "StateDiff Suite")
+func RawToCid(codec uint64, raw []byte) (*cid.Cid, error) {
+	c, err := cid.Prefix{
+		Codec:    codec,
+		Version:  1,
+		MhType:   mh.KECCAK_256,
+		MhLength: -1,
+	}.Sum(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
 }

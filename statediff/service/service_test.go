@@ -17,16 +17,4 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
-
-import (
-	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
-
-func TestStateDiff(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "StateDiff Suite")
-}
+package service_test

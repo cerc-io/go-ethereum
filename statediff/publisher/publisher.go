@@ -17,23 +17,26 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff
+package publisher
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/statediff/ipfs"
+
+	"github.com/ethereum/go-ethereum/statediff"
+	"github.com/ethereum/go-ethereum/statediff/builder"
+	"github.com/ethereum/go-ethereum/statediff/publisher/ipfs"
 )
 
 type Publisher interface {
-	PublishStateDiff(sd *StateDiff) (string, error)
+	PublishStateDiff(sd *builder.StateDiff) (string, error)
 }
 
 type publisher struct {
 	ipfs.DagPutter
-	Config
+	statediff.Config
 }
 
-func NewPublisher(config Config) (*publisher, error) {
+func NewPublisher(config statediff.Config) (*publisher, error) {
 	adder, err := ipfs.NewAdder(config.Path)
 	if err != nil {
 		return nil, err
@@ -45,17 +48,17 @@ func NewPublisher(config Config) (*publisher, error) {
 	}, nil
 }
 
-func (p *publisher) PublishStateDiff(sd *StateDiff) (string, error) {
+func (p *publisher) PublishStateDiff(sd *builder.StateDiff) (string, error) {
 	switch p.Mode {
-	case IPLD:
+	case statediff.IPLD:
 		cidStr, err := p.DagPut(sd)
 		if err != nil {
 			return "", err
 		}
 
 		return cidStr, err
-	case LDB:
-	case SQL:
+	case statediff.LDB:
+	case statediff.SQL:
 	default:
 	}
 

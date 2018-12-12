@@ -17,16 +17,19 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package statediff_test
+package extractor_test
 
 import (
-	"github.com/onsi/ginkgo"
-	"github.com/ethereum/go-ethereum/statediff"
-	"github.com/onsi/gomega"
-	"github.com/ethereum/go-ethereum/core/types"
-	"math/rand"
-	"github.com/ethereum/go-ethereum/statediff/testhelpers"
 	"math/big"
+	"math/rand"
+
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
+
+	"github.com/ethereum/go-ethereum/statediff/extractor"
+	statediff "github.com/ethereum/go-ethereum/statediff/builder"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/statediff/testhelpers"
 )
 var _ = ginkgo.Describe("Extractor", func() {
 	var publisher testhelpers.MockPublisher
@@ -34,13 +37,13 @@ var _ = ginkgo.Describe("Extractor", func() {
 	var currentBlockNumber *big.Int
 	var parentBlock, currentBlock *types.Block
 	var expectedStateDiff statediff.StateDiff
-	var extractor statediff.Extractor
+	var ex extractor.Extractor
 	var err error
 
 	ginkgo.BeforeEach(func() {
 		publisher = testhelpers.MockPublisher{}
 		builder = testhelpers.MockBuilder{}
-		extractor, err = statediff.NewExtractor(&builder, &publisher)
+		ex, err = extractor.NewExtractor(&builder, &publisher)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		blockNumber := rand.Int63()
@@ -61,7 +64,7 @@ var _ = ginkgo.Describe("Extractor", func() {
 	ginkgo.It("builds a state diff struct", func() {
 		builder.SetStateDiffToBuild(&expectedStateDiff)
 
-		_, err = extractor.ExtractStateDiff(*parentBlock, *currentBlock)
+		_, err = ex.ExtractStateDiff(*parentBlock, *currentBlock)
 
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(builder.OldStateRoot).To(gomega.Equal(parentBlock.Root()))
@@ -73,7 +76,7 @@ var _ = ginkgo.Describe("Extractor", func() {
 	ginkgo.It("returns an error if building the state diff fails", func() {
 		builder.SetBuilderError(testhelpers.MockError)
 
-		_, err = extractor.ExtractStateDiff(*parentBlock, *currentBlock)
+		_, err = ex.ExtractStateDiff(*parentBlock, *currentBlock)
 
 		gomega.Expect(err).To(gomega.HaveOccurred())
 		gomega.Expect(err).To(gomega.MatchError(testhelpers.MockError))
@@ -82,7 +85,7 @@ var _ = ginkgo.Describe("Extractor", func() {
 	ginkgo.It("publishes the state diff struct", func() {
 		builder.SetStateDiffToBuild(&expectedStateDiff)
 
-		_, err = extractor.ExtractStateDiff(*parentBlock, *currentBlock)
+		_, err = ex.ExtractStateDiff(*parentBlock, *currentBlock)
 
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(publisher.StateDiff).To(gomega.Equal(&expectedStateDiff))
@@ -91,7 +94,7 @@ var _ = ginkgo.Describe("Extractor", func() {
 	ginkgo.It("returns an error if publishing the diff fails", func() {
 		publisher.SetPublisherError(testhelpers.MockError)
 
-		_, err = extractor.ExtractStateDiff(*parentBlock, *currentBlock)
+		_, err = ex.ExtractStateDiff(*parentBlock, *currentBlock)
 
 		gomega.Expect(err).To(gomega.HaveOccurred())
 		gomega.Expect(err).To(gomega.MatchError(testhelpers.MockError))

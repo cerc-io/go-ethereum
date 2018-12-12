@@ -20,14 +20,14 @@
 package ipfs
 
 import (
-	ipld "gx/ipfs/QmWi2BYBL5gJ3CiAiQchg6rn1A8iBsrWy51EYxvHVjFvLb/go-ipld-format"
-	"gx/ipfs/QmapdYm1b22Frv3k17fqrBYTFRxwiaVJkB299Mfn33edeB/go-cid"
+	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
+	ipld "gx/ipfs/QmcKKBwfz6FyQdHR2jsXrrF6XeSBXYL86anmWNewpFpoF5/go-ipld-format"
 
-	"github.com/i-norden/go-ethereum/statediff"
+	"github.com/ethereum/go-ethereum/statediff/builder"
 )
 
 type StateDiffNode struct {
-	*statediff.StateDiff
+	*builder.StateDiff
 
 	cid     *cid.Cid
 	rawdata []byte
@@ -37,8 +37,8 @@ func (sdn *StateDiffNode) RawData() []byte {
 	return sdn.rawdata
 }
 
-func (sdn *StateDiffNode) Cid() *cid.Cid {
-	return sdn.cid
+func (sdn *StateDiffNode) Cid() cid.Cid {
+	return *sdn.cid
 }
 
 func (sdn StateDiffNode) String() string {

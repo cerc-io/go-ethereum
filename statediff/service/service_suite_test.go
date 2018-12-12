@@ -17,22 +17,16 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package ipfs
+package service_test
 
 import (
-	mh "gx/ipfs/QmZyZDi491cCNTLfAhwcaDii2Kg4pwKRkhqQzURGDvY6ua/go-multihash"
-	"gx/ipfs/QmapdYm1b22Frv3k17fqrBYTFRxwiaVJkB299Mfn33edeB/go-cid"
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func RawToCid(codec uint64, raw []byte) (*cid.Cid, error) {
-	c, err := cid.Prefix{
-		Codec:    codec,
-		Version:  1,
-		MhType:   mh.KECCAK_256,
-		MhLength: -1,
-	}.Sum(raw)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
+func TestStateDiffService(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "StateDiff Service Suite")
 }
