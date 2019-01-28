@@ -294,6 +294,20 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	return stack, backend
 }
 
+func makeLightNode(ctx *cli.Context, stack *node.Node, cfg gethConfig) (*node.Node, ethapi.Backend) {
+	backend := utils.RegisterLesEthService(stack, &cfg.Eth)
+
+	// Configure GraphQL if requested
+	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
+		utils.RegisterGraphQLService(stack, backend.ApiBackend, cfg.Node)
+	}
+	// Add the Ethereum Stats daemon if requested.
+	if cfg.Ethstats.URL != "" {
+		utils.RegisterEthStatsService(stack, backend.ApiBackend, cfg.Ethstats.URL)
+	}
+	return stack, backend.ApiBackend
+}
+
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
 	_, cfg := makeConfigNode(ctx)
