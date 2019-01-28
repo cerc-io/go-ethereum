@@ -58,20 +58,20 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 	quitCh := make(chan struct{})
 
 	go func() {
-		HandleLoop:
-			for {
-				select {
-				//Notify chain event channel of events
-				case chainEvent := <-chainEventCh:
-					log.Debug("Event received from chainEventCh", "event", chainEvent)
-					blocksCh <- chainEvent.Block
-				//if node stopped
-				case err := <-errCh:
-					log.Debug("Error from chain event subscription, breaking loop.", "error", err)
-					break HandleLoop
-				}
+	HandleLoop:
+		for {
+			select {
+			//Notify chain event channel of events
+			case chainEvent := <-chainEventCh:
+				log.Debug("Event received from chainEventCh", "event", chainEvent)
+				blocksCh <- chainEvent.Block
+			//if node stopped
+			case err := <-errCh:
+				log.Debug("Error from chain event subscription, breaking loop.", "error", err)
+				break HandleLoop
 			}
-			close(quitCh)
+		}
+		close(quitCh)
 	}()
 
 	//loop through chain events until no more
