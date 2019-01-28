@@ -5,12 +5,14 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"errors"
 )
 
 type BlockChain struct {
 	ParentHashesLookedUp []common.Hash
 	parentBlocksToReturn []*types.Block
 	callCount            int
+	ChainEvents          []core.ChainEvent
 }
 
 func (mc *BlockChain) SetParentBlockToReturn(blocks []*types.Block) {
@@ -29,6 +31,28 @@ func (mc *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 	return &parentBlock
 }
 
-func (BlockChain) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
-	panic("implement me")
+func (bc *BlockChain) SetChainEvents(chainEvents []core.ChainEvent) {
+	bc.ChainEvents = chainEvents
+}
+
+func (bc *BlockChain) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+	subErr := errors.New("Subscription Error")
+
+	var eventCounter int
+	subscription := event.NewSubscription(func(quit <-chan struct{}) error {
+		for _, chainEvent := range bc.ChainEvents {
+			if eventCounter > 1 {
+				return subErr
+			}
+			select {
+			case ch <- chainEvent:
+			case <-quit:
+				return nil
+			}
+			eventCounter++
+		}
+		return nil
+	})
+
+	return subscription
 }

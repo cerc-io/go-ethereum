@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	service2 "github.com/ethereum/go-ethereum/statediff/service"
+	s "github.com/ethereum/go-ethereum/statediff/service"
 	"github.com/ethereum/go-ethereum/statediff/testhelpers/mocks"
 )
 
@@ -18,7 +18,7 @@ func TestServiceLoop(t *testing.T) {
 }
 
 var (
-	eventsChannel = make(chan core.ChainEvent, 10)
+	eventsChannel = make(chan core.ChainEvent)
 
 	parentHeader1 = types.Header{Number: big.NewInt(rand.Int63())}
 	parentHeader2 = types.Header{Number: big.NewInt(rand.Int63())}
@@ -40,20 +40,19 @@ var (
 )
 
 func testServiceLoop(t *testing.T) {
-	eventsChannel <- event1
-	eventsChannel <- event2
 
 	extractor := mocks.Extractor{}
-	close(eventsChannel)
+	//close(eventsChannel)
 
 	blockChain := mocks.BlockChain{}
-	service := service2.StateDiffService{
+	service := s.StateDiffService{
 		Builder:    nil,
 		Extractor:  &extractor,
 		BlockChain: &blockChain,
 	}
 
 	blockChain.SetParentBlockToReturn([]*types.Block{parentBlock1, parentBlock2})
+	blockChain.SetChainEvents([]core.ChainEvent{event1, event2})
 	service.Loop(eventsChannel)
 
 	//parent and current blocks are passed to the extractor
