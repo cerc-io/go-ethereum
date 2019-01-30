@@ -56,10 +56,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/statediff"
+	"github.com/ethereum/go-ethereum/statediff/service"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	cli "gopkg.in/urfave/cli.v1"
-	"github.com/ethereum/go-ethereum/statediff/service"
-	"github.com/ethereum/go-ethereum/statediff"
 )
 
 var (
@@ -711,18 +711,18 @@ var (
 	}
 
 	StateDiffFlag = cli.BoolFlag{
-		Name: "statediff",
+		Name:  "statediff",
 		Usage: "Enables the calculation of state diffs between each block, persists these state diffs the configured persistence mode.",
 	}
 
 	StateDiffModeFlag = cli.StringFlag{
-		Name: "statediff.mode",
+		Name:  "statediff.mode",
 		Usage: "Enables the user to determine which persistence mode they'd like to store the state diffs in.",
 		Value: "csv",
 	}
 
 	StateDiffPathFlag = cli.StringFlag{
-		Name: "statediff.path",
+		Name:  "statediff.path",
 		Usage: "Enables the user to determine where to persist the state diffs.",
 		Value: ".",
 	}
