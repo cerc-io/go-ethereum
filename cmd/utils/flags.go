@@ -60,8 +60,6 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/service"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	cli "gopkg.in/urfave/cli.v1"
-	"github.com/ethereum/go-ethereum/statediff/service"
-	"github.com/ethereum/go-ethereum/statediff"
 )
 
 var (
