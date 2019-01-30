@@ -53,12 +53,12 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 	chainEventSub := sds.BlockChain.SubscribeChainEvent(chainEventCh)
 	defer chainEventSub.Unsubscribe()
 
-	blocksCh := make(chan *types.Block)
+	blocksCh := make(chan *types.Block, 10)
 	errCh := chainEventSub.Err()
 	quitCh := make(chan struct{})
 
 	go func() {
-	HandleLoop:
+	HandleChainEventChLoop:
 		for {
 			select {
 			//Notify chain event channel of events
@@ -67,14 +67,15 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 				blocksCh <- chainEvent.Block
 			//if node stopped
 			case err := <-errCh:
-				log.Debug("Error from chain event subscription, breaking loop.", "error", err)
-				break HandleLoop
+				log.Warn("Error from chain event subscription, breaking loop.", "error", err)
+				break HandleChainEventChLoop
 			}
 		}
 		close(quitCh)
 	}()
 
 	//loop through chain events until no more
+HandleBlockChLoop:
 	for {
 		select {
 		case block := <-blocksCh:
@@ -82,10 +83,10 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 			parentHash := currentBlock.ParentHash()
 			parentBlock := sds.BlockChain.GetBlockByHash(parentHash)
 			if parentBlock == nil {
-				log.Warn("Parent block is nil, skipping this block",
+				log.Error("Parent block is nil, skipping this block",
 					"parent block hash", parentHash.String(),
-						"current block number", currentBlock.Number())
-				break
+					"current block number", currentBlock.Number())
+				break HandleBlockChLoop
 			}
 
 			stateDiffLocation, err := sds.Extractor.ExtractStateDiff(*parentBlock, *currentBlock)
@@ -95,6 +96,7 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 				log.Info("Statediff extracted", "block number", currentBlock.Number(), "location", stateDiffLocation)
 			}
 		case <-quitCh:
+			log.Debug("Quitting the statediff block channel")
 			return
 		}
 	}

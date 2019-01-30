@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,20 +16,20 @@ type BlockChain struct {
 	ChainEvents          []core.ChainEvent
 }
 
-func (mc *BlockChain) SetParentBlockToReturn(blocks []*types.Block) {
+func (mc *BlockChain) SetParentBlocksToReturn(blocks []*types.Block) {
 	mc.parentBlocksToReturn = blocks
 }
 
 func (mc *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 	mc.ParentHashesLookedUp = append(mc.ParentHashesLookedUp, hash)
 
-	var parentBlock types.Block
+	var parentBlock *types.Block
 	if len(mc.parentBlocksToReturn) > 0 {
-		parentBlock = *mc.parentBlocksToReturn[mc.callCount]
+		parentBlock = mc.parentBlocksToReturn[mc.callCount]
 	}
 
 	mc.callCount++
-	return &parentBlock
+	return parentBlock
 }
 
 func (bc *BlockChain) SetChainEvents(chainEvents []core.ChainEvent) {
