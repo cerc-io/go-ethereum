@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	b "github.com/ethereum/go-ethereum/statediff/builder"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 var (
@@ -40,7 +41,8 @@ var (
 )
 
 func TestBuilder(t *testing.T) {
-	_, blockMap := makeChain(3, genesis)
+	_, blockMap, chain := makeChain(3, genesis)
+	defer chain.Stop()
 	block0Hash = common.HexToHash("0xd1721cfd0b29c36fd7a68f25c128e86413fb666a6e1d68e89b875bd299262661")
 	block1Hash = common.HexToHash("0xbbe88de60ba33a3f18c0caa37d827bfb70252e19e40a07cd34041696c35ecb1a")
 	block2Hash = common.HexToHash("0xde75663f36a8497b4bdda2a4b52bd9540b705a2728c7391c59b8cb2cde5a2feb")
@@ -50,7 +52,7 @@ func TestBuilder(t *testing.T) {
 	block1 = blockMap[block1Hash]
 	block2 = blockMap[block2Hash]
 	block3 = blockMap[block3Hash]
-	builder = b.NewBuilder(testdb)
+	builder = b.NewBuilder(testdb, chain)
 
 	type arguments struct {
 		oldStateRoot common.Hash
@@ -287,8 +289,14 @@ func equals(actual, expected interface{}) (success bool) {
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
-func makeChain(n int, parent *types.Block) ([]common.Hash, map[common.Hash]*types.Block) {
+func makeChain(n int, parent *types.Block) ([]common.Hash, map[common.Hash]*types.Block, *core.BlockChain) {
 	blocks, _ := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testdb, n, testChainGen)
+	headers := make([]*types.Header, len(blocks))
+	for i, block := range blocks {
+		headers[i] = block.Header()
+	}
+	chain, _ := core.NewBlockChain(testdb, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
+
 	hashes := make([]common.Hash, n+1)
 	hashes[len(hashes)-1] = parent.Hash()
 	blockm := make(map[common.Hash]*types.Block, n+1)
@@ -297,7 +305,7 @@ func makeChain(n int, parent *types.Block) ([]common.Hash, map[common.Hash]*type
 		hashes[len(hashes)-i-2] = b.Hash()
 		blockm[b.Hash()] = b
 	}
-	return hashes, blockm
+	return hashes, blockm, chain
 }
 
 func testChainGen(i int, block *core.BlockGen) {

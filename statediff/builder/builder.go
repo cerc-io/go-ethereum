@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/core"
 )
 
 type Builder interface {
@@ -37,23 +38,26 @@ type builder struct {
 	chainDB    ethdb.Database
 	trieDB     *trie.Database
 	cachedTrie *trie.Trie
+	blockChain *core.BlockChain
 }
 
-func NewBuilder(db ethdb.Database) *builder {
+func NewBuilder(db ethdb.Database, blockChain *core.BlockChain) *builder {
 	return &builder{
 		chainDB: db,
 		trieDB:  trie.NewDatabase(db),
+		blockChain: blockChain,
 	}
 }
 
 func (sdb *builder) BuildStateDiff(oldStateRoot, newStateRoot common.Hash, blockNumber int64, blockHash common.Hash) (*StateDiff, error) {
 	// Generate tries for old and new states
-	oldTrie, err := trie.New(oldStateRoot, sdb.trieDB)
+	stateCache := sdb.blockChain.StateCache()
+	oldTrie, err := stateCache.OpenTrie(oldStateRoot)
 	if err != nil {
 		log.Error("Error creating trie for oldStateRoot", "error", err)
 		return nil, err
 	}
-	newTrie, err := trie.New(newStateRoot, sdb.trieDB)
+	newTrie, err := stateCache.OpenTrie(newStateRoot)
 	if err != nil {
 		log.Error("Error creating trie for newStateRoot", "error", err)
 		return nil, err

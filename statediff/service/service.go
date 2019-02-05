@@ -28,7 +28,7 @@ type StateDiffService struct {
 }
 
 func NewStateDiffService(db ethdb.Database, blockChain *core.BlockChain, config statediff.Config) (*StateDiffService, error) {
-	builder := b.NewBuilder(db)
+	builder := b.NewBuilder(db, blockChain)
 	publisher, err := p.NewPublisher(config)
 	if err != nil {
 		return nil, err
