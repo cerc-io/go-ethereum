@@ -6,7 +6,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/builder"
+	"github.com/ethereum/go-ethereum/crypto"
 )
+
+
+func AddressToLeafKey(address common.Address) common.Hash {
+	return common.BytesToHash(crypto.Keccak256(address[:]))
+}
 
 var (
 	BlockNumber     = rand.Int63()
@@ -24,18 +30,18 @@ var (
 	}}
 	emptyStorage           = map[string]builder.DiffStorage{}
 	address                = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
+	ContractLeafKey        = AddressToLeafKey(address)
 	anotherAddress         = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
-	ContractAddress        = address.String()
-	AnotherContractAddress = anotherAddress.String()
-	CreatedAccountDiffs    = map[common.Address]builder.AccountDiff{
-		address: {
+	AnotherContractLeafKey = AddressToLeafKey(anotherAddress)
+	CreatedAccountDiffs    = builder.AccountDiffsMap{
+		ContractLeafKey: {
 			Nonce:        builder.DiffUint64{Value: &NewNonceValue},
 			Balance:      builder.DiffBigInt{Value: big.NewInt(NewBalanceValue)},
 			ContractRoot: builder.DiffString{Value: &ContractRoot},
 			CodeHash:     CodeHash,
 			Storage:      storage,
 		},
-		anotherAddress: {
+		AnotherContractLeafKey: {
 			Nonce:        builder.DiffUint64{Value: &NewNonceValue},
 			Balance:      builder.DiffBigInt{Value: big.NewInt(NewBalanceValue)},
 			CodeHash:     CodeHash,
@@ -44,7 +50,7 @@ var (
 		},
 	}
 
-	UpdatedAccountDiffs = map[common.Address]builder.AccountDiff{address: {
+	UpdatedAccountDiffs = builder.AccountDiffsMap{ContractLeafKey: {
 		Nonce:        builder.DiffUint64{Value: &NewNonceValue},
 		Balance:      builder.DiffBigInt{Value: big.NewInt(NewBalanceValue)},
 		CodeHash:     CodeHash,
@@ -52,7 +58,7 @@ var (
 		Storage:      storage,
 	}}
 
-	DeletedAccountDiffs = map[common.Address]builder.AccountDiff{address: {
+	DeletedAccountDiffs = builder.AccountDiffsMap{ContractLeafKey: {
 		Nonce:        builder.DiffUint64{Value: &NewNonceValue},
 		Balance:      builder.DiffBigInt{Value: big.NewInt(NewBalanceValue)},
 		ContractRoot: builder.DiffString{Value: &ContractRoot},
