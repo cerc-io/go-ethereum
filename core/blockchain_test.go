@@ -1816,11 +1816,11 @@ func TestProcessingStateDiffs(t *testing.T) {
 	defaultTrieDirtyCache := 256
 	defaultTrieTimeout := 60 * time.Minute
 	cacheConfig := &CacheConfig{
-		Disabled:             false,
-		TrieCleanLimit:       defaultTrieCleanCache,
-		TrieDirtyLimit:       defaultTrieDirtyCache,
-		TrieTimeLimit:        defaultTrieTimeout,
-		ProcessingStateDiffs: true,
+		Disabled:          false,
+		TrieCleanLimit:    defaultTrieCleanCache,
+		TrieDirtyLimit:    defaultTrieDirtyCache,
+		TrieTimeLimit:     defaultTrieTimeout,
+		ProcessStateDiffs: true,
 	}
 	db := ethdb.NewMemDatabase()
 	genesis := new(Genesis).MustCommit(db)
@@ -1883,7 +1883,7 @@ func TestProcessingStateDiffs(t *testing.T) {
 	}
 }
 
-func containsRootHash(collection []common.Hash, hash common.Hash) bool {
+func containsRootHash(collection []common.Hash, hash common.Hash) bool{
 	for _, n := range collection {
 		if n == hash {
 			return true

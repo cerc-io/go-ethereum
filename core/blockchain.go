@@ -95,7 +95,7 @@ type CacheConfig struct {
 	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
 	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
 	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
-	ProcessingStateDiffs bool          // Whether statediffs processing should be taken into a account before a trie is pruned
+	ProcessStateDiffs bool            // Whether statediffs processing should be taken into a account before a trie is pruned
 }
 
 // BlockChain represents the canonical chain given a database with a genesis
@@ -937,8 +937,17 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 }
 
 func (bc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {
-	count := bc.stateDiffsProcessed[hash]
-	bc.stateDiffsProcessed[hash] = count + 1
+	count, ok := bc.stateDiffsProcessed[hash]
+	if count > 1 {
+		log.Error("count is too high", "count", count, "hash", hash.Hex())
+	}
+
+	if ok {
+		count++
+		bc.stateDiffsProcessed[hash] = count
+	} else {
+		bc.stateDiffsProcessed[hash] = 1
+	}
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
@@ -1025,16 +1034,27 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					bc.triegc.Push(root, number)
 					break
 				}
-
-				if bc.cacheConfig.ProcessingStateDiffs {
-					if !bc.allowedRootToBeDereferenced(root.(common.Hash)) {
+				if bc.cacheConfig.ProcessStateDiffs {
+					count, ok := bc.stateDiffsProcessed[root.(common.Hash)]
+					//if we haven't processed the statediff for a given state root and it's child, don't dereference it yet
+					if !ok {
+						log.Info("Current root NOT found root in stateDiffsProcessed", "root", root.(common.Hash).Hex())
+						bc.triegc.Push(root, number)
+						break
+					}
+					if count < 2 {
+						log.Info("Current root has not yet been processed for it's child", "root", root.(common.Hash).Hex())
 						bc.triegc.Push(root, number)
 						break
 					} else {
+						log.Warn("Current root found in stateDiffsProcessed collection with a count of 2, okay to dereference",
+							"root", root.(common.Hash).Hex(),
+							"blockNumber", uint64(-number),
+							"size of stateDiffsProcessed", len(bc.stateDiffsProcessed))
 						delete(bc.stateDiffsProcessed, root.(common.Hash))
 					}
 				}
-
+				log.Info("DEREFERENCING", "root", root.(common.Hash).Hex())
 				triedb.Dereference(root.(common.Hash))
 			}
 		}
