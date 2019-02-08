@@ -16,6 +16,8 @@ type BlockChain struct {
 	ChainEvents          []core.ChainEvent
 }
 
+func (mc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {}
+
 func (mc *BlockChain) SetParentBlocksToReturn(blocks []*types.Block) {
 	mc.parentBlocksToReturn = blocks
 }

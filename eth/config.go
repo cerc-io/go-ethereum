@@ -59,6 +59,8 @@ var DefaultConfig = Config{
 		Blocks:     20,
 		Percentile: 60,
 	},
+
+	StateDiff: false,
 }
 
 func init() {
@@ -154,6 +156,8 @@ type Config struct {
 
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap *big.Int `toml:",omitempty"`
+
+	StateDiff bool
 }
 
 type configMarshaling struct {
