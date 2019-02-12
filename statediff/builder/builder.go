@@ -207,7 +207,8 @@ func (sdb *builder) buildDiffIncremental(creations AccountsMap, deletions Accoun
 
 func (sdb *builder) buildStorageDiffsEventual(sr common.Hash) (map[string]DiffStorage, error) {
 	log.Debug("Storage Root For Eventual Diff", "root", sr.Hex())
-	sTrie, err := trie.New(sr, sdb.trieDB)
+	stateCache := sdb.blockChain.StateCache()
+	sTrie, err := stateCache.OpenTrie(sr)
 	if err != nil {
 		log.Info("error in build storage diff eventual", "error", err)
 		return nil, err
@@ -219,11 +220,13 @@ func (sdb *builder) buildStorageDiffsEventual(sr common.Hash) (map[string]DiffSt
 
 func (sdb *builder) buildStorageDiffsIncremental(oldSR common.Hash, newSR common.Hash) (map[string]DiffStorage, error) {
 	log.Debug("Storage Roots for Incremental Diff", "old", oldSR.Hex(), "new", newSR.Hex())
-	oldTrie, err := trie.New(oldSR, sdb.trieDB)
+	stateCache := sdb.blockChain.StateCache()
+
+	oldTrie, err := stateCache.OpenTrie(oldSR)
 	if err != nil {
 		return nil, err
 	}
-	newTrie, err := trie.New(newSR, sdb.trieDB)
+	newTrie, err := stateCache.OpenTrie(newSR)
 	if err != nil {
 		return nil, err
 	}
