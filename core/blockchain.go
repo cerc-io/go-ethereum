@@ -1038,23 +1038,23 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					count, ok := bc.stateDiffsProcessed[root.(common.Hash)]
 					//if we haven't processed the statediff for a given state root and it's child, don't dereference it yet
 					if !ok {
-						log.Info("Current root NOT found root in stateDiffsProcessed", "root", root.(common.Hash).Hex())
+						log.Debug("Current root NOT found root in stateDiffsProcessed", "root", root.(common.Hash).Hex())
 						bc.triegc.Push(root, number)
 						break
 					}
 					if count < 2 {
-						log.Info("Current root has not yet been processed for it's child", "root", root.(common.Hash).Hex())
+						log.Debug("Current root has not yet been processed for it's child", "root", root.(common.Hash).Hex())
 						bc.triegc.Push(root, number)
 						break
 					} else {
-						log.Warn("Current root found in stateDiffsProcessed collection with a count of 2, okay to dereference",
+						log.Debug("Current root found in stateDiffsProcessed collection with a count of 2, okay to dereference",
 							"root", root.(common.Hash).Hex(),
 							"blockNumber", uint64(-number),
 							"size of stateDiffsProcessed", len(bc.stateDiffsProcessed))
 						delete(bc.stateDiffsProcessed, root.(common.Hash))
 					}
 				}
-				log.Info("DEREFERENCING", "root", root.(common.Hash).Hex())
+				log.Debug("Dereferencing", "root", root.(common.Hash).Hex())
 				triedb.Dereference(root.(common.Hash))
 			}
 		}
