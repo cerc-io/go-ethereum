@@ -36,8 +36,6 @@ type Builder interface {
 
 type builder struct {
 	chainDB    ethdb.Database
-	trieDB     *trie.Database
-	cachedTrie *trie.Trie
 	blockChain *core.BlockChain
 }
 
@@ -46,7 +44,6 @@ type AccountsMap map[common.Hash]*state.Account
 func NewBuilder(db ethdb.Database, blockChain *core.BlockChain) *builder {
 	return &builder{
 		chainDB: db,
-		trieDB:  trie.NewDatabase(db),
 		blockChain: blockChain,
 	}
 }
@@ -121,7 +118,6 @@ func (sdb *builder) collectDiffNodes(a, b trie.NodeIterator) (AccountsMap, error
 	for {
 		log.Debug("Current Path and Hash", "path", pathToStr(it), "hashold", it.Hash())
 		if it.Leaf() {
-
 			leafKey := make([]byte, len(it.LeafKey()))
 			copy(leafKey, it.LeafKey())
 			leafKeyHash := common.BytesToHash(leafKey)
