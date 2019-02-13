@@ -10,11 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	b "github.com/ethereum/go-ethereum/statediff/builder"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/statediff/testhelpers"
 )
 
@@ -23,7 +23,7 @@ var (
 
 	testBankKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	testBankAddress = crypto.PubkeyToAddress(testBankKey.PublicKey) //0x71562b71999873DB5b286dF957af199Ec94617F7
-	bankLeafKey = testhelpers.AddressToLeafKey(testBankAddress)
+	bankLeafKey     = testhelpers.AddressToLeafKey(testBankAddress)
 	testBankFunds   = big.NewInt(100000000)
 	genesis         = core.GenesisBlockForTesting(testdb, testBankAddress, testBankFunds)
 
@@ -35,7 +35,7 @@ var (
 	account2LeafKey                                = testhelpers.AddressToLeafKey(account2Addr)
 	contractCode                                   = common.Hex2Bytes("608060405234801561001057600080fd5b50602060405190810160405280600160ff16815250600090600161003592919061003b565b506100a5565b826064810192821561006f579160200282015b8281111561006e578251829060ff1690559160200191906001019061004e565b5b50905061007c9190610080565b5090565b6100a291905b8082111561009e576000816000905550600101610086565b5090565b90565b610124806100b46000396000f3fe6080604052348015600f57600080fd5b5060043610604f576000357c01000000000000000000000000000000000000000000000000000000009004806360cd2685146054578063c16431b9146093575b600080fd5b607d60048036036020811015606857600080fd5b810190808035906020019092919050505060c8565b6040518082815260200191505060405180910390f35b60c66004803603604081101560a757600080fd5b81019080803590602001909291908035906020019092919050505060e0565b005b6000808260648110151560d757fe5b01549050919050565b8060008360648110151560ef57fe5b0181905550505056fea165627a7a7230582064e918c3140a117bf3aa65865a9b9e83fae21ad1720506e7933b2a9f54bb40260029")
 	contractAddr                                   common.Address
-	contractLeafKey common.Hash
+	contractLeafKey                                common.Hash
 	emptyAccountDiffEventualMap                    = make(b.AccountDiffsMap)
 	emptyAccountDiffIncrementalMap                 = make(b.AccountDiffsMap)
 	block0Hash, block1Hash, block2Hash, block3Hash common.Hash
@@ -43,7 +43,7 @@ var (
 	builder                                        b.Builder
 	miningReward                                   = int64(2000000000000000000)
 	burnAddress                                    = common.HexToAddress("0x0")
-	burnLeafKey = testhelpers.AddressToLeafKey(burnAddress)
+	burnLeafKey                                    = testhelpers.AddressToLeafKey(burnAddress)
 )
 
 func TestBuilder(t *testing.T) {

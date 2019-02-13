@@ -1827,7 +1827,7 @@ func TestProcessingStateDiffs(t *testing.T) {
 	numberOfBlocks := triesInMemory
 	engine := ethash.NewFaker()
 	blockchain, _ := NewBlockChain(db, cacheConfig, params.AllEthashProtocolChanges, engine, vm.Config{}, nil)
-	blocks := makeBlockChain(genesis, numberOfBlocks + 1, engine, db, canonicalSeed)
+	blocks := makeBlockChain(genesis, numberOfBlocks+1, engine, db, canonicalSeed)
 	_, err := blockchain.InsertChain(blocks)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
@@ -1854,7 +1854,7 @@ func TestProcessingStateDiffs(t *testing.T) {
 		t.Error("state root count not correct", "want", 2, "got", value)
 	}
 
-	moreBlocks := makeBlockChain(blocks[len(blocks) - 1], 1, engine, db, canonicalSeed)
+	moreBlocks := makeBlockChain(blocks[len(blocks)-1], 1, engine, db, canonicalSeed)
 	_, err = blockchain.InsertChain(moreBlocks)
 
 	//a root hash can be dereferenced when it's state diff and it's child's state diff have been processed
@@ -1883,7 +1883,7 @@ func TestProcessingStateDiffs(t *testing.T) {
 	}
 }
 
-func containsRootHash(collection []common.Hash, hash common.Hash) bool{
+func containsRootHash(collection []common.Hash, hash common.Hash) bool {
 	for _, n := range collection {
 		if n == hash {
 			return true

@@ -5,10 +5,9 @@ import (
 	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/statediff/builder"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/statediff/builder"
 )
-
 
 func AddressToLeafKey(address common.Address) common.Hash {
 	return common.BytesToHash(crypto.Keccak256(address[:]))

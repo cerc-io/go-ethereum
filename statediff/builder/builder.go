@@ -22,12 +22,12 @@ package builder
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/core"
 )
 
 type Builder interface {
@@ -43,7 +43,7 @@ type AccountsMap map[common.Hash]*state.Account
 
 func NewBuilder(db ethdb.Database, blockChain *core.BlockChain) *builder {
 	return &builder{
-		chainDB: db,
+		chainDB:    db,
 		blockChain: blockChain,
 	}
 }
