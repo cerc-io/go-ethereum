@@ -1883,7 +1883,7 @@ func TestProcessingStateDiffs(t *testing.T) {
 	}
 }
 
-func containsRootHash(collection []common.Hash, hash common.Hash) bool{
+func containsRootHash(collection []common.Hash, hash common.Hash) bool {
 	for _, n := range collection {
 		if n == hash {
 			return true
