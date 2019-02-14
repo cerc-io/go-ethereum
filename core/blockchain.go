@@ -938,9 +938,6 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 
 func (bc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {
 	count, ok := bc.stateDiffsProcessed[hash]
-	if count > 1 {
-		log.Error("count is too high", "count", count, "hash", hash.Hex())
-	}
 
 	if ok {
 		count++
@@ -1036,28 +1033,14 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 
 				if bc.cacheConfig.ProcessStateDiffs {
-					count, ok := bc.stateDiffsProcessed[root.(common.Hash)]
-					//if we haven't processed the statediff for a given state root and it's child, don't dereference it yet
-					if !ok {
-						log.Debug("Current root NOT found root in stateDiffsProcessed", "root", root.(common.Hash).Hex())
-						bc.triegc.Push(root, number)
-						break
-					}
-					if count < 2 {
-						log.Debug("Current root has not yet been processed for it's child", "root", root.(common.Hash).Hex())
+					if !bc.allowedRootToBeDereferenced(root.(common.Hash)) {
 						bc.triegc.Push(root, number)
 						break
 					} else {
-						log.Debug("Current root found in stateDiffsProcessed collection with a count of 2, okay to dereference",
-							"root", root.(common.Hash).Hex(),
-							"blockNumber", uint64(-number),
-							"size of stateDiffsProcessed", len(bc.stateDiffsProcessed))
-
 						delete(bc.stateDiffsProcessed, root.(common.Hash))
 					}
 				}
 
-				log.Debug("Dereferencing", "root", root.(common.Hash).Hex())
 				triedb.Dereference(root.(common.Hash))
 			}
 		}
@@ -1110,6 +1093,13 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	bc.futureBlocks.Remove(block.Hash())
 	return status, nil
+}
+
+//if we haven't processed the statediff for a given state root and it's child, don't dereference it yet
+func (bc *BlockChain) allowedRootToBeDereferenced(root common.Hash) bool {
+	diffProcessedForSelfAndChildCount := 2
+	count := bc.stateDiffsProcessed[root]
+	return count >= diffProcessedForSelfAndChildCount
 }
 
 // addFutureBlock checks if the block is within the max allowed window to get
