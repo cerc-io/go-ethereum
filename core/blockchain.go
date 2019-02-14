@@ -938,9 +938,6 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 
 func (bc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {
 	count, ok := bc.stateDiffsProcessed[hash]
-	if count > 1 {
-		log.Error("count is too high", "count", count, "hash", hash.Hex())
-	}
 
 	if ok {
 		count++
@@ -1035,15 +1032,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 					break
 				}
 				if bc.cacheConfig.ProcessStateDiffs {
-					count, ok := bc.stateDiffsProcessed[root.(common.Hash)]
-					//if we haven't processed the statediff for a given state root and it's child, don't dereference it yet
-					if !ok {
-						log.Debug("Current root NOT found root in stateDiffsProcessed", "root", root.(common.Hash).Hex())
-						bc.triegc.Push(root, number)
-						break
-					}
-					if count < 2 {
-						log.Debug("Current root has not yet been processed for it's child", "root", root.(common.Hash).Hex())
+					if !bc.allowedRootToBeDereferenced(root.(common.Hash)) {
 						bc.triegc.Push(root, number)
 						break
 					} else {

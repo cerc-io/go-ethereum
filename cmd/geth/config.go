@@ -158,10 +158,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.ConstantinopleOverride = new(big.Int).SetUint64(ctx.GlobalUint64(utils.ConstantinopleOverrideFlag.Name))
 	}
 
-	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
-		cfg.Eth.StateDiff = true
-	}
-
 	utils.RegisterEthService(stack, &cfg.Eth)
 
 	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
