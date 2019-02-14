@@ -3,6 +3,8 @@ package mocks
 import (
 	"errors"
 
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -45,6 +47,7 @@ func (bc *BlockChain) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subsc
 	subscription := event.NewSubscription(func(quit <-chan struct{}) error {
 		for _, chainEvent := range bc.ChainEvents {
 			if eventCounter > 1 {
+				time.Sleep(250 * time.Millisecond)
 				return subErr
 			}
 			select {
