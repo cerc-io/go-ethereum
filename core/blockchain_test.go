@@ -1816,11 +1816,11 @@ func TestProcessingStateDiffs(t *testing.T) {
 	defaultTrieDirtyCache := 256
 	defaultTrieTimeout := 60 * time.Minute
 	cacheConfig := &CacheConfig{
-		Disabled:          false,
-		TrieCleanLimit:    defaultTrieCleanCache,
-		TrieDirtyLimit:    defaultTrieDirtyCache,
-		TrieTimeLimit:     defaultTrieTimeout,
-		ProcessStateDiffs: true,
+		Disabled:             false,
+		TrieCleanLimit:       defaultTrieCleanCache,
+		TrieDirtyLimit:       defaultTrieDirtyCache,
+		TrieTimeLimit:        defaultTrieTimeout,
+		ProcessingStateDiffs: true,
 	}
 	db := ethdb.NewMemDatabase()
 	genesis := new(Genesis).MustCommit(db)

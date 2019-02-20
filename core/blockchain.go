@@ -937,14 +937,8 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 }
 
 func (bc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {
-	count, ok := bc.stateDiffsProcessed[hash]
-
-	if ok {
-		count++
-		bc.stateDiffsProcessed[hash] = count
-	} else {
-		bc.stateDiffsProcessed[hash] = 1
-	}
+	count := bc.stateDiffsProcessed[hash]
+	bc.stateDiffsProcessed[hash] = count + 1
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
