@@ -157,10 +157,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			EVMInterpreter:          config.EVMInterpreter,
 		}
 		cacheConfig = &core.CacheConfig{
-			Disabled:       config.NoPruning,
-			TrieCleanLimit: config.TrieCleanCache,
-			TrieDirtyLimit: config.TrieDirtyCache,
-			TrieTimeLimit:  config.TrieTimeout,
+			Disabled:             config.NoPruning,
+			TrieCleanLimit:       config.TrieCleanCache,
+			TrieDirtyLimit:       config.TrieDirtyCache,
+			TrieTimeLimit:        config.TrieTimeout,
+			ProcessingStateDiffs: config.StateDiff,
 		}
 	)
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, eth.chainConfig, eth.engine, vmConfig, eth.shouldPreserve)

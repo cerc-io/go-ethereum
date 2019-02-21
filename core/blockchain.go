@@ -71,10 +71,11 @@ const (
 // CacheConfig contains the configuration values for the trie caching/pruning
 // that's resident in a blockchain.
 type CacheConfig struct {
-	Disabled       bool          // Whether to disable trie write caching (archive node)
-	TrieCleanLimit int           // Memory allowance (MB) to use for caching trie nodes in memory
-	TrieDirtyLimit int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
-	TrieTimeLimit  time.Duration // Time limit after which to flush the current in-memory trie to disk
+	Disabled             bool          // Whether to disable trie write caching (archive node)
+	TrieCleanLimit       int           // Memory allowance (MB) to use for caching trie nodes in memory
+	TrieDirtyLimit       int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
+	TrieTimeLimit        time.Duration // Time limit after which to flush the current in-memory trie to disk
+	ProcessingStateDiffs bool          // Whether statediffs processing should be taken into a account before a trie is pruned
 }
 
 // BlockChain represents the canonical chain given a database with a genesis
@@ -136,6 +137,8 @@ type BlockChain struct {
 
 	badBlocks      *lru.Cache              // Bad block cache
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
+
+	stateDiffsProcessed map[common.Hash]int
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -155,24 +158,26 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	badBlocks, _ := lru.New(badBlockLimit)
-
+	stateDiffsProcessed := make(map[common.Hash]int)
 	bc := &BlockChain{
-		chainConfig:    chainConfig,
-		cacheConfig:    cacheConfig,
-		db:             db,
-		triegc:         prque.New(nil),
-		stateCache:     state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
-		quit:           make(chan struct{}),
-		shouldPreserve: shouldPreserve,
-		bodyCache:      bodyCache,
-		bodyRLPCache:   bodyRLPCache,
-		receiptsCache:  receiptsCache,
-		blockCache:     blockCache,
-		futureBlocks:   futureBlocks,
-		engine:         engine,
-		vmConfig:       vmConfig,
-		badBlocks:      badBlocks,
+		chainConfig:         chainConfig,
+		cacheConfig:         cacheConfig,
+		db:                  db,
+		triegc:              prque.New(nil),
+		stateCache:          state.NewDatabaseWithCache(db, cacheConfig.TrieCleanLimit),
+		quit:                make(chan struct{}),
+		shouldPreserve:      shouldPreserve,
+		bodyCache:           bodyCache,
+		bodyRLPCache:        bodyRLPCache,
+		receiptsCache:       receiptsCache,
+		blockCache:          blockCache,
+		futureBlocks:        futureBlocks,
+		engine:              engine,
+		vmConfig:            vmConfig,
+		badBlocks:           badBlocks,
+		stateDiffsProcessed: stateDiffsProcessed,
 	}
+
 	bc.SetValidator(NewBlockValidator(chainConfig, bc, engine))
 	bc.SetProcessor(NewStateProcessor(chainConfig, bc, engine))
 
@@ -922,6 +927,11 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 	return nil
 }
 
+func (bc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {
+	count := bc.stateDiffsProcessed[hash]
+	bc.stateDiffsProcessed[hash] = count + 1
+}
+
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
@@ -994,6 +1004,16 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 					bc.triegc.Push(root, number)
 					break
 				}
+
+				if bc.cacheConfig.ProcessingStateDiffs {
+					if !bc.allowedRootToBeDereferenced(root.(common.Hash)) {
+						bc.triegc.Push(root, number)
+						break
+					} else {
+						delete(bc.stateDiffsProcessed, root.(common.Hash))
+					}
+				}
+
 				triedb.Dereference(root.(common.Hash))
 			}
 		}
@@ -1046,6 +1066,15 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	}
 	bc.futureBlocks.Remove(block.Hash())
 	return status, nil
+}
+
+// since we need the state tries of the current block and its parent in-memory
+// in order to process statediffs, we should avoid dereferencing roots until
+// its statediff and its child have been processed
+func (bc *BlockChain) allowedRootToBeDereferenced(root common.Hash) bool {
+	diffProcessedForSelfAndChildCount := 2
+	count := bc.stateDiffsProcessed[root]
+	return count >= diffProcessedForSelfAndChildCount
 }
 
 // addFutureBlock checks if the block is within the max allowed window to get

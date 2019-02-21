@@ -59,6 +59,8 @@ var DefaultConfig = Config{
 		Blocks:     20,
 		Percentile: 60,
 	},
+
+	StateDiff: false,
 }
 
 func init() {
@@ -135,6 +137,8 @@ type Config struct {
 
 	// Constantinople block override (TODO: remove after the fork)
 	ConstantinopleOverride *big.Int
+
+	StateDiff bool
 }
 
 type configMarshaling struct {

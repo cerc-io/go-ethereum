@@ -155,7 +155,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if ctx.GlobalIsSet(utils.ConstantinopleOverrideFlag.Name) {
 		cfg.Eth.ConstantinopleOverride = new(big.Int).SetUint64(ctx.GlobalUint64(utils.ConstantinopleOverrideFlag.Name))
 	}
+
 	utils.RegisterEthService(stack, &cfg.Eth)
+
+	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
+		cfg.Eth.StateDiff = true
+		utils.RegisterStateDiffService(stack, ctx)
+	}
 
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
@@ -181,9 +187,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
 	}
 
-	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
-		utils.RegisterStateDiffService(stack, ctx)
-	}
 	return stack
 }
 
