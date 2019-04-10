@@ -1,19 +1,19 @@
 package service
 
 import (
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/statediff"
-	b "github.com/ethereum/go-ethereum/statediff/builder"
-	e "github.com/ethereum/go-ethereum/statediff/extractor"
-	p "github.com/ethereum/go-ethereum/statediff/publisher"
+	"bytes"
+	"fmt"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/statediff/builder"
 )
 
 type BlockChain interface {
@@ -23,31 +23,49 @@ type BlockChain interface {
 }
 
 type StateDiffService struct {
-	Builder    *b.Builder
-	Extractor  e.Extractor
-	BlockChain BlockChain
+	sync.Mutex
+	Builder       builder.Builder
+	BlockChain    BlockChain
+	QuitChan      chan bool
+	Subscriptions Subscriptions
 }
 
-func NewStateDiffService(db ethdb.Database, blockChain *core.BlockChain, config statediff.Config) (*StateDiffService, error) {
-	builder := b.NewBuilder(db, blockChain)
-	publisher, err := p.NewPublisher(config)
-	if err != nil {
-		return nil, err
-	}
+type Subscriptions map[rpc.ID]subscription
 
-	extractor := e.NewExtractor(builder, publisher)
+type subscription struct {
+	PayloadChan chan<- StateDiffPayload
+	QuitChan    chan<- bool
+}
+
+type StateDiffPayload struct {
+	BlockRlp  []byte            `json:"block"`
+	StateDiff builder.StateDiff `json:"state_diff"`
+	Err       error             `json:"error"`
+}
+
+func NewStateDiffService(db ethdb.Database, blockChain *core.BlockChain) (*StateDiffService, error) {
 	return &StateDiffService{
-		BlockChain: blockChain,
-		Extractor:  extractor,
+		BlockChain:    blockChain,
+		Builder:       builder.NewBuilder(db, blockChain),
+		QuitChan:      make(chan bool),
+		Subscriptions: make(Subscriptions),
 	}, nil
 }
 
-func (StateDiffService) Protocols() []p2p.Protocol {
+func (sds *StateDiffService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{}
 }
 
-func (StateDiffService) APIs() []rpc.API {
-	return []rpc.API{}
+// APIs returns the RPC descriptors the Whisper implementation offers
+func (sds *StateDiffService) APIs() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: APIName,
+			Version:   APIVersion,
+			Service:   NewPublicStateDiffAPI(sds),
+			Public:    true,
+		},
+	}
 }
 
 func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
@@ -56,7 +74,6 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 
 	blocksCh := make(chan *types.Block, 10)
 	errCh := chainEventSub.Err()
-	quitCh := make(chan struct{})
 
 	go func() {
 	HandleChainEventChLoop:
@@ -66,13 +83,15 @@ func (sds *StateDiffService) Loop(chainEventCh chan core.ChainEvent) {
 			case chainEvent := <-chainEventCh:
 				log.Debug("Event received from chainEventCh", "event", chainEvent)
 				blocksCh <- chainEvent.Block
-			//if node stopped
+				//if node stopped
 			case err := <-errCh:
 				log.Warn("Error from chain event subscription, breaking loop.", "error", err)
+				close(sds.QuitChan)
+				break HandleChainEventChLoop
+			case <-sds.QuitChan:
 				break HandleChainEventChLoop
 			}
 		}
-		close(quitCh)
 	}()
 
 	//loop through chain events until no more
@@ -90,19 +109,75 @@ HandleBlockChLoop:
 				break HandleBlockChLoop
 			}
 
-			stateDiffLocation, err := sds.Extractor.ExtractStateDiff(*parentBlock, *currentBlock)
+			stateDiff, err := sds.Builder.BuildStateDiff(parentBlock.Root(), currentBlock.Root(), currentBlock.Number().Int64(), currentBlock.Hash())
 			if err != nil {
-				log.Error("Error extracting statediff", "block number", currentBlock.Number(), "error", err)
-			} else {
-				log.Info("Statediff extracted", "block number", currentBlock.Number(), "location", stateDiffLocation)
-				sds.BlockChain.AddToStateDiffProcessedCollection(parentBlock.Root())
-				sds.BlockChain.AddToStateDiffProcessedCollection(currentBlock.Root())
+				log.Error("Error building statediff", "block number", currentBlock.Number(), "error", err)
 			}
-		case <-quitCh:
+			rlpBuff := new(bytes.Buffer)
+			currentBlock.EncodeRLP(rlpBuff)
+			blockRlp := rlpBuff.Bytes()
+			payload := StateDiffPayload{
+				BlockRlp:  blockRlp,
+				StateDiff: *stateDiff,
+				Err:       err,
+			}
+			// If we have any websocket subscription listening in, send the data to them
+			sds.Send(payload)
+		case <-sds.QuitChan:
 			log.Debug("Quitting the statediff block channel")
+			sds.Close()
 			return
 		}
 	}
+}
+
+func (sds *StateDiffService) Subscribe(id rpc.ID, sub chan<- StateDiffPayload, quitChan chan<- bool) {
+	log.Info("Subscribing to the statediff service")
+	sds.Lock()
+	sds.Subscriptions[id] = subscription{
+		PayloadChan: sub,
+		QuitChan:    quitChan,
+	}
+	sds.Unlock()
+}
+
+func (sds *StateDiffService) Unsubscribe(id rpc.ID) error {
+	log.Info("Unsubscribing from the statediff service")
+	sds.Lock()
+	_, ok := sds.Subscriptions[id]
+	if !ok {
+		return fmt.Errorf("cannot unsubscribe; subscription for id %s does not exist", id)
+	}
+	delete(sds.Subscriptions, id)
+	sds.Unlock()
+	return nil
+}
+
+func (sds *StateDiffService) Send(payload StateDiffPayload) {
+	sds.Lock()
+	for id, sub := range sds.Subscriptions {
+		select {
+		case sub.PayloadChan <- payload:
+			log.Info("sending state diff payload to subscription %s", id)
+		default:
+			log.Info("unable to send payload to subscription %s; channel has no receiver", id)
+		}
+	}
+	sds.Unlock()
+}
+
+func (sds *StateDiffService) Close() {
+	sds.Lock()
+	for id, sub := range sds.Subscriptions {
+		select {
+		case sub.QuitChan <- true:
+			delete(sds.Subscriptions, id)
+			log.Info("closing subscription %s", id)
+		default:
+			log.Info("unable to close subscription %s; channel has no receiver", id)
+		}
+	}
+	sds.Unlock()
 }
 
 func (sds *StateDiffService) Start(server *p2p.Server) error {
@@ -114,7 +189,8 @@ func (sds *StateDiffService) Start(server *p2p.Server) error {
 	return nil
 }
 
-func (StateDiffService) Stop() error {
+func (sds *StateDiffService) Stop() error {
 	log.Info("Stopping statediff service")
+	close(sds.QuitChan)
 	return nil
 }

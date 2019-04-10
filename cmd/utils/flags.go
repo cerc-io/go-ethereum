@@ -56,7 +56,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/statediff"
 	"github.com/ethereum/go-ethereum/statediff/service"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	cli "gopkg.in/urfave/cli.v1"
@@ -714,18 +713,6 @@ var (
 		Name:  "statediff",
 		Usage: "Enables the calculation of state diffs between each block, persists these state diffs the configured persistence mode.",
 	}
-
-	StateDiffModeFlag = cli.StringFlag{
-		Name:  "statediff.mode",
-		Usage: "Enables the user to determine which persistence mode they'd like to store the state diffs in.",
-		Value: "csv",
-	}
-
-	StateDiffPathFlag = cli.StringFlag{
-		Name:  "statediff.path",
-		Usage: "Enables the user to determine where to persist the state diffs.",
-		Value: ".",
-	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -936,6 +923,9 @@ func setWS(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(WSApiFlag.Name) {
 		cfg.WSModules = splitAndTrim(ctx.GlobalString(WSApiFlag.Name))
+	}
+	if ctx.GlobalBool(StateDiffFlag.Name) {
+		cfg.WSModules = append(cfg.WSModules, "statediff")
 	}
 }
 
@@ -1535,29 +1525,14 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 	}
 }
 
+// RegisterStateDiffService configures and registers a service to stream state diff data over RPC
 func RegisterStateDiffService(stack *node.Node, ctx *cli.Context) {
-	//based on the context, if path and mode are set, update the config here
-	//otherwise pass in an empty config
-
-	modeFlag := ctx.GlobalString(StateDiffModeFlag.Name)
-	mode, err := statediff.NewMode(modeFlag)
-	if err != nil {
-		Fatalf("Failed to register State Diff Service", err)
-	}
-
-	path := ctx.GlobalString(StateDiffPathFlag.Name)
-
-	config := statediff.Config{
-		Mode: mode,
-		Path: path,
-	}
-
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		var ethServ *eth.Ethereum
 		ctx.Service(&ethServ)
 		chainDb := ethServ.ChainDb()
 		blockChain := ethServ.BlockChain()
-		return service.NewStateDiffService(chainDb, blockChain, config)
+		return service.NewStateDiffService(chainDb, blockChain)
 	}); err != nil {
 		Fatalf("Failed to register State Diff Service", err)
 	}

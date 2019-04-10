@@ -27,6 +27,7 @@ import (
 )
 
 type AccountDiffsMap map[common.Hash]AccountDiff
+
 type StateDiff struct {
 	BlockNumber     int64           `json:"blockNumber"      gencodec:"required"`
 	BlockHash       common.Hash     `json:"blockHash"        gencodec:"required"`
@@ -77,3 +78,27 @@ type DiffUint64 struct {
 type DiffBigInt struct {
 	Value *big.Int `json:"value"  gencodec:"optional"`
 }
+
+/*
+// State trie leaf is just a short node, below
+// that has an rlp encoded account as the value
+
+
+// SO each account diffs map is reall a map of shortnode keys to values
+// Flatten to a slice of short nodes?
+
+// Need to coerce into:
+
+type TrieNode struct {
+	// leaf, extension or branch
+	nodeKind string
+
+	// If leaf or extension: [0] is key, [1] is val.
+	// If branch: [0] - [16] are children.
+	elements []interface{}
+
+	// IPLD block information
+	cid     *cid.Cid
+	rawdata []byte
+}
+*/
