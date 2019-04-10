@@ -50,7 +50,6 @@ func testErrorInChainEventLoop(t *testing.T) {
 	blockChain := mocks.BlockChain{}
 	service := s.StateDiffService{
 		Builder:    nil,
-		Extractor:  &extractor,
 		BlockChain: &blockChain,
 	}
 
@@ -85,7 +84,6 @@ func testErrorInBlockLoop(t *testing.T) {
 	blockChain := mocks.BlockChain{}
 	service := s.StateDiffService{
 		Builder:    nil,
-		Extractor:  &extractor,
 		BlockChain: &blockChain,
 	}
 
