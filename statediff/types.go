@@ -17,23 +17,30 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package builder
+package statediff
 
 import (
 	"encoding/json"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 )
 
-type AccountDiffsMap map[common.Hash]AccountDiff
+type AccountsMap map[common.Hash]*accountWrapper
+
+type accountWrapper struct {
+	Account  state.Account
+	RawKey   []byte
+	RawValue []byte
+	Proof    [][]byte
+	Path     []byte
+}
 
 type StateDiff struct {
-	BlockNumber     int64           `json:"blockNumber"      gencodec:"required"`
-	BlockHash       common.Hash     `json:"blockHash"        gencodec:"required"`
-	CreatedAccounts AccountDiffsMap `json:"createdAccounts"  gencodec:"required"`
-	DeletedAccounts AccountDiffsMap `json:"deletedAccounts"  gencodec:"required"`
-	UpdatedAccounts AccountDiffsMap `json:"updatedAccounts"  gencodec:"required"`
+	BlockNumber     int64           `json:"blockNumber"	gencodec:"required"`
+	BlockHash       common.Hash     `json:"blockHash" 	    gencodec:"required"`
+	CreatedAccounts AccountDiffsMap `json:"createdAccounts" gencodec:"required"`
+	DeletedAccounts AccountDiffsMap `json:"deletedAccounts" gencodec:"required"`
+	UpdatedAccounts AccountDiffsMap `json:"updatedAccounts" gencodec:"required"`
 
 	encoded []byte
 	err     error
@@ -57,26 +64,21 @@ func (sd *StateDiff) Encode() ([]byte, error) {
 	return sd.encoded, sd.err
 }
 
+type AccountDiffsMap map[common.Hash]AccountDiff
+
 type AccountDiff struct {
-	Nonce        DiffUint64             `json:"nonce"         gencodec:"required"`
-	Balance      DiffBigInt             `json:"balance"       gencodec:"required"`
-	CodeHash     string                 `json:"codeHash"      gencodec:"required"`
-	ContractRoot DiffString             `json:"contractRoot"  gencodec:"required"`
-	Storage      map[string]DiffStorage `json:"storage"       gencodec:"required"`
+	Key     []byte        `json:"key"         gencodec:"required"`
+	Value   []byte        `json:"value"       gencodec:"required"`
+	Proof   [][]byte      `json:"proof"       gencodec:"required"`
+	Storage []StorageDiff `json:"storage"     gencodec:"required"`
+	Path    []byte        `json:"path"        gencodec:"required"`
 }
 
-type DiffStorage struct {
-	Key   *string `json:"key" gencodec:"optional"`
-	Value *string `json:"value"  gencodec:"optional"`
-}
-type DiffString struct {
-	Value *string `json:"value"  gencodec:"optional"`
-}
-type DiffUint64 struct {
-	Value *uint64 `json:"value"  gencodec:"optional"`
-}
-type DiffBigInt struct {
-	Value *big.Int `json:"value"  gencodec:"optional"`
+type StorageDiff struct {
+	Key   []byte   `json:"key"         gencodec:"required"`
+	Value []byte   `json:"value"       gencodec:"required"`
+	Proof [][]byte `json:"proof"       gencodec:"required"`
+	Path  []byte   `json:"path"        gencodec:"required"`
 }
 
 /*
