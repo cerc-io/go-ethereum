@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff"
 )
 
+// Builder is a mock state diff builder
 type Builder struct {
 	OldStateRoot common.Hash
 	NewStateRoot common.Hash
@@ -30,6 +31,7 @@ type Builder struct {
 	builderError error
 }
 
+// BuildStateDiff mock method
 func (builder *Builder) BuildStateDiff(oldStateRoot, newStateRoot common.Hash, blockNumber int64, blockHash common.Hash) (statediff.StateDiff, error) {
 	builder.OldStateRoot = oldStateRoot
 	builder.NewStateRoot = newStateRoot
@@ -39,10 +41,12 @@ func (builder *Builder) BuildStateDiff(oldStateRoot, newStateRoot common.Hash, b
 	return builder.stateDiff, builder.builderError
 }
 
+// SetStateDiffToBuild mock method
 func (builder *Builder) SetStateDiffToBuild(stateDiff statediff.StateDiff) {
 	builder.stateDiff = stateDiff
 }
 
+// SetBuilderError mock method
 func (builder *Builder) SetBuilderError(err error) {
 	builder.builderError = err
 }

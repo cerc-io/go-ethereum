@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	cli "gopkg.in/urfave/cli.v1"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -56,9 +58,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/statediff/service"
+	"github.com/ethereum/go-ethereum/statediff"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	cli "gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -1532,7 +1533,7 @@ func RegisterStateDiffService(stack *node.Node, ctx *cli.Context) {
 		ctx.Service(&ethServ)
 		chainDb := ethServ.ChainDb()
 		blockChain := ethServ.BlockChain()
-		return service.NewStateDiffService(chainDb, blockChain)
+		return statediff.NewStateDiffService(chainDb, blockChain)
 	}); err != nil {
 		Fatalf("Failed to register State Diff Service", err)
 	}

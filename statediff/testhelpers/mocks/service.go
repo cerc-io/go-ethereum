@@ -26,26 +26,29 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/statediff"
 )
 
+// MockStateDiffService is a mock state diff service
 type MockStateDiffService struct {
 	sync.Mutex
-	Builder             statediff.Builder
-	ReturnProtocol      []p2p.Protocol
-	ReturnAPIs          []rpc.API
-	MockBlockChan       chan *types.Block
-	MockParentBlockChan chan *types.Block
-	QuitChan            chan bool
-	Subscriptions       statediff.Subscriptions
+	Builder         statediff.Builder
+	ReturnProtocol  []p2p.Protocol
+	ReturnAPIs      []rpc.API
+	BlockChan       chan *types.Block
+	ParentBlockChan chan *types.Block
+	QuitChan        chan bool
+	Subscriptions   map[rpc.ID]statediff.Subscription
 }
 
+// Protocols mock method
 func (sds *MockStateDiffService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{}
 }
 
-// APIs returns the RPC descriptors the Whisper implementation offers
+// APIs mock method
 func (sds *MockStateDiffService) APIs() []rpc.API {
 	return []rpc.API{
 		{
@@ -57,14 +60,15 @@ func (sds *MockStateDiffService) APIs() []rpc.API {
 	}
 }
 
+// Loop mock method
 func (sds *MockStateDiffService) Loop(chan core.ChainEvent) {
 	//loop through chain events until no more
 HandleBlockChLoop:
 	for {
 		select {
-		case block := <-sds.MockBlockChan:
+		case block := <-sds.BlockChan:
 			currentBlock := block
-			parentBlock := <-sds.MockParentBlockChan
+			parentBlock := <-sds.ParentBlockChan
 			parentHash := parentBlock.Hash()
 			if parentBlock == nil {
 				log.Error("Parent block is nil, skipping this block",
@@ -80,10 +84,11 @@ HandleBlockChLoop:
 			rlpBuff := new(bytes.Buffer)
 			currentBlock.EncodeRLP(rlpBuff)
 			blockRlp := rlpBuff.Bytes()
-			payload := statediff.StateDiffPayload{
-				BlockRlp:  blockRlp,
-				StateDiff: stateDiff,
-				Err:       err,
+			stateDiffRlp, _ := rlp.EncodeToBytes(stateDiff)
+			payload := statediff.Payload{
+				BlockRlp:     blockRlp,
+				StateDiffRlp: stateDiffRlp,
+				Err:          err,
 			}
 			// If we have any websocket subscription listening in, send the data to them
 			sds.send(payload)
@@ -95,7 +100,8 @@ HandleBlockChLoop:
 	}
 }
 
-func (sds *MockStateDiffService) Subscribe(id rpc.ID, sub chan<- statediff.StateDiffPayload, quitChan chan<- bool) {
+// Subscribe mock method
+func (sds *MockStateDiffService) Subscribe(id rpc.ID, sub chan<- statediff.Payload, quitChan chan<- bool) {
 	log.Info("Subscribing to the statediff service")
 	sds.Lock()
 	sds.Subscriptions[id] = statediff.Subscription{
@@ -105,6 +111,7 @@ func (sds *MockStateDiffService) Subscribe(id rpc.ID, sub chan<- statediff.State
 	sds.Unlock()
 }
 
+// Unsubscribe mock method
 func (sds *MockStateDiffService) Unsubscribe(id rpc.ID) error {
 	log.Info("Unsubscribing from the statediff service")
 	sds.Lock()
@@ -117,7 +124,7 @@ func (sds *MockStateDiffService) Unsubscribe(id rpc.ID) error {
 	return nil
 }
 
-func (sds *MockStateDiffService) send(payload statediff.StateDiffPayload) {
+func (sds *MockStateDiffService) send(payload statediff.Payload) {
 	sds.Lock()
 	for id, sub := range sds.Subscriptions {
 		select {
@@ -144,9 +151,10 @@ func (sds *MockStateDiffService) close() {
 	sds.Unlock()
 }
 
+// Start mock method
 func (sds *MockStateDiffService) Start(server *p2p.Server) error {
 	log.Info("Starting statediff service")
-	if sds.MockParentBlockChan == nil || sds.MockBlockChan == nil {
+	if sds.ParentBlockChan == nil || sds.BlockChan == nil {
 		return errors.New("mock StateDiffingService requires preconfiguration with a MockParentBlockChan and MockBlockChan")
 	}
 	chainEventCh := make(chan core.ChainEvent, 10)
@@ -155,6 +163,7 @@ func (sds *MockStateDiffService) Start(server *p2p.Server) error {
 	return nil
 }
 
+// Stop mock method
 func (sds *MockStateDiffService) Stop() error {
 	log.Info("Stopping statediff service")
 	close(sds.QuitChan)

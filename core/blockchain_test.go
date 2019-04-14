@@ -1816,13 +1816,13 @@ func TestProcessingStateDiffs(t *testing.T) {
 	defaultTrieDirtyCache := 256
 	defaultTrieTimeout := 60 * time.Minute
 	cacheConfig := &CacheConfig{
-		Disabled:             false,
+		TrieDirtyDisabled:    false,
 		TrieCleanLimit:       defaultTrieCleanCache,
 		TrieDirtyLimit:       defaultTrieDirtyCache,
 		TrieTimeLimit:        defaultTrieTimeout,
 		ProcessingStateDiffs: true,
 	}
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	genesis := new(Genesis).MustCommit(db)
 	numberOfBlocks := triesInMemory
 	engine := ethash.NewFaker()

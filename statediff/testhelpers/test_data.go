@@ -17,20 +17,24 @@
 package testhelpers
 
 import (
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff"
 )
 
+// AddressToLeafKey hashes an returns an address
 func AddressToLeafKey(address common.Address) common.Hash {
 	return common.BytesToHash(crypto.Keccak256(address[:]))
 }
 
+// Test variables
 var (
 	BlockNumber     = rand.Int63()
 	BlockHash       = "0xfa40fbe2d98d98b3363a778d52f2bcd29d6790b9b3f3cab2b167fd12d3550f73"
@@ -58,7 +62,7 @@ var (
 		Root:     ContractRoot,
 		CodeHash: CodeHash,
 	}
-	valueBytes, err     = rlp.EncodeToBytes(testAccount)
+	valueBytes, _       = rlp.EncodeToBytes(testAccount)
 	CreatedAccountDiffs = statediff.AccountDiffsMap{
 		ContractLeafKey: {
 			Key:     ContractLeafKey.Bytes(),
@@ -91,4 +95,20 @@ var (
 		DeletedAccounts: DeletedAccountDiffs,
 		UpdatedAccounts: UpdatedAccountDiffs,
 	}
+	Testdb = rawdb.NewMemoryDatabase()
+
+	TestBankKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	TestBankAddress = crypto.PubkeyToAddress(TestBankKey.PublicKey) //0x71562b71999873DB5b286dF957af199Ec94617F7
+	BankLeafKey     = AddressToLeafKey(TestBankAddress)
+	TestBankFunds   = big.NewInt(100000000)
+	Genesis         = core.GenesisBlockForTesting(Testdb, TestBankAddress, TestBankFunds)
+
+	Account1Key, _  = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
+	Account2Key, _  = crypto.HexToECDSA("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee")
+	Account1Addr    = crypto.PubkeyToAddress(Account1Key.PublicKey) //0x703c4b2bD70c169f5717101CaeE543299Fc946C7
+	Account2Addr    = crypto.PubkeyToAddress(Account2Key.PublicKey) //0x0D3ab14BBaD3D99F4203bd7a11aCB94882050E7e
+	Account1LeafKey = AddressToLeafKey(Account1Addr)
+	Account2LeafKey = AddressToLeafKey(Account2Addr)
+	ContractCode    = common.Hex2Bytes("608060405234801561001057600080fd5b50602060405190810160405280600160ff16815250600090600161003592919061003b565b506100a5565b826064810192821561006f579160200282015b8281111561006e578251829060ff1690559160200191906001019061004e565b5b50905061007c9190610080565b5090565b6100a291905b8082111561009e576000816000905550600101610086565b5090565b90565b610124806100b46000396000f3fe6080604052348015600f57600080fd5b5060043610604f576000357c01000000000000000000000000000000000000000000000000000000009004806360cd2685146054578063c16431b9146093575b600080fd5b607d60048036036020811015606857600080fd5b810190808035906020019092919050505060c8565b6040518082815260200191505060405180910390f35b60c66004803603604081101560a757600080fd5b81019080803590602001909291908035906020019092919050505060e0565b005b6000808260648110151560d757fe5b01549050919050565b8060008360648110151560ef57fe5b0181905550505056fea165627a7a7230582064e918c3140a117bf3aa65865a9b9e83fae21ad1720506e7933b2a9f54bb40260029")
+	ContractAddr    common.Address
 )

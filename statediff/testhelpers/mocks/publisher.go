@@ -18,16 +18,19 @@ package mocks
 
 import "github.com/ethereum/go-ethereum/statediff"
 
+// Publisher mock
 type Publisher struct {
 	StateDiff      *statediff.StateDiff
 	publisherError error
 }
 
+// PublishStateDiff mock method
 func (publisher *Publisher) PublishStateDiff(sd *statediff.StateDiff) (string, error) {
 	publisher.StateDiff = sd
 	return "", publisher.publisherError
 }
 
+// SetPublisherError mock method
 func (publisher *Publisher) SetPublisherError(err error) {
 	publisher.publisherError = err
 }

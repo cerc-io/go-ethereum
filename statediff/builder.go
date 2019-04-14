@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
+// Builder interface exposes the method for building a state diff between two blocks
 type Builder interface {
 	BuildStateDiff(oldStateRoot, newStateRoot common.Hash, blockNumber int64, blockHash common.Hash) (StateDiff, error)
 }
@@ -39,13 +40,15 @@ type builder struct {
 	blockChain *core.BlockChain
 }
 
-func NewBuilder(db ethdb.Database, blockChain *core.BlockChain) *builder {
+// NewBuilder is used to create a builder
+func NewBuilder(db ethdb.Database, blockChain *core.BlockChain) Builder {
 	return &builder{
 		chainDB:    db,
 		blockChain: blockChain,
 	}
 }
 
+// BuildStateDiff builds a StateDiff object from two blocks
 func (sdb *builder) BuildStateDiff(oldStateRoot, newStateRoot common.Hash, blockNumber int64, blockHash common.Hash) (StateDiff, error) {
 	// Generate tries for old and new states
 	stateCache := sdb.blockChain.StateCache()
@@ -140,7 +143,7 @@ func (sdb *builder) collectDiffNodes(a, b trie.NodeIterator) (AccountsMap, error
 			}
 			// record account to diffs (creation if we are looking at new - old; deletion if old - new)
 			log.Debug("Account lookup successful", "address", leafKeyHash, "account", account)
-			diffAccounts[leafKeyHash] = &aw
+			diffAccounts[leafKeyHash] = aw
 		}
 		cont := it.Next(true)
 		if !cont {
@@ -153,14 +156,13 @@ func (sdb *builder) collectDiffNodes(a, b trie.NodeIterator) (AccountsMap, error
 
 func (sdb *builder) buildDiffEventual(accounts AccountsMap) (AccountDiffsMap, error) {
 	accountDiffs := make(AccountDiffsMap)
-	for addr, val := range accounts {
-		sr := val.Account.Root
-		storageDiffs, err := sdb.buildStorageDiffsEventual(sr)
+	for _, val := range accounts {
+		storageDiffs, err := sdb.buildStorageDiffsEventual(val.Account.Root)
 		if err != nil {
-			log.Error("Failed building eventual storage diffs", "Address", addr, "error", err)
+			log.Error("Failed building eventual storage diffs", "Address", common.BytesToHash(val.RawKey), "error", err)
 			return nil, err
 		}
-		accountDiffs[addr] = AccountDiff{
+		accountDiffs[common.BytesToHash(val.RawKey)] = AccountDiff{
 			Key:     val.RawKey,
 			Value:   val.RawValue,
 			Proof:   val.Proof,
@@ -179,21 +181,22 @@ func (sdb *builder) buildDiffIncremental(creations AccountsMap, deletions Accoun
 		deletedAcc := deletions[common.HexToHash(val)]
 		oldSR := deletedAcc.Account.Root
 		newSR := createdAcc.Account.Root
-		if storageDiffs, err := sdb.buildStorageDiffsIncremental(oldSR, newSR); err != nil {
+		storageDiffs, err := sdb.buildStorageDiffsIncremental(oldSR, newSR)
+		if err != nil {
 			log.Error("Failed building storage diffs", "Address", val, "error", err)
 			return nil, err
-		} else {
-			updatedAccounts[common.HexToHash(val)] = AccountDiff{
-				Key:     createdAcc.RawKey,
-				Value:   createdAcc.RawValue,
-				Proof:   createdAcc.Proof,
-				Path:    createdAcc.Path,
-				Storage: storageDiffs,
-			}
-			delete(creations, common.HexToHash(val))
-			delete(deletions, common.HexToHash(val))
 		}
+		updatedAccounts[common.HexToHash(val)] = AccountDiff{
+			Key:     createdAcc.RawKey,
+			Value:   createdAcc.RawValue,
+			Proof:   createdAcc.Proof,
+			Path:    createdAcc.Path,
+			Storage: storageDiffs,
+		}
+		delete(creations, common.HexToHash(val))
+		delete(deletions, common.HexToHash(val))
 	}
+
 	return updatedAccounts, nil
 }
 
@@ -263,12 +266,12 @@ func buildStorageDiffsFromTrie(it trie.NodeIterator) []StorageDiff {
 
 func (sdb *builder) addressByPath(path []byte) (*common.Address, error) {
 	log.Debug("Looking up address from path", "path", hexutil.Encode(append([]byte("secure-key-"), path...)))
-	if addrBytes, err := sdb.chainDB.Get(append([]byte("secure-key-"), hexToKeyBytes(path)...)); err != nil {
+	addrBytes, err := sdb.chainDB.Get(append([]byte("secure-key-"), hexToKeyBytes(path)...))
+	if err != nil {
 		log.Error("Error looking up address via path", "path", hexutil.Encode(append([]byte("secure-key-"), path...)), "error", err)
 		return nil, err
-	} else {
-		addr := common.BytesToAddress(addrBytes)
-		log.Debug("Address found", "Address", addr)
-		return &addr, nil
 	}
+	addr := common.BytesToAddress(addrBytes)
+	log.Debug("Address found", "Address", addr)
+	return &addr, nil
 }
