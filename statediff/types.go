@@ -21,12 +21,15 @@ package statediff
 
 import (
 	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 )
 
-type AccountsMap map[common.Hash]*accountWrapper
+// AccountsMap is a mapping of keccak256(address) => accountWrapper
+type AccountsMap map[common.Hash]accountWrapper
 
+// AccountWrapper is used to temporary associate the unpacked account with its raw values
 type accountWrapper struct {
 	Account  state.Account
 	RawKey   []byte
@@ -35,8 +38,9 @@ type accountWrapper struct {
 	Path     []byte
 }
 
+// StateDiff is the final output structure from the builder
 type StateDiff struct {
-	BlockNumber     int64           `json:"blockNumber"	gencodec:"required"`
+	BlockNumber     int64           `json:"blockNumber"	    gencodec:"required"`
 	BlockHash       common.Hash     `json:"blockHash" 	    gencodec:"required"`
 	CreatedAccounts AccountDiffsMap `json:"createdAccounts" gencodec:"required"`
 	DeletedAccounts AccountDiffsMap `json:"deletedAccounts" gencodec:"required"`
@@ -46,26 +50,28 @@ type StateDiff struct {
 	err     error
 }
 
-func (self *StateDiff) ensureEncoded() {
-	if self.encoded == nil && self.err == nil {
-		self.encoded, self.err = json.Marshal(self)
+func (sd *StateDiff) ensureEncoded() {
+	if sd.encoded == nil && sd.err == nil {
+		sd.encoded, sd.err = json.Marshal(sd)
 	}
 }
 
-// Implement Encoder interface for StateDiff
+// Length to implement Encoder interface for StateDiff
 func (sd *StateDiff) Length() int {
 	sd.ensureEncoded()
 	return len(sd.encoded)
 }
 
-// Implement Encoder interface for StateDiff
+// Encode to implement Encoder interface for StateDiff
 func (sd *StateDiff) Encode() ([]byte, error) {
 	sd.ensureEncoded()
 	return sd.encoded, sd.err
 }
 
+// AccountDiffsMap is a mapping of keccak256(address) => AccountDiff
 type AccountDiffsMap map[common.Hash]AccountDiff
 
+// AccountDiff holds the data for a single state diff leaf node
 type AccountDiff struct {
 	Key     []byte        `json:"key"         gencodec:"required"`
 	Value   []byte        `json:"value"       gencodec:"required"`
@@ -74,6 +80,7 @@ type AccountDiff struct {
 	Path    []byte        `json:"path"        gencodec:"required"`
 }
 
+// StorageDiff holds the data for a single storage diff leaf node
 type StorageDiff struct {
 	Key   []byte   `json:"key"         gencodec:"required"`
 	Value []byte   `json:"value"       gencodec:"required"`

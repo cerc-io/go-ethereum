@@ -25,21 +25,24 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// APIName is the namespace used for the state diffing service API
 const APIName = "statediff"
+
+// APIVersion is the version of the state diffing service API
 const APIVersion = "0.0.1"
 
 // PublicStateDiffAPI provides the a websocket service
 // that can be used to stream out state diffs as they
 // are produced by a full node
 type PublicStateDiffAPI struct {
-	sds SDS
+	sds IService
 
 	mu       sync.Mutex
 	lastUsed map[string]time.Time // keeps track when a filter was polled for the last time.
 }
 
 // NewPublicStateDiffAPI create a new state diff websocket streaming service.
-func NewPublicStateDiffAPI(sds SDS) *PublicStateDiffAPI {
+func NewPublicStateDiffAPI(sds IService) *PublicStateDiffAPI {
 	return &PublicStateDiffAPI{
 		sds:      sds,
 		lastUsed: make(map[string]time.Time),
@@ -47,8 +50,8 @@ func NewPublicStateDiffAPI(sds SDS) *PublicStateDiffAPI {
 	}
 }
 
-// StreamData set up a subscription that fires off state-diffs when they are created
-func (api *PublicStateDiffAPI) StreamStateDiffs(ctx context.Context) (*rpc.Subscription, error) {
+// Subscribe is the public method to setup a subscription that fires off state-diff payloads as they are created
+func (api *PublicStateDiffAPI) Subscribe(ctx context.Context) (*rpc.Subscription, error) {
 	// ensure that the RPC connection supports subscriptions
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
@@ -57,29 +60,28 @@ func (api *PublicStateDiffAPI) StreamStateDiffs(ctx context.Context) (*rpc.Subsc
 
 	// create subscription and start waiting for statediff events
 	rpcSub := notifier.CreateSubscription()
-	id := rpcSub.ID
 
 	go func() {
 		// subscribe to events from the state diff service
-		payloadChannel := make(chan StateDiffPayload)
+		payloadChannel := make(chan Payload)
 		quitChan := make(chan bool)
-		api.sds.Subscribe(id, payloadChannel, quitChan)
+		api.sds.Subscribe(rpcSub.ID, payloadChannel, quitChan)
 
 		// loop and await state diff payloads and relay them to the subscriber with then notifier
 		for {
 			select {
 			case packet := <-payloadChannel:
-				if err := notifier.Notify(id, packet); err != nil {
+				if err := notifier.Notify(rpcSub.ID, packet); err != nil {
 					log.Error("Failed to send state diff packet", "err", err)
 				}
 			case <-rpcSub.Err():
-				err := api.sds.Unsubscribe(id)
+				err := api.sds.Unsubscribe(rpcSub.ID)
 				if err != nil {
 					log.Error("Failed to unsubscribe from the state diff service", err)
 				}
 				return
 			case <-notifier.Closed():
-				err := api.sds.Unsubscribe(id)
+				err := api.sds.Unsubscribe(rpcSub.ID)
 				if err != nil {
 					log.Error("Failed to unsubscribe from the state diff service", err)
 				}

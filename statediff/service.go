@@ -19,8 +19,10 @@ package statediff
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/node"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -32,60 +34,69 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type BlockChain interface {
+type blockChain interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	GetBlockByHash(hash common.Hash) *types.Block
 	AddToStateDiffProcessedCollection(hash common.Hash)
 }
 
-type SDS interface {
+// IService is the state-diffing service interface
+type IService interface {
 	// APIs(), Protocols(), Start() and Stop()
 	node.Service
 	// Main event loop for processing state diffs
 	Loop(chainEventCh chan core.ChainEvent)
 	// Method to subscribe to receive state diff processing output
-	Subscribe(id rpc.ID, sub chan<- StateDiffPayload, quitChan chan<- bool)
+	Subscribe(id rpc.ID, sub chan<- Payload, quitChan chan<- bool)
 	// Method to unsubscribe from state diff processing
 	Unsubscribe(id rpc.ID) error
 }
 
-type StateDiffingService struct {
+// Service is the underlying struct for the state diffing service
+type Service struct {
+	// Used to sync access to the Subscriptions
 	sync.Mutex
-	Builder       Builder
-	BlockChain    BlockChain
-	QuitChan      chan bool
-	Subscriptions Subscriptions
+	// Used to build the state diff objects
+	Builder Builder
+	// Used to subscribe to chain events (blocks)
+	BlockChain blockChain
+	// Used to signal shutdown of the service
+	QuitChan chan bool
+	// A mapping of rpc.IDs to their subscription channels
+	Subscriptions map[rpc.ID]Subscription
 }
 
-type Subscriptions map[rpc.ID]Subscription
-
+// Subscription struct holds our subscription channels
 type Subscription struct {
-	PayloadChan chan<- StateDiffPayload
+	PayloadChan chan<- Payload
 	QuitChan    chan<- bool
 }
 
-type StateDiffPayload struct {
-	BlockRlp  []byte    `json:"block"`
-	StateDiff StateDiff `json:"state_diff"`
-	Err       error     `json:"error"`
+// Payload packages the data to send to StateDiffingService subscriptions
+type Payload struct {
+	BlockRlp     []byte `json:"blockRlp"     gencodec:"required"`
+	StateDiffRlp []byte `json:"stateDiffRlp" gencodec:"required"`
+	Err          error  `json:"error"`
 }
 
-func NewStateDiffService(db ethdb.Database, blockChain *core.BlockChain) (*StateDiffingService, error) {
-	return &StateDiffingService{
+// NewStateDiffService creates a new StateDiffingService
+func NewStateDiffService(db ethdb.Database, blockChain *core.BlockChain) (*Service, error) {
+	return &Service{
 		Mutex:         sync.Mutex{},
 		BlockChain:    blockChain,
 		Builder:       NewBuilder(db, blockChain),
 		QuitChan:      make(chan bool),
-		Subscriptions: make(Subscriptions),
+		Subscriptions: make(map[rpc.ID]Subscription),
 	}, nil
 }
 
-func (sds *StateDiffingService) Protocols() []p2p.Protocol {
+// Protocols exports the services p2p protocols, this service has none
+func (sds *Service) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{}
 }
 
-// APIs returns the RPC descriptors the Whisper implementation offers
-func (sds *StateDiffingService) APIs() []rpc.API {
+// APIs returns the RPC descriptors the StateDiffingService offers
+func (sds *Service) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: APIName,
@@ -96,7 +107,9 @@ func (sds *StateDiffingService) APIs() []rpc.API {
 	}
 }
 
-func (sds *StateDiffingService) Loop(chainEventCh chan core.ChainEvent) {
+// Loop is the main processing method
+func (sds *Service) Loop(chainEventCh chan core.ChainEvent) {
+
 	chainEventSub := sds.BlockChain.SubscribeChainEvent(chainEventCh)
 	defer chainEventSub.Unsubscribe()
 
@@ -144,10 +157,11 @@ HandleBlockChLoop:
 			rlpBuff := new(bytes.Buffer)
 			currentBlock.EncodeRLP(rlpBuff)
 			blockRlp := rlpBuff.Bytes()
-			payload := StateDiffPayload{
-				BlockRlp:  blockRlp,
-				StateDiff: stateDiff,
-				Err:       err,
+			stateDiffRlp, _ := rlp.EncodeToBytes(stateDiff)
+			payload := Payload{
+				BlockRlp:     blockRlp,
+				StateDiffRlp: stateDiffRlp,
+				Err:          err,
 			}
 			// If we have any websocket subscription listening in, send the data to them
 			sds.send(payload)
@@ -159,7 +173,8 @@ HandleBlockChLoop:
 	}
 }
 
-func (sds *StateDiffingService) Subscribe(id rpc.ID, sub chan<- StateDiffPayload, quitChan chan<- bool) {
+// Subscribe is used by the API to subscribe to the StateDiffingService loop
+func (sds *Service) Subscribe(id rpc.ID, sub chan<- Payload, quitChan chan<- bool) {
 	log.Info("Subscribing to the statediff service")
 	sds.Lock()
 	sds.Subscriptions[id] = Subscription{
@@ -169,7 +184,8 @@ func (sds *StateDiffingService) Subscribe(id rpc.ID, sub chan<- StateDiffPayload
 	sds.Unlock()
 }
 
-func (sds *StateDiffingService) Unsubscribe(id rpc.ID) error {
+// Unsubscribe is used to unsubscribe to the StateDiffingService loop
+func (sds *Service) Unsubscribe(id rpc.ID) error {
 	log.Info("Unsubscribing from the statediff service")
 	sds.Lock()
 	_, ok := sds.Subscriptions[id]
@@ -181,7 +197,25 @@ func (sds *StateDiffingService) Unsubscribe(id rpc.ID) error {
 	return nil
 }
 
-func (sds *StateDiffingService) send(payload StateDiffPayload) {
+// Start is used to begin the StateDiffingService
+func (sds *Service) Start(*p2p.Server) error {
+	log.Info("Starting statediff service")
+
+	chainEventCh := make(chan core.ChainEvent, 10)
+	go sds.Loop(chainEventCh)
+
+	return nil
+}
+
+// Stop is used to close down the StateDiffingService
+func (sds *Service) Stop() error {
+	log.Info("Stopping statediff service")
+	close(sds.QuitChan)
+	return nil
+}
+
+// send is used to fan out and serve a payload to any subscriptions
+func (sds *Service) send(payload Payload) {
 	sds.Lock()
 	for id, sub := range sds.Subscriptions {
 		select {
@@ -194,7 +228,8 @@ func (sds *StateDiffingService) send(payload StateDiffPayload) {
 	sds.Unlock()
 }
 
-func (sds *StateDiffingService) close() {
+// close is used to close all listening subscriptions
+func (sds *Service) close() {
 	sds.Lock()
 	for id, sub := range sds.Subscriptions {
 		select {
@@ -206,19 +241,4 @@ func (sds *StateDiffingService) close() {
 		}
 	}
 	sds.Unlock()
-}
-
-func (sds *StateDiffingService) Start(server *p2p.Server) error {
-	log.Info("Starting statediff service")
-
-	chainEventCh := make(chan core.ChainEvent, 10)
-	go sds.Loop(chainEventCh)
-
-	return nil
-}
-
-func (sds *StateDiffingService) Stop() error {
-	log.Info("Stopping statediff service")
-	close(sds.QuitChan)
-	return nil
 }

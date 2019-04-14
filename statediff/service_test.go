@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/statediff"
 	"github.com/ethereum/go-ethereum/statediff/testhelpers/mocks"
 )
@@ -69,11 +70,11 @@ func testErrorInChainEventLoop(t *testing.T) {
 	//the first chain event causes and error (in blockchain mock)
 	builder := mocks.Builder{}
 	blockChain := mocks.BlockChain{}
-	service := statediff.StateDiffingService{
+	service := statediff.Service{
 		Builder:       &builder,
 		BlockChain:    &blockChain,
 		QuitChan:      make(chan bool),
-		Subscriptions: make(statediff.Subscriptions),
+		Subscriptions: make(map[rpc.ID]statediff.Subscription),
 	}
 	testRoot2 = common.HexToHash("0xTestRoot2")
 	blockChain.SetParentBlocksToReturn([]*types.Block{parentBlock1, parentBlock2})
@@ -103,11 +104,11 @@ func testErrorInBlockLoop(t *testing.T) {
 	//second block's parent block can't be found
 	builder := mocks.Builder{}
 	blockChain := mocks.BlockChain{}
-	service := statediff.StateDiffingService{
+	service := statediff.Service{
 		Builder:       &builder,
 		BlockChain:    &blockChain,
 		QuitChan:      make(chan bool),
-		Subscriptions: make(statediff.Subscriptions),
+		Subscriptions: make(map[rpc.ID]statediff.Subscription),
 	}
 
 	blockChain.SetParentBlocksToReturn([]*types.Block{parentBlock1, nil})

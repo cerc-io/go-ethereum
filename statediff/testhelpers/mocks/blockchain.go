@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
+// BlockChain is a mock blockchain for testing
 type BlockChain struct {
 	ParentHashesLookedUp []common.Hash
 	parentBlocksToReturn []*types.Block
@@ -34,34 +35,39 @@ type BlockChain struct {
 	ChainEvents          []core.ChainEvent
 }
 
-func (mc *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {}
+// AddToStateDiffProcessedCollection mock method
+func (blockChain *BlockChain) AddToStateDiffProcessedCollection(hash common.Hash) {}
 
-func (mc *BlockChain) SetParentBlocksToReturn(blocks []*types.Block) {
-	mc.parentBlocksToReturn = blocks
+// SetParentBlocksToReturn mock method
+func (blockChain *BlockChain) SetParentBlocksToReturn(blocks []*types.Block) {
+	blockChain.parentBlocksToReturn = blocks
 }
 
-func (mc *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
-	mc.ParentHashesLookedUp = append(mc.ParentHashesLookedUp, hash)
+// GetBlockByHash mock method
+func (blockChain *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
+	blockChain.ParentHashesLookedUp = append(blockChain.ParentHashesLookedUp, hash)
 
 	var parentBlock *types.Block
-	if len(mc.parentBlocksToReturn) > 0 {
-		parentBlock = mc.parentBlocksToReturn[mc.callCount]
+	if len(blockChain.parentBlocksToReturn) > 0 {
+		parentBlock = blockChain.parentBlocksToReturn[blockChain.callCount]
 	}
 
-	mc.callCount++
+	blockChain.callCount++
 	return parentBlock
 }
 
-func (bc *BlockChain) SetChainEvents(chainEvents []core.ChainEvent) {
-	bc.ChainEvents = chainEvents
+// SetChainEvents mock method
+func (blockChain *BlockChain) SetChainEvents(chainEvents []core.ChainEvent) {
+	blockChain.ChainEvents = chainEvents
 }
 
-func (bc *BlockChain) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+// SubscribeChainEvent mock method
+func (blockChain *BlockChain) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
 	subErr := errors.New("Subscription Error")
 
 	var eventCounter int
 	subscription := event.NewSubscription(func(quit <-chan struct{}) error {
-		for _, chainEvent := range bc.ChainEvents {
+		for _, chainEvent := range blockChain.ChainEvents {
 			if eventCounter > 1 {
 				time.Sleep(250 * time.Millisecond)
 				return subErr

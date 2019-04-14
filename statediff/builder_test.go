@@ -18,41 +18,20 @@ package statediff_test
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff"
 	"github.com/ethereum/go-ethereum/statediff/testhelpers"
 )
 
 var (
-	testdb = ethdb.NewMemDatabase()
-
-	testBankKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testBankAddress = crypto.PubkeyToAddress(testBankKey.PublicKey) //0x71562b71999873DB5b286dF957af199Ec94617F7
-	bankLeafKey     = testhelpers.AddressToLeafKey(testBankAddress)
-	testBankFunds   = big.NewInt(100000000)
-	genesis         = core.GenesisBlockForTesting(testdb, testBankAddress, testBankFunds)
-
-	account1Key, _                                 = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
-	account2Key, _                                 = crypto.HexToECDSA("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee")
-	account1Addr                                   = crypto.PubkeyToAddress(account1Key.PublicKey) //0x703c4b2bD70c169f5717101CaeE543299Fc946C7
-	account1LeafKey                                = testhelpers.AddressToLeafKey(account1Addr)
-	account2Addr                                   = crypto.PubkeyToAddress(account2Key.PublicKey) //0x0D3ab14BBaD3D99F4203bd7a11aCB94882050E7e
-	account2LeafKey                                = testhelpers.AddressToLeafKey(account2Addr)
-	contractCode                                   = common.Hex2Bytes("608060405234801561001057600080fd5b50602060405190810160405280600160ff16815250600090600161003592919061003b565b506100a5565b826064810192821561006f579160200282015b8281111561006e578251829060ff1690559160200191906001019061004e565b5b50905061007c9190610080565b5090565b6100a291905b8082111561009e576000816000905550600101610086565b5090565b90565b610124806100b46000396000f3fe6080604052348015600f57600080fd5b5060043610604f576000357c01000000000000000000000000000000000000000000000000000000009004806360cd2685146054578063c16431b9146093575b600080fd5b607d60048036036020811015606857600080fd5b810190808035906020019092919050505060c8565b6040518082815260200191505060405180910390f35b60c66004803603604081101560a757600080fd5b81019080803590602001909291908035906020019092919050505060e0565b005b6000808260648110151560d757fe5b01549050919050565b8060008360648110151560ef57fe5b0181905550505056fea165627a7a7230582064e918c3140a117bf3aa65865a9b9e83fae21ad1720506e7933b2a9f54bb40260029")
-	contractAddr                                   common.Address
 	contractLeafKey                                common.Hash
 	emptyAccountDiffEventualMap                    = make(statediff.AccountDiffsMap)
 	emptyAccountDiffIncrementalMap                 = make(statediff.AccountDiffsMap)
@@ -65,19 +44,19 @@ var (
 )
 
 func TestBuilder(t *testing.T) {
-	_, blockMap, chain := makeChain(3, genesis)
-	contractLeafKey = testhelpers.AddressToLeafKey(contractAddr)
+	_, blockMap, chain := testhelpers.MakeChain(3, testhelpers.Genesis)
+	contractLeafKey = testhelpers.AddressToLeafKey(testhelpers.ContractAddr)
 	defer chain.Stop()
 	block0Hash = common.HexToHash("0xd1721cfd0b29c36fd7a68f25c128e86413fb666a6e1d68e89b875bd299262661")
 	block1Hash = common.HexToHash("0xbbe88de60ba33a3f18c0caa37d827bfb70252e19e40a07cd34041696c35ecb1a")
-	block2Hash = common.HexToHash("0xde75663f36a8497b4bdda2a4b52bd9540b705a2728c7391c59b8cb2cde5a2feb")
-	block3Hash = common.HexToHash("0x76c6d0e39285cee40d5e5fadc6141ca88c8ab8bd1a15d46717205af2efbb4a3c")
+	block2Hash = common.HexToHash("0x34ad0fd9bb2911986b75d518c822641079dea823bc6952343ebf05da1062b6f5")
+	block3Hash = common.HexToHash("0x9872058136c560a6ebed0c0522b8d3016fc21f4fb0fb6585ddd8fd4c54f9909a")
 
 	block0 = blockMap[block0Hash]
 	block1 = blockMap[block1Hash]
 	block2 = blockMap[block2Hash]
 	block3 = blockMap[block3Hash]
-	builder = statediff.NewBuilder(testdb, chain)
+	builder = statediff.NewBuilder(testhelpers.Testdb, chain)
 
 	type arguments struct {
 		oldStateRoot common.Hash
@@ -119,7 +98,7 @@ func TestBuilder(t *testing.T) {
 		})
 		bankAccount1, _ = rlp.EncodeToBytes(state.Account{
 			Nonce:    nonce1,
-			Balance:  big.NewInt(testBankFunds.Int64() - balanceChange10000),
+			Balance:  big.NewInt(testhelpers.TestBankFunds.Int64() - balanceChange10000),
 			CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").Bytes(),
 			Root:     common.HexToHash(originalContractRoot),
 		})
@@ -207,8 +186,8 @@ func TestBuilder(t *testing.T) {
 				BlockNumber: block1.Number().Int64(),
 				BlockHash:   block1.Hash(),
 				CreatedAccounts: statediff.AccountDiffsMap{
-					account1LeafKey: {
-						Key:   account1LeafKey.Bytes(),
+					testhelpers.Account1LeafKey: {
+						Key:   testhelpers.Account1LeafKey.Bytes(),
 						Value: account1,
 						Proof: [][]byte{{248, 113, 160, 87, 118, 82, 182, 37, 183, 123, 219, 91, 247, 123, 196, 63, 49, 37, 202, 215, 70, 77, 103, 157, 21, 117, 86, 82, 119, 211, 97, 27, 128, 83, 231, 128, 128, 128, 128, 160, 254, 136, 159, 16, 229, 219, 143, 44, 43, 243, 85, 146, 129, 82, 161, 127, 110, 59, 185, 154, 146, 65, 172, 109, 132, 199, 126, 98, 100, 80, 156, 121, 128, 128, 128, 128, 128, 128, 128, 128, 160, 17, 219, 12, 218, 52, 168, 150, 218, 190, 182, 131, 155, 176, 106, 56, 244, 149, 20, 207, 164, 134, 67, 89, 132, 235, 1, 59, 125, 249, 238, 133, 197, 128, 128},
 							{248, 107, 160, 57, 38, 219, 105, 170, 206, 213, 24, 233, 185, 240, 244, 52, 164, 115, 231, 23, 65, 9, 201, 67, 84, 139, 184, 242, 59, 228, 28, 167, 109, 154, 210, 184, 72, 248, 70, 128, 130, 39, 16, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -226,8 +205,8 @@ func TestBuilder(t *testing.T) {
 				},
 				DeletedAccounts: emptyAccountDiffEventualMap,
 				UpdatedAccounts: statediff.AccountDiffsMap{
-					bankLeafKey: {
-						Key:   bankLeafKey.Bytes(),
+					testhelpers.BankLeafKey: {
+						Key:   testhelpers.BankLeafKey.Bytes(),
 						Value: bankAccount1,
 						Proof: [][]byte{{248, 113, 160, 87, 118, 82, 182, 37, 183, 123, 219, 91, 247, 123, 196, 63, 49, 37, 202, 215, 70, 77, 103, 157, 21, 117, 86, 82, 119, 211, 97, 27, 128, 83, 231, 128, 128, 128, 128, 160, 254, 136, 159, 16, 229, 219, 143, 44, 43, 243, 85, 146, 129, 82, 161, 127, 110, 59, 185, 154, 146, 65, 172, 109, 132, 199, 126, 98, 100, 80, 156, 121, 128, 128, 128, 128, 128, 128, 128, 128, 160, 17, 219, 12, 218, 52, 168, 150, 218, 190, 182, 131, 155, 176, 106, 56, 244, 149, 20, 207, 164, 134, 67, 89, 132, 235, 1, 59, 125, 249, 238, 133, 197, 128, 128},
 							{248, 109, 160, 48, 191, 73, 244, 64, 161, 205, 5, 39, 228, 208, 110, 39, 101, 101, 76, 15, 86, 69, 34, 87, 81, 109, 121, 58, 155, 141, 96, 77, 207, 223, 42, 184, 74, 248, 72, 1, 132, 5, 245, 185, 240, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -251,8 +230,8 @@ func TestBuilder(t *testing.T) {
 				BlockNumber: block2.Number().Int64(),
 				BlockHash:   block2.Hash(),
 				CreatedAccounts: statediff.AccountDiffsMap{
-					account2LeafKey: {
-						Key:   account2LeafKey.Bytes(),
+					testhelpers.Account2LeafKey: {
+						Key:   testhelpers.Account2LeafKey.Bytes(),
 						Value: account2,
 						Proof: [][]byte{{248, 177, 160, 177, 155, 238, 178, 242, 47, 83, 2, 49, 141, 155, 92, 149, 175, 245, 120, 233, 177, 101, 67, 46, 200, 23, 250, 41, 74, 135, 94, 61, 133, 51, 162, 128, 128, 128, 128, 160, 179, 86, 53, 29, 96, 188, 152, 148, 207, 31, 29, 108, 182, 140, 129, 95, 1, 49, 213, 15, 29, 168, 60, 64, 35, 160, 158, 200, 85, 207, 255, 145, 160, 114, 57, 32, 11, 115, 232, 140, 238, 165, 222, 121, 226, 208, 2, 192, 216, 67, 198, 179, 31, 181, 27, 208, 243, 99, 202, 48, 148, 207, 107, 106, 177, 128, 128, 128, 128, 128, 160, 10, 173, 165, 125, 110, 240, 77, 112, 149, 100, 135, 237, 25, 228, 116, 7, 195, 9, 210, 166, 208, 148, 101, 23, 244, 238, 84, 84, 211, 249, 138, 137, 128, 160, 255, 115, 147, 190, 57, 135, 174, 188, 86, 51, 227, 70, 22, 253, 237, 49, 24, 19, 149, 199, 142, 195, 186, 244, 70, 51, 138, 0, 146, 148, 117, 60, 128, 128},
 							{248, 107, 160, 57, 87, 243, 226, 240, 74, 7, 100, 195, 160, 73, 27, 23, 95, 105, 146, 109, 166, 30, 251, 204, 143, 97, 250, 20, 85, 253, 45, 43, 76, 221, 69, 184, 72, 248, 70, 128, 130, 3, 232, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -277,16 +256,16 @@ func TestBuilder(t *testing.T) {
 				},
 				DeletedAccounts: emptyAccountDiffEventualMap,
 				UpdatedAccounts: statediff.AccountDiffsMap{
-					bankLeafKey: {
-						Key:   bankLeafKey.Bytes(),
+					testhelpers.BankLeafKey: {
+						Key:   testhelpers.BankLeafKey.Bytes(),
 						Value: bankAccount2,
 						Proof: [][]byte{{248, 177, 160, 177, 155, 238, 178, 242, 47, 83, 2, 49, 141, 155, 92, 149, 175, 245, 120, 233, 177, 101, 67, 46, 200, 23, 250, 41, 74, 135, 94, 61, 133, 51, 162, 128, 128, 128, 128, 160, 179, 86, 53, 29, 96, 188, 152, 148, 207, 31, 29, 108, 182, 140, 129, 95, 1, 49, 213, 15, 29, 168, 60, 64, 35, 160, 158, 200, 85, 207, 255, 145, 160, 114, 57, 32, 11, 115, 232, 140, 238, 165, 222, 121, 226, 208, 2, 192, 216, 67, 198, 179, 31, 181, 27, 208, 243, 99, 202, 48, 148, 207, 107, 106, 177, 128, 128, 128, 128, 128, 160, 10, 173, 165, 125, 110, 240, 77, 112, 149, 100, 135, 237, 25, 228, 116, 7, 195, 9, 210, 166, 208, 148, 101, 23, 244, 238, 84, 84, 211, 249, 138, 137, 128, 160, 255, 115, 147, 190, 57, 135, 174, 188, 86, 51, 227, 70, 22, 253, 237, 49, 24, 19, 149, 199, 142, 195, 186, 244, 70, 51, 138, 0, 146, 148, 117, 60, 128, 128},
 							{248, 109, 160, 48, 191, 73, 244, 64, 161, 205, 5, 39, 228, 208, 110, 39, 101, 101, 76, 15, 86, 69, 34, 87, 81, 109, 121, 58, 155, 141, 96, 77, 207, 223, 42, 184, 74, 248, 72, 2, 132, 5, 245, 182, 8, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
 						Path:    []byte{0, 0, 11, 15, 4, 9, 15, 4, 4, 0, 10, 1, 12, 13, 0, 5, 2, 7, 14, 4, 13, 0, 6, 14, 2, 7, 6, 5, 6, 5, 4, 12, 0, 15, 5, 6, 4, 5, 2, 2, 5, 7, 5, 1, 6, 13, 7, 9, 3, 10, 9, 11, 8, 13, 6, 0, 4, 13, 12, 15, 13, 15, 2, 10, 16},
 						Storage: []statediff.StorageDiff{},
 					},
-					account1LeafKey: {
-						Key:   account1LeafKey.Bytes(),
+					testhelpers.Account1LeafKey: {
+						Key:   testhelpers.Account1LeafKey.Bytes(),
 						Value: account3,
 						Proof: [][]byte{{248, 177, 160, 177, 155, 238, 178, 242, 47, 83, 2, 49, 141, 155, 92, 149, 175, 245, 120, 233, 177, 101, 67, 46, 200, 23, 250, 41, 74, 135, 94, 61, 133, 51, 162, 128, 128, 128, 128, 160, 179, 86, 53, 29, 96, 188, 152, 148, 207, 31, 29, 108, 182, 140, 129, 95, 1, 49, 213, 15, 29, 168, 60, 64, 35, 160, 158, 200, 85, 207, 255, 145, 160, 114, 57, 32, 11, 115, 232, 140, 238, 165, 222, 121, 226, 208, 2, 192, 216, 67, 198, 179, 31, 181, 27, 208, 243, 99, 202, 48, 148, 207, 107, 106, 177, 128, 128, 128, 128, 128, 160, 10, 173, 165, 125, 110, 240, 77, 112, 149, 100, 135, 237, 25, 228, 116, 7, 195, 9, 210, 166, 208, 148, 101, 23, 244, 238, 84, 84, 211, 249, 138, 137, 128, 160, 255, 115, 147, 190, 57, 135, 174, 188, 86, 51, 227, 70, 22, 253, 237, 49, 24, 19, 149, 199, 142, 195, 186, 244, 70, 51, 138, 0, 146, 148, 117, 60, 128, 128},
 							{248, 107, 160, 57, 38, 219, 105, 170, 206, 213, 24, 233, 185, 240, 244, 52, 164, 115, 231, 23, 65, 9, 201, 67, 84, 139, 184, 242, 59, 228, 28, 167, 109, 154, 210, 184, 72, 248, 70, 2, 130, 39, 16, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -320,8 +299,8 @@ func TestBuilder(t *testing.T) {
 				CreatedAccounts: statediff.AccountDiffsMap{},
 				DeletedAccounts: emptyAccountDiffEventualMap,
 				UpdatedAccounts: statediff.AccountDiffsMap{
-					account2LeafKey: {
-						Key:   account2LeafKey.Bytes(),
+					testhelpers.Account2LeafKey: {
+						Key:   testhelpers.Account2LeafKey.Bytes(),
 						Value: account4,
 						Proof: [][]byte{{248, 177, 160, 101, 223, 138, 81, 34, 40, 229, 170, 198, 188, 136, 99, 7, 55, 33, 112, 160, 111, 181, 131, 167, 201, 131, 24, 201, 211, 177, 30, 159, 229, 246, 6, 128, 128, 128, 128, 160, 179, 86, 53, 29, 96, 188, 152, 148, 207, 31, 29, 108, 182, 140, 129, 95, 1, 49, 213, 15, 29, 168, 60, 64, 35, 160, 158, 200, 85, 207, 255, 145, 160, 32, 135, 108, 213, 150, 150, 110, 44, 170, 65, 75, 154, 74, 249, 94, 65, 74, 107, 100, 115, 39, 5, 3, 26, 22, 238, 138, 114, 254, 21, 6, 171, 128, 128, 128, 128, 128, 160, 4, 228, 121, 222, 255, 218, 60, 247, 15, 0, 34, 198, 28, 229, 180, 129, 109, 157, 68, 181, 248, 229, 200, 123, 29, 81, 145, 114, 90, 209, 205, 210, 128, 160, 255, 115, 147, 190, 57, 135, 174, 188, 86, 51, 227, 70, 22, 253, 237, 49, 24, 19, 149, 199, 142, 195, 186, 244, 70, 51, 138, 0, 146, 148, 117, 60, 128, 128},
 							{248, 113, 160, 57, 87, 243, 226, 240, 74, 7, 100, 195, 160, 73, 27, 23, 95, 105, 146, 109, 166, 30, 251, 204, 143, 97, 250, 20, 85, 253, 45, 43, 76, 221, 69, 184, 78, 248, 76, 128, 136, 27, 193, 109, 103, 78, 200, 3, 232, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -344,8 +323,8 @@ func TestBuilder(t *testing.T) {
 							},
 						},
 					},
-					bankLeafKey: {
-						Key:   bankLeafKey.Bytes(),
+					testhelpers.BankLeafKey: {
+						Key:   testhelpers.BankLeafKey.Bytes(),
 						Value: bankAccount3,
 						Proof: [][]byte{{248, 177, 160, 101, 223, 138, 81, 34, 40, 229, 170, 198, 188, 136, 99, 7, 55, 33, 112, 160, 111, 181, 131, 167, 201, 131, 24, 201, 211, 177, 30, 159, 229, 246, 6, 128, 128, 128, 128, 160, 179, 86, 53, 29, 96, 188, 152, 148, 207, 31, 29, 108, 182, 140, 129, 95, 1, 49, 213, 15, 29, 168, 60, 64, 35, 160, 158, 200, 85, 207, 255, 145, 160, 32, 135, 108, 213, 150, 150, 110, 44, 170, 65, 75, 154, 74, 249, 94, 65, 74, 107, 100, 115, 39, 5, 3, 26, 22, 238, 138, 114, 254, 21, 6, 171, 128, 128, 128, 128, 128, 160, 4, 228, 121, 222, 255, 218, 60, 247, 15, 0, 34, 198, 28, 229, 180, 129, 109, 157, 68, 181, 248, 229, 200, 123, 29, 81, 145, 114, 90, 209, 205, 210, 128, 160, 255, 115, 147, 190, 57, 135, 174, 188, 86, 51, 227, 70, 22, 253, 237, 49, 24, 19, 149, 199, 142, 195, 186, 244, 70, 51, 138, 0, 146, 148, 117, 60, 128, 128},
 							{248, 109, 160, 48, 191, 73, 244, 64, 161, 205, 5, 39, 228, 208, 110, 39, 101, 101, 76, 15, 86, 69, 34, 87, 81, 109, 121, 58, 155, 141, 96, 77, 207, 223, 42, 184, 74, 248, 72, 3, 132, 5, 245, 182, 8, 160, 86, 232, 31, 23, 27, 204, 85, 166, 255, 131, 69, 230, 146, 192, 248, 110, 91, 72, 224, 27, 153, 108, 173, 192, 1, 98, 47, 181, 227, 99, 180, 33, 160, 197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83, 202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112}},
@@ -391,60 +370,6 @@ func equals(actual, expected interface{}) (success bool) {
 	}
 
 	return reflect.DeepEqual(actual, expected)
-}
-
-// makeChain creates a chain of n blocks starting at and including parent.
-// the returned hash chain is ordered head->parent. In addition, every 3rd block
-// contains a transaction and every 5th an uncle to allow testing correct block
-// reassembly.
-func makeChain(n int, parent *types.Block) ([]common.Hash, map[common.Hash]*types.Block, *core.BlockChain) {
-	blocks, _ := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testdb, n, testChainGen)
-	headers := make([]*types.Header, len(blocks))
-	for i, block := range blocks {
-		headers[i] = block.Header()
-	}
-	chain, _ := core.NewBlockChain(testdb, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
-
-	hashes := make([]common.Hash, n+1)
-	hashes[len(hashes)-1] = parent.Hash()
-	blockm := make(map[common.Hash]*types.Block, n+1)
-	blockm[parent.Hash()] = parent
-	for i, b := range blocks {
-		hashes[len(hashes)-i-2] = b.Hash()
-		blockm[b.Hash()] = b
-	}
-	return hashes, blockm, chain
-}
-
-func testChainGen(i int, block *core.BlockGen) {
-	signer := types.HomesteadSigner{}
-	switch i {
-	case 0:
-		// In block 1, the test bank sends account #1 some ether.
-		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), account1Addr, big.NewInt(10000), params.TxGas, nil, nil), signer, testBankKey)
-		block.AddTx(tx)
-	case 1:
-		// In block 2, the test bank sends some more ether to account #1.
-		// account1Addr passes it on to account #2.
-		// account1Addr creates a test contract.
-		tx1, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), account1Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, testBankKey)
-		nonce := block.TxNonce(account1Addr)
-		tx2, _ := types.SignTx(types.NewTransaction(nonce, account2Addr, big.NewInt(1000), params.TxGas, nil, nil), signer, account1Key)
-		nonce++
-		tx3, _ := types.SignTx(types.NewContractCreation(nonce, big.NewInt(0), 1000000, big.NewInt(0), contractCode), signer, account1Key)
-		contractAddr = crypto.CreateAddress(account1Addr, nonce) //0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592
-		block.AddTx(tx1)
-		block.AddTx(tx2)
-		block.AddTx(tx3)
-	case 2:
-		// Block 3 is empty but was mined by account #2.
-		block.SetCoinbase(account2Addr)
-		//get function: 60cd2685
-		//put function: c16431b9
-		data := common.Hex2Bytes("C16431B900000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003")
-		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(testBankAddress), contractAddr, big.NewInt(0), 100000, nil, data), signer, testBankKey)
-		block.AddTx(tx)
-	}
 }
 
 /*

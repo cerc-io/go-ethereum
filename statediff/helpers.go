@@ -37,6 +37,22 @@ func sortKeys(data AccountsMap) []string {
 	return keys
 }
 
+// BytesToNiblePath
+func bytesToNiblePath(path []byte) string {
+	if hasTerm(path) {
+		path = path[:len(path)-1]
+	}
+	nibblePath := ""
+	for i, v := range common.ToHex(path) {
+		if i%2 == 0 && i > 1 {
+			continue
+		}
+		nibblePath = nibblePath + string(v)
+	}
+
+	return nibblePath
+}
+
 func findIntersection(a, b []string) []string {
 	lenA := len(a)
 	lenB := len(b)
@@ -73,22 +89,7 @@ func findIntersection(a, b []string) []string {
 }
 
 func pathToStr(it trie.NodeIterator) string {
-	return BytesToNiblePath(it.Path())
-}
-
-func BytesToNiblePath(path []byte) string {
-	if hasTerm(path) {
-		path = path[:len(path)-1]
-	}
-	nibblePath := ""
-	for i, v := range common.ToHex(path) {
-		if i%2 == 0 && i > 1 {
-			continue
-		}
-		nibblePath = nibblePath + string(v)
-	}
-
-	return nibblePath
+	return bytesToNiblePath(it.Path())
 }
 
 // Duplicated from trie/encoding.go
