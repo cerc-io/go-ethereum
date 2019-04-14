@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package service
+package statediff
 
 import (
 	"context"
@@ -32,14 +32,14 @@ const APIVersion = "0.0.1"
 // that can be used to stream out state diffs as they
 // are produced by a full node
 type PublicStateDiffAPI struct {
-	sds *StateDiffService
+	sds SDS
 
 	mu       sync.Mutex
 	lastUsed map[string]time.Time // keeps track when a filter was polled for the last time.
 }
 
 // NewPublicStateDiffAPI create a new state diff websocket streaming service.
-func NewPublicStateDiffAPI(sds *StateDiffService) *PublicStateDiffAPI {
+func NewPublicStateDiffAPI(sds SDS) *PublicStateDiffAPI {
 	return &PublicStateDiffAPI{
 		sds:      sds,
 		lastUsed: make(map[string]time.Time),
@@ -48,7 +48,7 @@ func NewPublicStateDiffAPI(sds *StateDiffService) *PublicStateDiffAPI {
 }
 
 // StreamData set up a subscription that fires off state-diffs when they are created
-func (api *PublicStateDiffAPI) StreamData(ctx context.Context) (*rpc.Subscription, error) {
+func (api *PublicStateDiffAPI) StreamStateDiffs(ctx context.Context) (*rpc.Subscription, error) {
 	// ensure that the RPC connection supports subscriptions
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {

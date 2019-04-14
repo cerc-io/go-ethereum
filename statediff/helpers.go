@@ -17,7 +17,7 @@
 // Contains a batch of utility type declarations used by the tests. As the node
 // operates on unique types, a lot of them are needed to check various features.
 
-package builder
+package statediff
 
 import (
 	"sort"
@@ -73,7 +73,10 @@ func findIntersection(a, b []string) []string {
 }
 
 func pathToStr(it trie.NodeIterator) string {
-	path := it.Path()
+	return BytesToNiblePath(it.Path())
+}
+
+func BytesToNiblePath(path []byte) string {
 	if hasTerm(path) {
 		path = path[:len(path)-1]
 	}
