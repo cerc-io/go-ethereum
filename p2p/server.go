@@ -758,9 +758,6 @@ running:
 				if p.Inbound() {
 					inboundCount++
 				}
-				if conn, ok := c.fd.(*meteredConn); ok {
-					conn.handshakeDone(p)
-				}
 			}
 			c.cont <- err
 
