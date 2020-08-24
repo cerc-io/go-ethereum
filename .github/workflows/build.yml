@@ -4,38 +4,9 @@ on: [pull_request]
 
 jobs:
   build:
-    name: Run docker-compose build
+    name: Run docker build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
         run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
-      - name: Get the version
-        id: vars
-        run: echo ::set-output name=sha::$(echo ${GITHUB_SHA:0:7})
-      - name: Run docker build
-        run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
-      - name: Tag docker image
-        run: docker tag vulcanize/ethereum docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
-      - name: Docker Login
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login https://docker.pkg.github.com -u vulcanize --password-stdin
-      - name: Docker Push
-        run: docker push docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
-      - name: Docker Pull
-        run: docker pull docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
-      - name: Copy ethereum binary file
-        run: docker run --rm --entrypoint cat docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}} /go-ethereum/build/bin/geth > geth-linux-amd64
-      - uses: actions/upload-artifact@v2
-        with:
-          name: my-artifact
-          path: geth-linux-amd64
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: https://uploads.github.com/repos/vulcanize/go-ethereum/releases/18994686/assets{?name,label}
-          asset_path: geth-linux-amd64
-          asset_name: geth-linux-amd64
-          asset_content_type: application/octet-stream
