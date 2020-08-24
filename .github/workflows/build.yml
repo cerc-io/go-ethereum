@@ -24,7 +24,7 @@ jobs:
       - name: Docker Pull
         run: docker pull docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
       - name: Copy ethereum binary file
-        run: docker run --rm --entrypoint cat docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}} /usr/local/bin/geth > geth-linux-amd64
+        run: docker run --rm --entrypoint cat docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}} /go-ethereum/build/bin/geth > geth-linux-amd64
       - uses: actions/upload-artifact@v2
         with:
           name: my-artifact
