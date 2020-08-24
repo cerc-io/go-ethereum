@@ -1,0 +1,25 @@
+name: Docker Build and publish to Github
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Run docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get the version
+        id: vars
+        run: echo ::set-output name=sha::$(echo ${GITHUB_SHA:0:7})
+      - name: Run docker build
+        run: docker build -t vulcanize/ethereum -f Dockerfile .
+      - name: Tag docker image
+        run: docker tag vulcanize/ethereum docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+      - name: Docker Login
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login https://docker.pkg.github.com -u vulcanize --password-stdin
+      - name: Docker Push
+        run: docker push docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+
