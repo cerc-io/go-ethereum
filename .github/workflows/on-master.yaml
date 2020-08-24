@@ -12,12 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
-        run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
+        run: docker build -t vulcanize/go-ethereum -f Dockerfile.amd64 .
       - name: Get the version
         id: vars
         run: echo ::set-output name=sha::$(echo ${GITHUB_SHA:0:7})
       - name: Tag docker image
-        run: docker tag vulcanize/ethereum docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+        run: docker tag vulcanize/go-ethereum docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
       - name: Docker Login
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login https://docker.pkg.github.com -u vulcanize --password-stdin
       - name: Docker Push

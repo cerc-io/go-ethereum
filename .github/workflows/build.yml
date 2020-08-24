@@ -9,4 +9,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
-        run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
+        run: docker build -t vulcanize/go-ethereum -f Dockerfile.amd64 .
