@@ -9,4 +9,23 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
-        run: docker build -t vulcanize/ethereum -f Dockerfile .
+        run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
+      - name: Get the version
+        id: vars
+        run: echo ::set-output name=sha::$(echo ${GITHUB_SHA:0:7})
+      - name: Run docker build
+        run: docker build -t vulcanize/ethereum -f Dockerfile.amd64 .
+      - name: Tag docker image
+        run: docker tag vulcanize/ethereum docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+      - name: Docker Login
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login https://docker.pkg.github.com -u vulcanize --password-stdin
+      - name: Docker Push
+        run: docker push docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+      - name: Docker Pull
+        run: docker pull docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
+      - name: Copy ethereum binary file
+        run: docker run --rm --entrypoint cat docker.pkg.github.com/vulcanize/go-ethereum/go-ethereum /usr/local/bin/geth > geth-linux-amd64
+      - uses: actions/upload-artifact@v2
+        with:
+          name: my-artifact
+          path: geth-linux-amd64
