@@ -1746,7 +1746,7 @@ func RegisterGraphQLService(stack *node.Node, backend ethapi.Backend, cfg node.C
 // RegisterStateDiffService configures and registers a service to stream state diff data over RPC
 // dbParams are: Postgres connection URI, Node ID, client name
 func RegisterStateDiffService(stack *node.Node, ethServ *eth.Ethereum, dbParams *statediff.DBParams, startWriteLoop bool) {
-	err := statediff.New(ethServ, dbParams, startWriteLoop)
+	err := statediff.New(stack, ethServ, dbParams, startWriteLoop)
 	if err != nil {
 		Fatalf("Failed to register the Statediff service: %v", err)
 	}
