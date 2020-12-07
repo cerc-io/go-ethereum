@@ -273,8 +273,10 @@ func (sds *Service) writeLoopWorker(params workerParams) {
 				log.Error("statediff.Service.WriteLoop: processing error", "block height", currentBlock.Number().Uint64(), "error", err.Error(), "worker", params.id)
 				continue
 			}
-			// TODO: how to handle with concurrent workers
-			statediffMetrics.lastStatediffHeight.Update(int64(currentBlock.Number().Uint64()))
+			lastStatediffHeight := statediffMetrics.lastStatediffHeight.Value()
+			if currentBlock.Number().Uint64() > uint64(lastStatediffHeight) {
+				statediffMetrics.lastStatediffHeight.Update(int64(currentBlock.Number().Uint64()))
+			}
 		case err := <-params.errCh:
 			log.Warn("Error from chain event subscription", "error", err, "worker", params.id)
 			sds.close()
