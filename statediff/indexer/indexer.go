@@ -119,7 +119,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		return nil, fmt.Errorf("expected number of transactions (%d), transaction trie nodes (%d), receipts (%d), and receipt trie nodes (%d)to be equal", len(txNodes), len(txTrieNodes), len(rctNodes), len(rctTrieNodes))
 	}
 	// Calculate reward
-	reward := CalcEthBlockReward(block.Header(), block.Uncles(), block.Transactions(), receipts)
+	var reward *big.Int
+	// in PoA networks block reward is 0
+	if sdi.chainConfig.Clique != nil {
+		reward = big.NewInt(0)
+	} else {
+		reward = CalcEthBlockReward(block.Header(), block.Uncles(), block.Transactions(), receipts)
+	}
 	t = time.Now()
 	// Begin new db tx for everything
 	tx, err := sdi.dbWriter.db.Beginx()
@@ -238,7 +244,13 @@ func (sdi *StateDiffIndexer) processUncles(tx *sqlx.Tx, headerID int64, blockNum
 		if err := shared.PublishIPLD(tx, uncleNode); err != nil {
 			return fmt.Errorf("error publishing uncle IPLD: %v", err)
 		}
-		uncleReward := CalcUncleMinerReward(blockNumber, uncleNode.Number.Uint64())
+		var uncleReward *big.Int
+		// in PoA networks uncle reward is 0
+		if sdi.chainConfig.Clique != nil {
+			uncleReward = big.NewInt(0)
+		} else {
+			uncleReward = CalcUncleMinerReward(blockNumber, uncleNode.Number.Uint64())
+		}
 		uncle := models.UncleModel{
 			CID:        uncleNode.Cid().String(),
 			MhKey:      shared.MultihashKeyFromCID(uncleNode.Cid()),
