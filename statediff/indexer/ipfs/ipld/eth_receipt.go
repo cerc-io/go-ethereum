@@ -80,12 +80,14 @@ func DecodeEthReceipt(c cid.Cid, b []byte) (*EthReceipt, error) {
   Block INTERFACE
 */
 
-func (node *EthReceipt) RawData() []byte {
-	return node.rawdata
+// RawData returns the binary of the RLP encode of the receipt.
+func (r *EthReceipt) RawData() []byte {
+	return r.rawdata
 }
 
-func (node *EthReceipt) Cid() cid.Cid {
-	return node.cid
+// Cid returns the cid of the receipt.
+func (r *EthReceipt) Cid() cid.Cid {
+	return r.cid
 }
 
 // String is a helper for output
@@ -107,12 +109,14 @@ func (r *EthReceipt) Resolve(p []string) (interface{}, []string, error) {
 		return r, nil, nil
 	}
 
-	if len(p) > 1 {
-		return nil, nil, fmt.Errorf("unexpected path elements past %s", p[0])
+	first, rest := p[0], p[1:]
+	if first != "logs" && len(p) != 1 {
+		return nil, nil, fmt.Errorf("unexpected path elements past %s", first)
 	}
 
-	switch p[0] {
-
+	switch first {
+	case "logs":
+		return &node.Link{Cid: commonHashToCid(MEthLog, r.LogRoot)}, rest, nil
 	case "root":
 		return r.PostState, nil, nil
 	case "status":
@@ -121,14 +125,14 @@ func (r *EthReceipt) Resolve(p []string) (interface{}, []string, error) {
 		return r.CumulativeGasUsed, nil, nil
 	case "logsBloom":
 		return r.Bloom, nil, nil
-	case "logs":
-		return r.Logs, nil, nil
 	case "transactionHash":
 		return r.TxHash, nil, nil
 	case "contractAddress":
 		return r.ContractAddress, nil, nil
 	case "gasUsed":
 		return r.GasUsed, nil, nil
+	case "type":
+		return r.Type, nil, nil
 	default:
 		return nil, nil, ErrInvalidLink
 	}
@@ -140,7 +144,7 @@ func (r *EthReceipt) Tree(p string, depth int) []string {
 	if p != "" || depth == 0 {
 		return nil
 	}
-	return []string{"root", "status", "cumulativeGasUsed", "logsBloom", "logs", "transactionHash", "contractAddress", "gasUsed"}
+	return []string{"type", "root", "status", "cumulativeGasUsed", "logsBloom", "logs", "transactionHash", "contractAddress", "gasUsed"}
 }
 
 // ResolveLink is a helper function that calls resolve and asserts the
@@ -159,13 +163,15 @@ func (r *EthReceipt) ResolveLink(p []string) (*node.Link, []string, error) {
 }
 
 // Copy will go away. It is here to comply with the Node interface.
-func (*EthReceipt) Copy() node.Node {
+func (r *EthReceipt) Copy() node.Node {
 	panic("implement me")
 }
 
 // Links is a helper function that returns all links within this object
-func (*EthReceipt) Links() []*node.Link {
-	return nil
+func (r *EthReceipt) Links() []*node.Link {
+	return []*node.Link{
+		{Cid: commonHashToCid(MEthLog, r.LogRoot)},
+	}
 }
 
 // Stat will go away. It is here to comply with the interface.

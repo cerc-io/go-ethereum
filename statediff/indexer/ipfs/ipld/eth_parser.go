@@ -23,10 +23,11 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/multiformats/go-multihash"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 // FromBlockRLP takes an RLP message representing
@@ -122,31 +123,35 @@ func FromBlockJSON(r io.Reader) (*EthHeader, []*EthTx, []*EthTxTrie, error) {
 
 // FromBlockAndReceipts takes a block and processes it
 // to return it a set of IPLD nodes for further processing.
-func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthHeader, []*EthTx, []*EthTxTrie, []*EthReceipt, []*EthRctTrie, error) {
+func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthHeader, []*EthTx, []*EthTxTrie, []*EthReceipt, []*EthRctTrie, [][]*EthLogTrie, [][]cid.Cid, error) {
 	// Process the header
 	headerNode, err := NewEthHeader(block.Header())
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
+
 	// Process the uncles
 	uncleNodes := make([]*EthHeader, len(block.Uncles()))
 	for i, uncle := range block.Uncles() {
 		uncleNode, err := NewEthHeader(uncle)
 		if err != nil {
-			return nil, nil, nil, nil, nil, nil, err
+			return nil, nil, nil, nil, nil, nil, nil, nil, err
 		}
 		uncleNodes[i] = uncleNode
 	}
+
 	// Process the txs
-	ethTxNodes, ethTxTrieNodes, err := processTransactions(block.Transactions(),
+	txNodes, txTrieNodes, err := processTransactions(block.Transactions(),
 		block.Header().TxHash[:])
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
-	// Process the receipts
-	ethRctNodes, ethRctTrieNodes, err := processReceipts(receipts,
+
+	// Process the receipts and logs
+	rctNodes, tctTrieNodes, logTrieNodes, logLeafNodeCIDs, err := processReceiptsAndLogs(receipts,
 		block.Header().ReceiptHash[:])
-	return headerNode, uncleNodes, ethTxNodes, ethTxTrieNodes, ethRctNodes, ethRctTrieNodes, err
+
+	return headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, tctTrieNodes, logTrieNodes, logLeafNodeCIDs, err
 }
 
 // processTransactions will take the found transactions in a parsed block body
@@ -173,26 +178,77 @@ func processTransactions(txs []*types.Transaction, expectedTxRoot []byte) ([]*Et
 	return ethTxNodes, txTrieNodes, err
 }
 
-// processReceipts will take in receipts
-// to return IPLD node slices for eth-rct and eth-rct-trie
-func processReceipts(rcts []*types.Receipt, expectedRctRoot []byte) ([]*EthReceipt, []*EthRctTrie, error) {
-	var ethRctNodes []*EthReceipt
+// processReceiptsAndLogs will take in receipts
+// to return IPLD node slices for eth-rct, eth-rct-trie, eth-log, eth-log-trie
+func processReceiptsAndLogs(rcts []*types.Receipt, expectedRctRoot []byte) ([]*EthReceipt, []*EthRctTrie, [][]*EthLogTrie, [][]cid.Cid, error) {
+	// Pre allocating memory.
+	ethRctNodes := make([]*EthReceipt, 0, len(rcts))
+	ethLogleafNodeCids := make([][]cid.Cid, 0, len(rcts))
+	ethLogTrieNodes := make([][]*EthLogTrie, 0, len(rcts))
+
 	receiptTrie := newRctTrie()
 
 	for idx, rct := range rcts {
+		// Process logs for each receipt.
+		logTrieNodes, leafNodeCids, logTrieHash, err := processLogs(rct.Logs)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		rct.LogRoot = logTrieHash
+		ethLogTrieNodes = append(ethLogTrieNodes, logTrieNodes)
+		ethLogleafNodeCids = append(ethLogleafNodeCids, leafNodeCids)
+
 		ethRct, err := NewReceipt(rct)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
+
 		ethRctNodes = append(ethRctNodes, ethRct)
-		if err := receiptTrie.add(idx, ethRct.RawData()); err != nil {
-			return nil, nil, err
+		if err = receiptTrie.add(idx, ethRct.RawData()); err != nil {
+			return nil, nil, nil, nil, err
 		}
 	}
 
 	if !bytes.Equal(receiptTrie.rootHash(), expectedRctRoot) {
-		return nil, nil, fmt.Errorf("wrong receipt hash computed")
+		return nil, nil, nil, nil, fmt.Errorf("wrong receipt hash computed")
 	}
 	rctTrieNodes, err := receiptTrie.getNodes()
-	return ethRctNodes, rctTrieNodes, err
+	return ethRctNodes, rctTrieNodes, ethLogTrieNodes, ethLogleafNodeCids, err
+}
+
+func processLogs(logs []*types.Log) ([]*EthLogTrie, []cid.Cid, common.Hash, error) {
+	logTr := newLogTrie()
+	for idx, log := range logs {
+		ethLog, err := NewLog(log)
+		if err != nil {
+			return nil, nil, common.Hash{}, err
+		}
+		if err = logTr.add(idx, ethLog.RawData()); err != nil {
+			return nil, nil, common.Hash{}, err
+		}
+	}
+
+	logTrieNodes, err := logTr.getNodes()
+	if err != nil {
+		return nil, nil, common.Hash{}, err
+	}
+
+	leafNodes, keys, err := logTr.getLeafNodes()
+	if err != nil {
+		return nil, nil, common.Hash{}, err
+	}
+
+	leafNodeCids := make([]cid.Cid, len(leafNodes))
+	for i, ln := range leafNodes {
+		var idx uint
+
+		r := bytes.NewReader(keys[i].trieKey)
+		err = rlp.Decode(r, &idx)
+		if err != nil {
+			return nil, nil, common.Hash{}, err
+		}
+		leafNodeCids[idx] = ln.Cid()
+	}
+
+	return logTrieNodes, leafNodeCids, common.BytesToHash(logTr.rootHash()), err
 }

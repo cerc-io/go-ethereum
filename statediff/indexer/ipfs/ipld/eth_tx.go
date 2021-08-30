@@ -121,7 +121,8 @@ func (t *EthTx) Resolve(p []string) (interface{}, []string, error) {
 	}
 
 	switch p[0] {
-
+	case "type":
+		return t.Type(), nil, nil
 	case "gas":
 		return t.Gas(), nil, nil
 	case "gasPrice":
@@ -154,7 +155,7 @@ func (t *EthTx) Tree(p string, depth int) []string {
 	if p != "" || depth == 0 {
 		return nil
 	}
-	return []string{"gas", "gasPrice", "input", "nonce", "r", "s", "toAddress", "v", "value"}
+	return []string{"type", "gas", "gasPrice", "input", "nonce", "r", "s", "toAddress", "v", "value"}
 }
 
 // ResolveLink is a helper function that calls resolve and asserts the

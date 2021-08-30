@@ -999,34 +999,6 @@ CREATE INDEX rct_mh_index ON eth.receipt_cids USING btree (mh_key);
 
 
 --
--- Name: rct_topic0_index; Type: INDEX; Schema: eth; Owner: -
---
-
-CREATE INDEX rct_topic0_index ON eth.receipt_cids USING gin (topic0s);
-
-
---
--- Name: rct_topic1_index; Type: INDEX; Schema: eth; Owner: -
---
-
-CREATE INDEX rct_topic1_index ON eth.receipt_cids USING gin (topic1s);
-
-
---
--- Name: rct_topic2_index; Type: INDEX; Schema: eth; Owner: -
---
-
-CREATE INDEX rct_topic2_index ON eth.receipt_cids USING gin (topic2s);
-
-
---
--- Name: rct_topic3_index; Type: INDEX; Schema: eth; Owner: -
---
-
-CREATE INDEX rct_topic3_index ON eth.receipt_cids USING gin (topic3s);
-
-
---
 -- Name: rct_tx_id_index; Type: INDEX; Schema: eth; Owner: -
 --
 
@@ -1330,4 +1302,3 @@ ALTER TABLE ONLY eth.uncle_cids
 --
 -- PostgreSQL database dump complete
 --
-

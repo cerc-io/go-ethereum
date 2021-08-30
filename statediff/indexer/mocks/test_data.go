@@ -381,7 +381,7 @@ func createTransactionsAndReceipts(config *params.ChainConfig, blockNumber *big.
 		PostState:         common.HexToHash("0x3").Bytes(),
 		Status:            types.ReceiptStatusSuccessful,
 		CumulativeGasUsed: 175,
-		Logs:              []*types.Log{},
+		Logs:              []*types.Log{MockLog1, MockLog2},
 		TxHash:            signedTrx4.Hash(),
 	}
 	mockReceipt5 := &types.Receipt{

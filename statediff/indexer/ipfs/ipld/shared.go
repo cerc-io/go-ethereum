@@ -20,14 +20,15 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
+	sdtrie "github.com/ethereum/go-ethereum/statediff/trie"
+	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 )
 
 // IPLD Codecs for Ethereum
@@ -44,6 +45,8 @@ const (
 	MEthStateTrie       = 0x96
 	MEthAccountSnapshot = 0x97
 	MEthStorageTrie     = 0x98
+	MEthLogTrie         = 0x99
+	MEthLog             = 0x9a
 )
 
 var (
@@ -148,6 +151,41 @@ func (lt *localTrie) getKeys() ([][]byte, error) {
 		keyBytes = append(keyBytes, it.Hash().Bytes())
 	}
 	return keyBytes, nil
+}
+
+type nodeKey struct {
+	dbKey   []byte
+	trieKey []byte
+}
+
+// getLeafKeys returns the stored leaf keys from the memory database
+// of the localTrie for further processing.
+func (lt *localTrie) getLeafKeys() ([]*nodeKey, error) {
+	it := lt.trie.NodeIterator([]byte{})
+
+	leafKeys := make([]*nodeKey, 0)
+	for it.Next(true) {
+		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
+			continue
+		}
+
+		node, nodeElements, err := sdtrie.ResolveNode(it, lt.trieDB)
+		if err != nil {
+			return nil, err
+		}
+
+		if node.NodeType != sdtypes.Leaf {
+			continue
+		}
+
+		partialPath := trie.CompactToHex(nodeElements[0].([]byte))
+		valueNodePath := append(node.Path, partialPath...)
+		encodedPath := trie.HexToCompact(valueNodePath)
+		leafKey := encodedPath[1:]
+
+		leafKeys = append(leafKeys, &nodeKey{dbKey: it.Hash().Bytes(), trieKey: leafKey})
+	}
+	return leafKeys, nil
 }
 
 // getRLP encodes the given object to RLP returning its bytes.

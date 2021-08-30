@@ -6,13 +6,9 @@ CREATE TABLE eth.receipt_cids (
   mh_key                TEXT NOT NULL REFERENCES public.blocks (key) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
   contract              VARCHAR(66),
   contract_hash         VARCHAR(66),
-  topic0s               VARCHAR(66)[],
-  topic1s               VARCHAR(66)[],
-  topic2s               VARCHAR(66)[],
-  topic3s               VARCHAR(66)[],
-  log_contracts         VARCHAR(66)[],
   post_state            VARCHAR(66),
   post_status           INTEGER,
+  log_root              VARCHAR(66),
   UNIQUE (tx_id)
 );
 

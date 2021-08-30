@@ -20,11 +20,8 @@
 package statediff
 
 import (
-	"fmt"
 	"sort"
 	"strings"
-
-	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
 func sortKeys(data AccountMap) []string {
@@ -73,26 +70,4 @@ func findIntersection(a, b []string) []string {
 		}
 	}
 
-}
-
-// CheckKeyType checks what type of key we have
-func CheckKeyType(elements []interface{}) (sdtypes.NodeType, error) {
-	if len(elements) > 2 {
-		return sdtypes.Branch, nil
-	}
-	if len(elements) < 2 {
-		return sdtypes.Unknown, fmt.Errorf("node cannot be less than two elements in length")
-	}
-	switch elements[0].([]byte)[0] / 16 {
-	case '\x00':
-		return sdtypes.Extension, nil
-	case '\x01':
-		return sdtypes.Extension, nil
-	case '\x02':
-		return sdtypes.Leaf, nil
-	case '\x03':
-		return sdtypes.Leaf, nil
-	default:
-		return sdtypes.Unknown, fmt.Errorf("unknown hex prefix")
-	}
 }

@@ -36,7 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
-
+	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/jmoiron/sqlx"
 	"github.com/multiformats/go-multihash"
@@ -108,14 +108,17 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	if err := receipts.DeriveFields(sdi.chainConfig, blockHash, height, transactions); err != nil {
 		return nil, err
 	}
+
 	// Generate the block iplds
-	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, err := ipld.FromBlockAndReceipts(block, receipts)
+	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, err := ipld.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
+
 	if len(txNodes) != len(txTrieNodes) && len(rctNodes) != len(rctTrieNodes) && len(txNodes) != len(rctNodes) {
 		return nil, fmt.Errorf("expected number of transactions (%d), transaction trie nodes (%d), receipts (%d), and receipt trie nodes (%d)to be equal", len(txNodes), len(txTrieNodes), len(rctNodes), len(rctTrieNodes))
 	}
+
 	// Calculate reward
 	var reward *big.Int
 	// in PoA networks block reward is 0
@@ -189,14 +192,16 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	t = time.Now()
 	// Publish and index receipts and txs
 	err = sdi.processReceiptsAndTxs(tx, processArgs{
-		headerID:     headerID,
-		blockNumber:  block.Number(),
-		receipts:     receipts,
-		txs:          transactions,
-		rctNodes:     rctNodes,
-		rctTrieNodes: rctTrieNodes,
-		txNodes:      txNodes,
-		txTrieNodes:  txTrieNodes,
+		headerID:        headerID,
+		blockNumber:     block.Number(),
+		receipts:        receipts,
+		txs:             transactions,
+		rctNodes:        rctNodes,
+		rctTrieNodes:    rctTrieNodes,
+		txNodes:         txNodes,
+		txTrieNodes:     txTrieNodes,
+		logTrieNodes:    logTrieNodes,
+		logLeafNodeCIDs: logLeafNodeCIDs,
 	})
 	if err != nil {
 		return nil, err
@@ -273,14 +278,16 @@ func (sdi *StateDiffIndexer) processUncles(tx *sqlx.Tx, headerID int64, blockNum
 
 // processArgs bundles arguments to processReceiptsAndTxs
 type processArgs struct {
-	headerID     int64
-	blockNumber  *big.Int
-	receipts     types.Receipts
-	txs          types.Transactions
-	rctNodes     []*ipld.EthReceipt
-	rctTrieNodes []*ipld.EthRctTrie
-	txNodes      []*ipld.EthTx
-	txTrieNodes  []*ipld.EthTxTrie
+	headerID        int64
+	blockNumber     *big.Int
+	receipts        types.Receipts
+	txs             types.Transactions
+	rctNodes        []*ipld.EthReceipt
+	rctTrieNodes    []*ipld.EthRctTrie
+	txNodes         []*ipld.EthTx
+	txTrieNodes     []*ipld.EthTxTrie
+	logTrieNodes    [][]*ipld.EthLogTrie
+	logLeafNodeCIDs [][]cid.Cid
 }
 
 // processReceiptsAndTxs publishes and indexes receipt and transaction IPLDs in Postgres
@@ -295,14 +302,12 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 			return fmt.Errorf("error deriving tx sender: %v", err)
 		}
 
-		// Publishing
-		// publish trie nodes, these aren't indexed directly
-		if err := shared.PublishIPLD(tx, args.txTrieNodes[i]); err != nil {
-			return fmt.Errorf("error publishing tx trie node IPLD: %v", err)
+		for _, trie := range args.logTrieNodes[i] {
+			if err = shared.PublishIPLD(tx, trie); err != nil {
+				return fmt.Errorf("error publishing log trie node IPLD: %w", err)
+			}
 		}
-		if err := shared.PublishIPLD(tx, args.rctTrieNodes[i]); err != nil {
-			return fmt.Errorf("error publishing rct trie node IPLD: %v", err)
-		}
+
 		// publish the txs and receipts
 		txNode, rctNode := args.txNodes[i], args.rctNodes[i]
 		if err := shared.PublishIPLD(tx, txNode); err != nil {
@@ -314,13 +319,31 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 
 		// Indexing
 		// extract topic and contract data from the receipt for indexing
-		topicSets := make([][]string, 4)
 		mappedContracts := make(map[string]bool) // use map to avoid duplicate addresses
-		for _, log := range receipt.Logs {
-			for i, topic := range log.Topics {
-				topicSets[i] = append(topicSets[i], topic.Hex())
+		logDataSet := make([]*models.LogsModel, len(receipt.Logs))
+		for idx, l := range receipt.Logs {
+			topicSet := make([]string, 4)
+			for ti, topic := range l.Topics {
+				topicSet[ti] = topic.Hex()
 			}
-			mappedContracts[log.Address.String()] = true
+
+			if !args.logLeafNodeCIDs[i][idx].Defined() {
+				return fmt.Errorf("invalid log cid")
+			}
+
+			mappedContracts[l.Address.String()] = true
+			logDataSet[idx] = &models.LogsModel{
+				ID:        0,
+				Address:   l.Address.String(),
+				Index:     int64(l.Index),
+				Data:      l.Data,
+				LeafCID:   args.logLeafNodeCIDs[i][idx].String(),
+				LeafMhKey: shared.MultihashKeyFromCID(args.logLeafNodeCIDs[i][idx]),
+				Topic0:    topicSet[0],
+				Topic1:    topicSet[1],
+				Topic2:    topicSet[2],
+				Topic3:    topicSet[3],
+			}
 		}
 		// these are the contracts seen in the logs
 		logContracts := make([]string, 0, len(mappedContracts))
@@ -368,26 +391,42 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 			}
 		}
 		// index the receipt
-		rctModel := models.ReceiptModel{
-			Topic0s:      topicSets[0],
-			Topic1s:      topicSets[1],
-			Topic2s:      topicSets[2],
-			Topic3s:      topicSets[3],
+		rctModel := &models.ReceiptModel{
 			Contract:     contract,
 			ContractHash: contractHash,
-			LogContracts: logContracts,
 			CID:          rctNode.Cid().String(),
 			MhKey:        shared.MultihashKeyFromCID(rctNode.Cid()),
+			LogRoot:      rctNode.LogRoot.String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
 		} else {
 			rctModel.PostState = common.Bytes2Hex(receipt.PostState)
 		}
-		if err := sdi.dbWriter.upsertReceiptCID(tx, rctModel, txID); err != nil {
+
+		receiptID, err := sdi.dbWriter.upsertReceiptCID(tx, rctModel, txID)
+		if err != nil {
+			return err
+		}
+
+		if err = sdi.dbWriter.upsertLogCID(tx, logDataSet, receiptID); err != nil {
 			return err
 		}
 	}
+
+	// publish trie nodes, these aren't indexed directly
+	for _, n := range args.txTrieNodes {
+		if err := shared.PublishIPLD(tx, n); err != nil {
+			return fmt.Errorf("error publishing tx trie node IPLD: %w", err)
+		}
+	}
+
+	for _, n := range args.rctTrieNodes {
+		if err := shared.PublishIPLD(tx, n); err != nil {
+			return fmt.Errorf("error publishing rct trie node IPLD: %w", err)
+		}
+	}
+
 	return nil
 }
 

@@ -1,3 +1,19 @@
+// VulcanizeDB
+// Copyright © 2019 Vulcanize
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package ipld
 
 import (
@@ -7,6 +23,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/stretchr/testify/require"
 )
 
 type kind string
@@ -73,9 +91,17 @@ func loadBlockData(t *testing.T) []testCase {
 func TestFromBlockAndReceipts(t *testing.T) {
 	testCases := loadBlockData(t)
 	for _, tc := range testCases {
-		_, _, _, _, _, _, err := FromBlockAndReceipts(tc.block, tc.receipts)
+		_, _, _, _, _, _, _, _, err := FromBlockAndReceipts(tc.block, tc.receipts)
 		if err != nil {
 			t.Fatalf("error generating IPLDs from block and receipts, err %v, kind %s, block hash %s", err, tc.kind, tc.block.Hash())
 		}
 	}
+}
+
+func TestProcessLogs(t *testing.T) {
+	logs := []*types.Log{mocks.MockLog1, mocks.MockLog2}
+	nodes, cids, _, err := processLogs(logs)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(nodes), len(logs))
+	require.Equal(t, len(logs), len(cids))
 }

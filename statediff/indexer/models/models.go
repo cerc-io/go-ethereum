@@ -75,19 +75,15 @@ type AccessListElementModel struct {
 
 // ReceiptModel is the db model for eth.receipt_cids
 type ReceiptModel struct {
-	ID           int64          `db:"id"`
-	TxID         int64          `db:"tx_id"`
-	CID          string         `db:"cid"`
-	MhKey        string         `db:"mh_key"`
-	PostStatus   uint64         `db:"post_status"`
-	PostState    string         `db:"post_state"`
-	Contract     string         `db:"contract"`
-	ContractHash string         `db:"contract_hash"`
-	LogContracts pq.StringArray `db:"log_contracts"`
-	Topic0s      pq.StringArray `db:"topic0s"`
-	Topic1s      pq.StringArray `db:"topic1s"`
-	Topic2s      pq.StringArray `db:"topic2s"`
-	Topic3s      pq.StringArray `db:"topic3s"`
+	ID           int64  `db:"id"`
+	TxID         int64  `db:"tx_id"`
+	CID          string `db:"cid"`
+	MhKey        string `db:"mh_key"`
+	PostStatus   uint64 `db:"post_status"`
+	PostState    string `db:"post_state"`
+	Contract     string `db:"contract"`
+	ContractHash string `db:"contract_hash"`
+	LogRoot      string `db:"log_root"`
 }
 
 // StateNodeModel is the db model for eth.state_cids
@@ -135,4 +131,19 @@ type StateAccountModel struct {
 	Nonce       uint64 `db:"nonce"`
 	CodeHash    []byte `db:"code_hash"`
 	StorageRoot string `db:"storage_root"`
+}
+
+// LogsModel is the db model for eth.logs
+type LogsModel struct {
+	ID        int64  `db:"id"`
+	LeafCID   string `db:"leaf_cid"`
+	LeafMhKey string `db:"leaf_mh_key"`
+	ReceiptID int64  `db:"receipt_id"`
+	Address   string `db:"address"`
+	Index     int64  `db:"index"`
+	Data      []byte `db:"log_data"`
+	Topic0    string `db:"topic0"`
+	Topic1    string `db:"topic1"`
+	Topic2    string `db:"topic2"`
+	Topic3    string `db:"topic3"`
 }

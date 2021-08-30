@@ -213,6 +213,7 @@ func TestEthTxTree(t *testing.T) {
 	// Good cases
 	tree = tx.Tree("", 1)
 	lookupElements := map[string]interface{}{
+		"type":      nil,
 		"gas":       nil,
 		"gasPrice":  nil,
 		"input":     nil,

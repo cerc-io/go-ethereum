@@ -24,17 +24,18 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipfs/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
-
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/multiformats/go-multihash"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -306,6 +307,43 @@ func TestPublishAndIndexer(t *testing.T) {
 					t.Fatalf("expected DynamicFeeTxType (2), got %d", *txType)
 				}
 			}
+		}
+	})
+
+	t.Run("Publish and index log IPLDs for single receipt", func(t *testing.T) {
+		setup(t)
+		defer tearDown(t)
+		type logIPLD struct {
+			Index   int    `db:"index"`
+			Address string `db:"address"`
+			Data    []byte `db:"data"`
+			Topic0  string `db:"topic0"`
+			Topic1  string `db:"topic1"`
+		}
+
+		results := make([]logIPLD, 0)
+		pgStr := `SELECT log_cids.index, log_cids.address, log_cids.Topic0, log_cids.Topic1, data FROM eth.log_cids
+    				INNER JOIN eth.receipt_cids ON (log_cids.receipt_id = receipt_cids.id)
+					INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
+					WHERE receipt_cids.cid = $1 ORDER BY eth.log_cids.index ASC`
+		err = db.Select(&results, pgStr, rct4CID.String())
+		require.NoError(t, err)
+
+		// expecting MockLog1 and MockLog2 for mockReceipt4
+		expectedLogs := mocks.MockReceipts[3].Logs
+		shared.ExpectEqual(t, len(results), len(expectedLogs))
+
+		var nodeElements []interface{}
+		for idx, r := range results {
+			// Decode the log leaf node.
+			err = rlp.DecodeBytes(r.Data, &nodeElements)
+			require.NoError(t, err)
+
+			logRaw, err := rlp.EncodeToBytes(expectedLogs[idx])
+			require.NoError(t, err)
+
+			// 2nd element of the leaf node contains the encoded log data.
+			shared.ExpectEqual(t, logRaw, nodeElements[1].([]byte))
 		}
 	})
 

@@ -36,16 +36,6 @@ CREATE INDEX rct_contract_index ON eth.receipt_cids USING btree (contract);
 
 CREATE INDEX rct_contract_hash_index ON eth.receipt_cids USING btree (contract_hash);
 
-CREATE INDEX rct_topic0_index ON eth.receipt_cids USING gin (topic0s);
-
-CREATE INDEX rct_topic1_index ON eth.receipt_cids USING gin (topic1s);
-
-CREATE INDEX rct_topic2_index ON eth.receipt_cids USING gin (topic2s);
-
-CREATE INDEX rct_topic3_index ON eth.receipt_cids USING gin (topic3s);
-
-CREATE INDEX rct_log_contract_index ON eth.receipt_cids USING gin (log_contracts);
-
 -- state node indexes
 CREATE INDEX state_header_id_index ON eth.state_cids USING btree (header_id);
 
@@ -93,11 +83,6 @@ DROP INDEX eth.state_leaf_key_index;
 DROP INDEX eth.state_header_id_index;
 
 -- receipt indexes
-DROP INDEX eth.rct_log_contract_index;
-DROP INDEX eth.rct_topic3_index;
-DROP INDEX eth.rct_topic2_index;
-DROP INDEX eth.rct_topic1_index;
-DROP INDEX eth.rct_topic0_index;
 DROP INDEX eth.rct_contract_hash_index;
 DROP INDEX eth.rct_contract_index;
 DROP INDEX eth.rct_mh_index;

@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	sdtrie "github.com/ethereum/go-ethereum/statediff/trie"
 	. "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -49,28 +50,6 @@ type Builder interface {
 
 type builder struct {
 	stateCache state.Database
-}
-
-func resolveNode(it trie.NodeIterator, trieDB *trie.Database) (StateNode, []interface{}, error) {
-	nodePath := make([]byte, len(it.Path()))
-	copy(nodePath, it.Path())
-	node, err := trieDB.Node(it.Hash())
-	if err != nil {
-		return StateNode{}, nil, err
-	}
-	var nodeElements []interface{}
-	if err := rlp.DecodeBytes(node, &nodeElements); err != nil {
-		return StateNode{}, nil, err
-	}
-	ty, err := CheckKeyType(nodeElements)
-	if err != nil {
-		return StateNode{}, nil, err
-	}
-	return StateNode{
-		NodeType:  ty,
-		Path:      nodePath,
-		NodeValue: node,
-	}, nodeElements, nil
 }
 
 // convenience
@@ -127,7 +106,7 @@ func (sdb *builder) buildStateTrie(it trie.NodeIterator) ([]StateNode, []CodeAnd
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -319,7 +298,7 @@ func (sdb *builder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddres
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -363,7 +342,7 @@ func (sdb *builder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIt
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -415,7 +394,7 @@ func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB m
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return nil, err
 		}
@@ -576,7 +555,7 @@ func (sdb *builder) buildStorageNodesFromTrie(it trie.NodeIterator, watchedStora
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return err
 		}
@@ -650,7 +629,7 @@ func (sdb *builder) createdAndUpdatedStorage(a, b trie.NodeIterator, watchedKeys
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return nil, err
 		}
@@ -695,7 +674,7 @@ func (sdb *builder) deletedOrUpdatedStorage(a, b trie.NodeIterator, diffPathsAtB
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
 			continue
 		}
-		node, nodeElements, err := resolveNode(it, sdb.stateCache.TrieDB())
+		node, nodeElements, err := sdtrie.ResolveNode(it, sdb.stateCache.TrieDB())
 		if err != nil {
 			return err
 		}

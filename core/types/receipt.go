@@ -70,6 +70,7 @@ type Receipt struct {
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
+	LogRoot          common.Hash `json:"logRoot"`
 }
 
 type receiptMarshaling struct {
@@ -211,7 +212,7 @@ func (r *Receipt) DecodeRLP(s *rlp.Stream) error {
 	}
 }
 
-// UnmarshalBinary decodes the canonical encoding of receipts.
+// UnmarshalBinary decodes the consensus encoding of receipts.
 // It supports legacy RLP receipts and EIP-2718 typed receipts.
 func (r *Receipt) UnmarshalBinary(b []byte) error {
 	if len(b) > 0 && b[0] > 0x7f {
@@ -234,13 +235,13 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		return errEmptyTypedReceipt
 	}
 	switch b[0] {
-	case AccessListTxType:
+	case DynamicFeeTxType, AccessListTxType:
 		var data receiptRLP
 		err := rlp.DecodeBytes(b[1:], &data)
 		if err != nil {
 			return err
 		}
-		r.Type = AccessListTxType
+		r.Type = b[0]
 		return r.setFromRLP(data)
 	default:
 		return ErrTxTypeNotSupported
