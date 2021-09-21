@@ -363,8 +363,8 @@ ALTER SEQUENCE eth.log_cids_id_seq OWNED BY eth.log_cids.id;
 CREATE TABLE eth.receipt_cids (
     id integer NOT NULL,
     tx_id integer NOT NULL,
-    cid text NOT NULL,
-    mh_key text NOT NULL,
+    leaf_cid text NOT NULL,
+    leaf_mh_key text NOT NULL,
     contract character varying(66),
     contract_hash character varying(66),
     post_state character varying(66),
@@ -1012,10 +1012,10 @@ CREATE INDEX log_topic3_index ON eth.log_cids USING btree (topic3);
 
 
 --
--- Name: rct_cid_index; Type: INDEX; Schema: eth; Owner: -
+-- Name: rct_leaf_cid_index; Type: INDEX; Schema: eth; Owner: -
 --
 
-CREATE INDEX rct_cid_index ON eth.receipt_cids USING btree (cid);
+CREATE INDEX rct_leaf_cid_index ON eth.receipt_cids USING btree (leaf_cid);
 
 
 --
@@ -1033,10 +1033,10 @@ CREATE INDEX rct_contract_index ON eth.receipt_cids USING btree (contract);
 
 
 --
--- Name: rct_mh_index; Type: INDEX; Schema: eth; Owner: -
+-- Name: rct_leaf_mh_index; Type: INDEX; Schema: eth; Owner: -
 --
 
-CREATE INDEX rct_mh_index ON eth.receipt_cids USING btree (mh_key);
+CREATE INDEX rct_leaf_mh_index ON eth.receipt_cids USING btree (leaf_mh_key);
 
 
 --
@@ -1287,7 +1287,7 @@ ALTER TABLE ONLY eth.log_cids
 --
 
 ALTER TABLE ONLY eth.receipt_cids
-    ADD CONSTRAINT receipt_cids_mh_key_fkey FOREIGN KEY (mh_key) REFERENCES public.blocks(key) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+    ADD CONSTRAINT receipt_cids_leaf_mh_key_fkey FOREIGN KEY (leaf_mh_key) REFERENCES public.blocks(key) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
 
 
 --

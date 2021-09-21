@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer"
+	"github.com/ethereum/go-ethereum/statediff/indexer/ipfs"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipfs/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
@@ -310,9 +311,21 @@ func TestPublishAndIndexer(t *testing.T) {
 		}
 	})
 
-	t.Run("Publish and index log IPLDs for single receipt", func(t *testing.T) {
+	t.Run("Publish and index log IPLDs for multiple receipt of a specific block", func(t *testing.T) {
 		setup(t)
 		defer tearDown(t)
+
+		rcts := make([]string, 0)
+		pgStr := `SELECT receipt_cids.leaf_cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
+				WHERE receipt_cids.tx_id = transaction_cids.id
+				AND transaction_cids.header_id = header_cids.id
+				AND header_cids.block_number = $1
+				ORDER BY transaction_cids.index`
+		err = db.Select(&rcts, pgStr, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		type logIPLD struct {
 			Index   int    `db:"index"`
 			Address string `db:"address"`
@@ -320,52 +333,72 @@ func TestPublishAndIndexer(t *testing.T) {
 			Topic0  string `db:"topic0"`
 			Topic1  string `db:"topic1"`
 		}
-
-		results := make([]logIPLD, 0)
-		pgStr := `SELECT log_cids.index, log_cids.address, log_cids.Topic0, log_cids.Topic1, data FROM eth.log_cids
+		for i := range rcts {
+			results := make([]logIPLD, 0)
+			pgStr = `SELECT log_cids.index, log_cids.address, log_cids.Topic0, log_cids.Topic1, data FROM eth.log_cids
     				INNER JOIN eth.receipt_cids ON (log_cids.receipt_id = receipt_cids.id)
 					INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
-					WHERE receipt_cids.cid = $1 ORDER BY eth.log_cids.index ASC`
-		err = db.Select(&results, pgStr, rct4CID.String())
-		require.NoError(t, err)
-
-		// expecting MockLog1 and MockLog2 for mockReceipt4
-		expectedLogs := mocks.MockReceipts[3].Logs
-		shared.ExpectEqual(t, len(results), len(expectedLogs))
-
-		var nodeElements []interface{}
-		for idx, r := range results {
-			// Decode the log leaf node.
-			err = rlp.DecodeBytes(r.Data, &nodeElements)
+					WHERE receipt_cids.leaf_cid = $1 ORDER BY eth.log_cids.index ASC`
+			err = db.Select(&results, pgStr, rcts[i])
 			require.NoError(t, err)
 
-			logRaw, err := rlp.EncodeToBytes(expectedLogs[idx])
-			require.NoError(t, err)
+			// expecting MockLog1 and MockLog2 for mockReceipt4
+			expectedLogs := mocks.MockReceipts[i].Logs
+			shared.ExpectEqual(t, len(results), len(expectedLogs))
 
-			// 2nd element of the leaf node contains the encoded log data.
-			shared.ExpectEqual(t, logRaw, nodeElements[1].([]byte))
+			var nodeElements []interface{}
+			for idx, r := range results {
+				// Decode the log leaf node.
+				err = rlp.DecodeBytes(r.Data, &nodeElements)
+				require.NoError(t, err)
+
+				logRaw, err := rlp.EncodeToBytes(expectedLogs[idx])
+				require.NoError(t, err)
+
+				// 2nd element of the leaf node contains the encoded log data.
+				shared.ExpectEqual(t, logRaw, nodeElements[1].([]byte))
+			}
 		}
 	})
 
 	t.Run("Publish and index receipt IPLDs in a single tx", func(t *testing.T) {
 		setup(t)
 		defer tearDown(t)
+
 		// check receipts were properly indexed
 		rcts := make([]string, 0)
-		pgStr := `SELECT receipt_cids.cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
+		pgStr := `SELECT receipt_cids.leaf_cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
 				WHERE receipt_cids.tx_id = transaction_cids.id
 				AND transaction_cids.header_id = header_cids.id
-				AND header_cids.block_number = $1`
+				AND header_cids.block_number = $1 order by transaction_cids.id`
 		err = db.Select(&rcts, pgStr, mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
 		shared.ExpectEqual(t, len(rcts), 5)
-		expectTrue(t, shared.ListContainsString(rcts, rct1CID.String()))
-		expectTrue(t, shared.ListContainsString(rcts, rct2CID.String()))
-		expectTrue(t, shared.ListContainsString(rcts, rct3CID.String()))
-		expectTrue(t, shared.ListContainsString(rcts, rct4CID.String()))
-		expectTrue(t, shared.ListContainsString(rcts, rct5CID.String()))
+
+		for idx, rctLeafCID := range rcts {
+			result := make([]ipfs.BlockModel, 0)
+			pgStr = `SELECT data
+					FROM eth.receipt_cids
+					INNER JOIN public.blocks ON (receipt_cids.leaf_mh_key = public.blocks.key)
+					WHERE receipt_cids.leaf_cid = $1`
+			err = db.Select(&result, pgStr, rctLeafCID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Decode the log leaf node.
+			var nodeElements []interface{}
+			err = rlp.DecodeBytes(result[0].Data, &nodeElements)
+			require.NoError(t, err)
+
+			expectedRct, err := mocks.MockReceipts[idx].MarshalBinary()
+			require.NoError(t, err)
+
+			shared.ExpectEqual(t, expectedRct, nodeElements[1].([]byte))
+		}
+
 		// and published
 		for _, c := range rcts {
 			dc, err := cid.Decode(c)
@@ -379,11 +412,12 @@ func TestPublishAndIndexer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			switch c {
 			case rct1CID.String():
 				shared.ExpectEqual(t, data, rct1)
 				var postStatus uint64
-				pgStr = `SELECT post_status FROM eth.receipt_cids WHERE cid = $1`
+				pgStr = `SELECT post_status FROM eth.receipt_cids WHERE leaf_cid = $1`
 				err = db.Get(&postStatus, pgStr, c)
 				if err != nil {
 					t.Fatal(err)
@@ -392,7 +426,7 @@ func TestPublishAndIndexer(t *testing.T) {
 			case rct2CID.String():
 				shared.ExpectEqual(t, data, rct2)
 				var postState string
-				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE cid = $1`
+				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 				err = db.Get(&postState, pgStr, c)
 				if err != nil {
 					t.Fatal(err)
@@ -401,7 +435,7 @@ func TestPublishAndIndexer(t *testing.T) {
 			case rct3CID.String():
 				shared.ExpectEqual(t, data, rct3)
 				var postState string
-				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE cid = $1`
+				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 				err = db.Get(&postState, pgStr, c)
 				if err != nil {
 					t.Fatal(err)
@@ -410,7 +444,7 @@ func TestPublishAndIndexer(t *testing.T) {
 			case rct4CID.String():
 				shared.ExpectEqual(t, data, rct4)
 				var postState string
-				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE cid = $1`
+				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 				err = db.Get(&postState, pgStr, c)
 				if err != nil {
 					t.Fatal(err)
@@ -419,7 +453,7 @@ func TestPublishAndIndexer(t *testing.T) {
 			case rct5CID.String():
 				shared.ExpectEqual(t, data, rct5)
 				var postState string
-				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE cid = $1`
+				pgStr = `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 				err = db.Get(&postState, pgStr, c)
 				if err != nil {
 					t.Fatal(err)

@@ -77,8 +77,8 @@ type AccessListElementModel struct {
 type ReceiptModel struct {
 	ID           int64  `db:"id"`
 	TxID         int64  `db:"tx_id"`
-	CID          string `db:"cid"`
-	MhKey        string `db:"mh_key"`
+	LeafCID      string `db:"leaf_cid"`
+	LeafMhKey    string `db:"leaf_mh_key"`
 	PostStatus   uint64 `db:"post_status"`
 	PostState    string `db:"post_state"`
 	Contract     string `db:"contract"`

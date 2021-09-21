@@ -93,10 +93,10 @@ func (in *PostgresCIDWriter) upsertAccessListElement(tx *sqlx.Tx, accessListElem
 
 func (in *PostgresCIDWriter) upsertReceiptCID(tx *sqlx.Tx, rct *models.ReceiptModel, txID int64) (int64, error) {
 	var receiptID int64
-	err := tx.QueryRowx(`INSERT INTO eth.receipt_cids (tx_id, cid, contract, contract_hash, mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
- 							  ON CONFLICT (tx_id) DO UPDATE SET (cid, contract, contract_hash, mh_key, post_state, post_status, log_root) = ($2, $3, $4, $5, $6, $7, $8)
+	err := tx.QueryRowx(`INSERT INTO eth.receipt_cids (tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ 							  ON CONFLICT (tx_id) DO UPDATE SET (leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) = ($2, $3, $4, $5, $6, $7, $8)
  							  RETURNING id`,
-		txID, rct.CID, rct.Contract, rct.ContractHash, rct.MhKey, rct.PostState, rct.PostStatus, rct.LogRoot).Scan(&receiptID)
+		txID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey, rct.PostState, rct.PostStatus, rct.LogRoot).Scan(&receiptID)
 	if err != nil {
 		return 0, fmt.Errorf("error upserting receipt_cids entry: %w", err)
 	}

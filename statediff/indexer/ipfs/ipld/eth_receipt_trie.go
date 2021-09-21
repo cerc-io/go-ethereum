@@ -113,17 +113,17 @@ type rctTrie struct {
 	*localTrie
 }
 
-// newRctTrie initializes and returns a rctTrie.
-func newRctTrie() *rctTrie {
+// NewRctTrie initializes and returns a rctTrie.
+func NewRctTrie() *rctTrie {
 	return &rctTrie{
 		localTrie: newLocalTrie(),
 	}
 }
 
-// getNodes invokes the localTrie, which computes the root hash of the
+// GetNodes invokes the localTrie, which computes the root hash of the
 // transaction trie and returns its database keys, to return a slice
 // of EthRctTrie nodes.
-func (rt *rctTrie) getNodes() ([]*EthRctTrie, error) {
+func (rt *rctTrie) GetNodes() ([]*EthRctTrie, error) {
 	keys, err := rt.getKeys()
 	if err != nil {
 		return nil, err
@@ -131,20 +131,51 @@ func (rt *rctTrie) getNodes() ([]*EthRctTrie, error) {
 	var out []*EthRctTrie
 
 	for _, k := range keys {
-		rawdata, err := rt.db.Get(k)
+		n, err := rt.getNodeFromDB(k)
 		if err != nil {
 			return nil, err
 		}
-		c, err := RawdataToCid(MEthTxReceiptTrie, rawdata, multihash.KECCAK_256)
-		if err != nil {
-			return nil, err
-		}
-		tn := &TrieNode{
-			cid:     c,
-			rawdata: rawdata,
-		}
-		out = append(out, &EthRctTrie{TrieNode: tn})
+		out = append(out, n)
 	}
 
 	return out, nil
+}
+
+// GetLeafNodes invokes the localTrie, which returns a slice
+// of EthRctTrie leaf nodes.
+func (rt *rctTrie) GetLeafNodes() ([]*EthRctTrie, []*nodeKey, error) {
+	keys, err := rt.getLeafKeys()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := make([]*EthRctTrie, 0, len(keys))
+	for _, k := range keys {
+		n, err := rt.getNodeFromDB(k.dbKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, n)
+	}
+
+	return out, keys, nil
+}
+
+func (rt *rctTrie) getNodeFromDB(key []byte) (*EthRctTrie, error) {
+	rawdata, err := rt.db.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cid, err := RawdataToCid(MEthTxReceiptTrie, rawdata, multihash.KECCAK_256)
+	if err != nil {
+		return nil, err
+	}
+
+	tn := &TrieNode{
+		cid:     cid,
+		rawdata: rawdata,
+	}
+
+	return &EthRctTrie{TrieNode: tn}, nil
 }

@@ -28,9 +28,9 @@ CREATE INDEX tx_src_index ON eth.transaction_cids USING btree (src);
 -- receipt indexes
 CREATE INDEX rct_tx_id_index ON eth.receipt_cids USING btree (tx_id);
 
-CREATE INDEX rct_cid_index ON eth.receipt_cids USING btree (cid);
+CREATE INDEX rct_leaf_cid_index ON eth.receipt_cids USING btree (leaf_cid);
 
-CREATE INDEX rct_mh_index ON eth.receipt_cids USING btree (mh_key);
+CREATE INDEX rct_leaf_mh_index ON eth.receipt_cids USING btree (leaf_mh_key);
 
 CREATE INDEX rct_contract_index ON eth.receipt_cids USING btree (contract);
 
@@ -91,8 +91,8 @@ DROP INDEX eth.state_header_id_index;
 -- receipt indexes
 DROP INDEX eth.rct_contract_hash_index;
 DROP INDEX eth.rct_contract_index;
-DROP INDEX eth.rct_mh_index;
-DROP INDEX eth.rct_cid_index;
+DROP INDEX eth.rct_leaf_mh_index;
+DROP INDEX eth.rct_leaf_cid_index;
 DROP INDEX eth.rct_tx_id_index;
 
 -- transaction indexes

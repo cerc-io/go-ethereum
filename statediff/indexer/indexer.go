@@ -110,13 +110,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 
 	// Generate the block iplds
-	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, err := ipld.FromBlockAndReceipts(block, receipts)
+	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
 
-	if len(txNodes) != len(txTrieNodes) && len(rctNodes) != len(rctTrieNodes) && len(txNodes) != len(rctNodes) {
-		return nil, fmt.Errorf("expected number of transactions (%d), transaction trie nodes (%d), receipts (%d), and receipt trie nodes (%d)to be equal", len(txNodes), len(txTrieNodes), len(rctNodes), len(rctTrieNodes))
+	if len(txNodes) != len(rctNodes) || len(rctNodes) != len(rctLeafNodeCIDs) {
+		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d), and receipt trie leaf nodes (%d)to be equal", len(txNodes), len(rctNodes), len(rctLeafNodeCIDs))
 	}
 
 	// Calculate reward
@@ -202,6 +202,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		txTrieNodes:     txTrieNodes,
 		logTrieNodes:    logTrieNodes,
 		logLeafNodeCIDs: logLeafNodeCIDs,
+		rctLeafNodeCIDs: rctLeafNodeCIDs,
 	})
 	if err != nil {
 		return nil, err
@@ -288,6 +289,7 @@ type processArgs struct {
 	txTrieNodes     []*ipld.EthTxTrie
 	logTrieNodes    [][]*ipld.EthLogTrie
 	logLeafNodeCIDs [][]cid.Cid
+	rctLeafNodeCIDs []cid.Cid
 }
 
 // processReceiptsAndTxs publishes and indexes receipt and transaction IPLDs in Postgres
@@ -309,12 +311,9 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 		}
 
 		// publish the txs and receipts
-		txNode, rctNode := args.txNodes[i], args.rctNodes[i]
+		txNode := args.txNodes[i]
 		if err := shared.PublishIPLD(tx, txNode); err != nil {
 			return fmt.Errorf("error publishing tx IPLD: %v", err)
-		}
-		if err := shared.PublishIPLD(tx, rctNode); err != nil {
-			return fmt.Errorf("error publishing rct IPLD: %v", err)
 		}
 
 		// Indexing
@@ -390,13 +389,18 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 				return err
 			}
 		}
+
 		// index the receipt
+		if !args.rctLeafNodeCIDs[i].Defined() {
+			return fmt.Errorf("invalid receipt leaf node cid")
+		}
+
 		rctModel := &models.ReceiptModel{
 			Contract:     contract,
 			ContractHash: contractHash,
-			CID:          rctNode.Cid().String(),
-			MhKey:        shared.MultihashKeyFromCID(rctNode.Cid()),
-			LogRoot:      rctNode.LogRoot.String(),
+			LeafCID:      args.rctLeafNodeCIDs[i].String(),
+			LeafMhKey:    shared.MultihashKeyFromCID(args.rctLeafNodeCIDs[i]),
+			LogRoot:      args.rctNodes[i].LogRoot.String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status

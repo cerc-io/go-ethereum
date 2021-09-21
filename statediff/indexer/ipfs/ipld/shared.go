@@ -112,9 +112,9 @@ func newLocalTrie() *localTrie {
 	return lt
 }
 
-// add receives the index of an object and its rawdata value
+// Add receives the index of an object and its rawdata value
 // and includes it into the localTrie
-func (lt *localTrie) add(idx int, rawdata []byte) error {
+func (lt *localTrie) Add(idx int, rawdata []byte) error {
 	key, err := rlp.EncodeToBytes(uint(idx))
 	if err != nil {
 		panic(err)
@@ -128,19 +128,27 @@ func (lt *localTrie) rootHash() []byte {
 	return lt.trie.Hash().Bytes()
 }
 
-// getKeys returns the stored keys of the memory database
-// of the localTrie for further processing.
-func (lt *localTrie) getKeys() ([][]byte, error) {
+func (lt *localTrie) commit() error {
 	// commit trie nodes to trieDB
 	var err error
 	_, err = lt.trie.Commit(nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// commit trieDB to the underlying ethdb.Database
 	if err := lt.trieDB.Commit(lt.trie.Hash(), false, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+// getKeys returns the stored keys of the memory database
+// of the localTrie for further processing.
+func (lt *localTrie) getKeys() ([][]byte, error) {
+	if err := lt.commit(); err != nil {
 		return nil, err
 	}
+
 	// collect all of the node keys
 	it := lt.trie.NodeIterator([]byte{})
 	keyBytes := make([][]byte, 0)
@@ -155,14 +163,17 @@ func (lt *localTrie) getKeys() ([][]byte, error) {
 
 type nodeKey struct {
 	dbKey   []byte
-	trieKey []byte
+	TrieKey []byte
 }
 
 // getLeafKeys returns the stored leaf keys from the memory database
 // of the localTrie for further processing.
 func (lt *localTrie) getLeafKeys() ([]*nodeKey, error) {
-	it := lt.trie.NodeIterator([]byte{})
+	if err := lt.commit(); err != nil {
+		return nil, err
+	}
 
+	it := lt.trie.NodeIterator([]byte{})
 	leafKeys := make([]*nodeKey, 0)
 	for it.Next(true) {
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
@@ -183,7 +194,7 @@ func (lt *localTrie) getLeafKeys() ([]*nodeKey, error) {
 		encodedPath := trie.HexToCompact(valueNodePath)
 		leafKey := encodedPath[1:]
 
-		leafKeys = append(leafKeys, &nodeKey{dbKey: it.Hash().Bytes(), trieKey: leafKey})
+		leafKeys = append(leafKeys, &nodeKey{dbKey: it.Hash().Bytes(), TrieKey: leafKey})
 	}
 	return leafKeys, nil
 }
