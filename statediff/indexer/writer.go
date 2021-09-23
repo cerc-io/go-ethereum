@@ -30,7 +30,7 @@ var (
 	nullHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 )
 
-// Handles processing and writing of indexed IPLD objects to Postgres
+// PostgresCIDWriter handles processing and writing of indexed IPLD objects to Postgres
 type PostgresCIDWriter struct {
 	db *postgres.DB
 }
@@ -112,8 +112,8 @@ func (in *PostgresCIDWriter) upsertLogCID(tx *sqlx.Tx, logs []*models.LogsModel,
 		if err != nil {
 			return fmt.Errorf("error upserting logs entry: %w", err)
 		}
+		indexerMetrics.logs.Inc(1)
 	}
-	// TODO: Add metrics for logs.
 	return nil
 }
 

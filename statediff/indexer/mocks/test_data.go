@@ -129,6 +129,7 @@ var (
 	AccountRoot     = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
 	AccountCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 	AccountLeafKey  = testhelpers.Account2LeafKey
+	RemovedLeafKey  = testhelpers.Account1LeafKey
 	Account, _      = rlp.EncodeToBytes(state.Account{
 		Nonce:    nonce0,
 		Balance:  big.NewInt(1000),
@@ -154,6 +155,12 @@ var (
 					LeafKey:   StorageLeafKey,
 					NodeValue: StorageLeafNode,
 				},
+				{
+					Path:      []byte{'\x03'},
+					NodeType:  sdtypes.Removed,
+					LeafKey:   RemovedLeafKey,
+					NodeValue: []byte{},
+				},
 			},
 		},
 		{
@@ -163,24 +170,14 @@ var (
 			NodeValue:    AccountLeafNode,
 			StorageNodes: []sdtypes.StorageNode{},
 		},
+		{
+			Path:      []byte{'\x02'},
+			NodeType:  sdtypes.Removed,
+			LeafKey:   RemovedLeafKey,
+			NodeValue: []byte{},
+		},
 	}
 )
-
-/*
-// AccessListTx is the data of EIP-2930 access list transactions.
-type AccessListTx struct {
-	ChainID    *big.Int        // destination chain ID
-	Nonce      uint64          // nonce of sender account
-	GasPrice   *big.Int        // wei per gas
-	Gas        uint64          // gas limit
-	To         *common.Address `rlp:"nil"` // nil means contract creation
-	Value      *big.Int        // wei amount
-	Data       []byte          // contract invocation input data
-	AccessList AccessList      // EIP-2930 access list
-	V, R, S    *big.Int        // signature values
-}
-
-*/
 
 type LegacyData struct {
 	Config               *params.ChainConfig

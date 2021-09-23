@@ -165,7 +165,10 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		if err != nil {
 			return err
 		}
-		indexer = ind.NewStateDiffIndexer(blockChain.Config(), db)
+		indexer, err = ind.NewStateDiffIndexer(blockChain.Config(), db)
+		if err != nil {
+			return err
+		}
 	}
 	workers := params.NumWorkers
 	if workers == 0 {

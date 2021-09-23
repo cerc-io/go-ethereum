@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// This package provides an interface for pushing and indexing IPLD objects into a Postgres database
+// Package indexer provides an interface for pushing and indexing IPLD objects into a Postgres database
 // Metrics for reporting processing and connection stats are defined in ./metrics.go
 package indexer
 
@@ -47,6 +47,12 @@ var (
 	dbMetrics      = RegisterDBMetrics(metrics.DefaultRegistry)
 )
 
+const (
+	RemovedNodeStorageCID = "bagmacgzayxjemamg64rtzet6pwznzrydydsqbnstzkbcoo337lmaixmfurya"
+	RemovedNodeStateCID   = "baglacgzayxjemamg64rtzet6pwznzrydydsqbnstzkbcoo337lmaixmfurya"
+	RemovedNodeMhKey      = "/blocks/DMQMLUSGAGDPOIZ4SJ7H3MW4Y4B4BZIAWZJ4VARHHN57VWAELWC2I4A"
+)
+
 // Indexer interface to allow substitution of mocks for testing
 type Indexer interface {
 	PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (*BlockTx, error)
@@ -59,14 +65,19 @@ type Indexer interface {
 type StateDiffIndexer struct {
 	chainConfig *params.ChainConfig
 	dbWriter    *PostgresCIDWriter
+	init        bool
 }
 
 // NewStateDiffIndexer creates a pointer to a new PayloadConverter which satisfies the PayloadConverter interface
-func NewStateDiffIndexer(chainConfig *params.ChainConfig, db *postgres.DB) *StateDiffIndexer {
+func NewStateDiffIndexer(chainConfig *params.ChainConfig, db *postgres.DB) (*StateDiffIndexer, error) {
+	// Write the removed node to the db on init
+	if err := shared.PublishDirectWithDB(db, RemovedNodeMhKey, []byte{}); err != nil {
+		return nil, err
+	}
 	return &StateDiffIndexer{
 		chainConfig: chainConfig,
 		dbWriter:    NewPostgresCIDWriter(db),
-	}
+	}, nil
 }
 
 type BlockTx struct {
@@ -76,7 +87,7 @@ type BlockTx struct {
 	Close       func(err error) error
 }
 
-// Reporting function to run as goroutine
+// ReportDBMetrics is a reporting function to run as goroutine
 func (sdi *StateDiffIndexer) ReportDBMetrics(delay time.Duration, quit <-chan bool) {
 	if !metrics.Enabled {
 		return
@@ -95,7 +106,7 @@ func (sdi *StateDiffIndexer) ReportDBMetrics(delay time.Duration, quit <-chan bo
 	}()
 }
 
-// Pushes and indexes block data in database, except state & storage nodes (includes header, uncles, transactions & receipts)
+// PushBlock pushes and indexes block data in database, except state & storage nodes (includes header, uncles, transactions & receipts)
 // Returns an initiated DB transaction which must be Closed via defer to commit or rollback
 func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (*BlockTx, error) {
 	start, t := time.Now(), time.Now()
@@ -250,6 +261,7 @@ func (sdi *StateDiffIndexer) processHeader(tx *sqlx.Tx, header *types.Header, he
 	})
 }
 
+// processUncles publishes and indexes uncle IPLDs in Postgres
 func (sdi *StateDiffIndexer) processUncles(tx *sqlx.Tx, headerID int64, blockNumber uint64, uncleNodes []*ipld.EthHeader) error {
 	// publish and index uncles
 	for _, uncleNode := range uncleNodes {
@@ -434,19 +446,32 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *sqlx.Tx, args processArgs
 	return nil
 }
 
+// PushStateNode publishes and indexes a state diff node object (including any child storage nodes) in the IPLD database
 func (sdi *StateDiffIndexer) PushStateNode(tx *BlockTx, stateNode sdtypes.StateNode) error {
 	// publish the state node
-	stateCIDStr, err := shared.PublishRaw(tx.dbtx, ipld.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
+	if stateNode.NodeType == sdtypes.Removed {
+		// short circuit if it is a Removed node
+		// this assumes the db has been initialized and a public.blocks entry for the Removed node is present
+		stateModel := models.StateNodeModel{
+			Path:     stateNode.Path,
+			StateKey: common.BytesToHash(stateNode.LeafKey).String(),
+			CID:      RemovedNodeStateCID,
+			MhKey:    RemovedNodeMhKey,
+			NodeType: stateNode.NodeType.Int(),
+		}
+		_, err := sdi.dbWriter.upsertStateCID(tx.dbtx, stateModel, tx.headerID)
+		return err
+	}
+	stateCIDStr, stateMhKey, err := shared.PublishRaw(tx.dbtx, ipld.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
 	if err != nil {
 		return fmt.Errorf("error publishing state node IPLD: %v", err)
 	}
-	mhKey, _ := shared.MultihashKeyFromCIDString(stateCIDStr)
 	stateModel := models.StateNodeModel{
 		Path:     stateNode.Path,
 		StateKey: common.BytesToHash(stateNode.LeafKey).String(),
 		CID:      stateCIDStr,
-		MhKey:    mhKey,
-		NodeType: ResolveFromNodeType(stateNode.NodeType),
+		MhKey:    stateMhKey,
+		NodeType: stateNode.NodeType.Int(),
 	}
 	// index the state node, collect the stateID to reference by FK
 	stateID, err := sdi.dbWriter.upsertStateCID(tx.dbtx, stateModel, tx.headerID)
@@ -478,17 +503,31 @@ func (sdi *StateDiffIndexer) PushStateNode(tx *BlockTx, stateNode sdtypes.StateN
 	}
 	// if there are any storage nodes associated with this node, publish and index them
 	for _, storageNode := range stateNode.StorageNodes {
-		storageCIDStr, err := shared.PublishRaw(tx.dbtx, ipld.MEthStorageTrie, multihash.KECCAK_256, storageNode.NodeValue)
+		if storageNode.NodeType == sdtypes.Removed {
+			// short circuit if it is a Removed node
+			// this assumes the db has been initialized and a public.blocks entry for the Removed node is present
+			storageModel := models.StorageNodeModel{
+				Path:       storageNode.Path,
+				StorageKey: common.BytesToHash(storageNode.LeafKey).String(),
+				CID:        RemovedNodeStorageCID,
+				MhKey:      RemovedNodeMhKey,
+				NodeType:   storageNode.NodeType.Int(),
+			}
+			if err := sdi.dbWriter.upsertStorageCID(tx.dbtx, storageModel, stateID); err != nil {
+				return err
+			}
+			continue
+		}
+		storageCIDStr, storageMhKey, err := shared.PublishRaw(tx.dbtx, ipld.MEthStorageTrie, multihash.KECCAK_256, storageNode.NodeValue)
 		if err != nil {
 			return fmt.Errorf("error publishing storage node IPLD: %v", err)
 		}
-		mhKey, _ := shared.MultihashKeyFromCIDString(storageCIDStr)
 		storageModel := models.StorageNodeModel{
 			Path:       storageNode.Path,
 			StorageKey: common.BytesToHash(storageNode.LeafKey).String(),
 			CID:        storageCIDStr,
-			MhKey:      mhKey,
-			NodeType:   ResolveFromNodeType(storageNode.NodeType),
+			MhKey:      storageMhKey,
+			NodeType:   storageNode.NodeType.Int(),
 		}
 		if err := sdi.dbWriter.upsertStorageCID(tx.dbtx, storageModel, stateID); err != nil {
 			return err
@@ -498,7 +537,7 @@ func (sdi *StateDiffIndexer) PushStateNode(tx *BlockTx, stateNode sdtypes.StateN
 	return nil
 }
 
-// Publishes code and codehash pairs to the ipld database
+// PushCodeAndCodeHash publishes code and codehash pairs to the ipld database
 func (sdi *StateDiffIndexer) PushCodeAndCodeHash(tx *BlockTx, codeAndCodeHash sdtypes.CodeAndCodeHash) error {
 	// codec doesn't matter since db key is multihash-based
 	mhKey, err := shared.MultihashKeyFromKeccak256(codeAndCodeHash.Hash)

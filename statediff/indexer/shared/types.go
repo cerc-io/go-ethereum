@@ -22,7 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
-// Trie struct used to flag node as leaf or not
+// TrieNode struct used to flag node as leaf or not
 type TrieNode struct {
 	Path    []byte
 	LeafKey common.Hash

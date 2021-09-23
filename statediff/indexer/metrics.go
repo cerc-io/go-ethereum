@@ -31,6 +31,8 @@ type indexerMetricsHandles struct {
 	transactions metrics.Counter
 	// The total number of processed receipts
 	receipts metrics.Counter
+	// The total number of processed logs
+	logs metrics.Counter
 	// The total number of access list entries processed
 	accessListEntries metrics.Counter
 	// Time spent waiting for free postgres tx
@@ -52,6 +54,7 @@ func RegisterIndexerMetrics(reg metrics.Registry) indexerMetricsHandles {
 		blocks:                    metrics.NewCounter(),
 		transactions:              metrics.NewCounter(),
 		receipts:                  metrics.NewCounter(),
+		logs:                      metrics.NewCounter(),
 		accessListEntries:         metrics.NewCounter(),
 		tFreePostgres:             metrics.NewTimer(),
 		tPostgresCommit:           metrics.NewTimer(),
@@ -64,6 +67,7 @@ func RegisterIndexerMetrics(reg metrics.Registry) indexerMetricsHandles {
 	reg.Register(metricName(subsys, "blocks"), ctx.blocks)
 	reg.Register(metricName(subsys, "transactions"), ctx.transactions)
 	reg.Register(metricName(subsys, "receipts"), ctx.receipts)
+	reg.Register(metricName(subsys, "logs"), ctx.logs)
 	reg.Register(metricName(subsys, "access_list_entries"), ctx.accessListEntries)
 	reg.Register(metricName(subsys, "t_free_postgres"), ctx.tFreePostgres)
 	reg.Register(metricName(subsys, "t_postgres_commit"), ctx.tPostgresCommit)

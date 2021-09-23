@@ -42,7 +42,8 @@ func setupLegacy(t *testing.T) {
 	db, err = shared.SetupDB()
 	require.NoError(t, err)
 
-	ind = indexer.NewStateDiffIndexer(legacyData.Config, db)
+	ind, err = indexer.NewStateDiffIndexer(legacyData.Config, db)
+	require.NoError(t, err)
 	var tx *indexer.BlockTx
 	tx, err = ind.PushBlock(
 		mockLegacyBlock,

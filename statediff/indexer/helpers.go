@@ -23,19 +23,9 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
+// ResolveFromNodeType wrapper around NodeType.Int() so that we maintain backwards compatibility
 func ResolveFromNodeType(nodeType types.NodeType) int {
-	switch nodeType {
-	case types.Branch:
-		return 0
-	case types.Extension:
-		return 1
-	case types.Leaf:
-		return 2
-	case types.Removed:
-		return 3
-	default:
-		return -1
-	}
+	return nodeType.Int()
 }
 
 // ChainConfig returns the appropriate ethereum chain config for the provided chain id

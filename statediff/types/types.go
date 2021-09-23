@@ -26,11 +26,26 @@ type NodeType string
 
 const (
 	Unknown   NodeType = "Unknown"
-	Leaf      NodeType = "Leaf"
-	Extension NodeType = "Extension"
 	Branch    NodeType = "Branch"
-	Removed   NodeType = "Removed" // used to represent pathes which have been emptied
+	Extension NodeType = "Extension"
+	Leaf      NodeType = "Leaf"
+	Removed   NodeType = "Removed" // used to represent paths which have been emptied
 )
+
+func (n NodeType) Int() int {
+	switch n {
+	case Branch:
+		return 0
+	case Extension:
+		return 1
+	case Leaf:
+		return 2
+	case Removed:
+		return 3
+	default:
+		return -1
+	}
+}
 
 // StateNode holds the data for a single state diff node
 type StateNode struct {

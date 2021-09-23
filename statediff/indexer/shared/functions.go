@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipfs/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
 
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -96,15 +97,16 @@ func MultihashKeyFromCIDString(c string) (string, error) {
 }
 
 // PublishRaw derives a cid from raw bytes and provided codec and multihash type, and writes it to the db tx
-func PublishRaw(tx *sqlx.Tx, codec, mh uint64, raw []byte) (string, error) {
+// returns the CID and blockstore prefixed multihash key
+func PublishRaw(tx *sqlx.Tx, codec, mh uint64, raw []byte) (string, string, error) {
 	c, err := ipld.RawdataToCid(codec, raw, mh)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	dbKey := dshelp.MultihashToDsKey(c.Hash())
 	prefixedKey := blockstore.BlockPrefix.String() + dbKey.String()
 	_, err = tx.Exec(`INSERT INTO public.blocks (key, data) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, prefixedKey, raw)
-	return c.String(), err
+	return c.String(), prefixedKey, err
 }
 
 // MultihashKeyFromKeccak256 converts keccak256 hash bytes into a blockstore-prefixed multihash db key string
@@ -117,8 +119,14 @@ func MultihashKeyFromKeccak256(hash common.Hash) (string, error) {
 	return blockstore.BlockPrefix.String() + dbKey.String(), nil
 }
 
-// PublishDirect diretly writes a previously derived mhkey => value pair to the ipld database
+// PublishDirect diretly writes a previously derived mhkey => value pair to the ipld database in the provided tx
 func PublishDirect(tx *sqlx.Tx, key string, value []byte) error {
 	_, err := tx.Exec(`INSERT INTO public.blocks (key, data) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, key, value)
+	return err
+}
+
+// PublishDirectWithDB diretly writes a previously derived mhkey => value pair to the ipld database
+func PublishDirectWithDB(db *postgres.DB, key string, value []byte) error {
+	_, err := db.Exec(`INSERT INTO public.blocks (key, data) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`, key, value)
 	return err
 }

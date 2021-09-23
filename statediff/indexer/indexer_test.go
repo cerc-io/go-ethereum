@@ -139,7 +139,8 @@ func setup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ind = indexer.NewStateDiffIndexer(mocks.TestConfig, db)
+	ind, err = indexer.NewStateDiffIndexer(mocks.TestConfig, db)
+	require.NoError(t, err)
 	var tx *indexer.BlockTx
 	tx, err = ind.PushBlock(
 		mockBlock,
@@ -470,7 +471,7 @@ func TestPublishAndIndexer(t *testing.T) {
 		stateNodes := make([]models.StateNodeModel, 0)
 		pgStr := `SELECT state_cids.id, state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.id)
-				WHERE header_cids.block_number = $1`
+				WHERE header_cids.block_number = $1 AND node_type != 3`
 		err = db.Select(&stateNodes, pgStr, mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
@@ -523,6 +524,33 @@ func TestPublishAndIndexer(t *testing.T) {
 				})
 			}
 		}
+
+		// check that Removed state nodes were properly indexed and published
+		stateNodes = make([]models.StateNodeModel, 0)
+		pgStr = `SELECT state_cids.id, state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
+				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.id)
+				WHERE header_cids.block_number = $1 AND node_type = 3`
+		err = db.Select(&stateNodes, pgStr, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+		shared.ExpectEqual(t, len(stateNodes), 1)
+		stateNode := stateNodes[0]
+		var data []byte
+		dc, err := cid.Decode(stateNode.CID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mhKey := dshelp.MultihashToDsKey(dc.Hash())
+		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
+		shared.ExpectEqual(t, prefixedKey, indexer.RemovedNodeMhKey)
+		err = db.Get(&data, ipfsPgGet, prefixedKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		shared.ExpectEqual(t, stateNode.CID, indexer.RemovedNodeStateCID)
+		shared.ExpectEqual(t, stateNode.Path, []byte{'\x02'})
+		shared.ExpectEqual(t, data, []byte{})
 	})
 
 	t.Run("Publish and index storage IPLDs in a single tx", func(t *testing.T) {
@@ -534,7 +562,8 @@ func TestPublishAndIndexer(t *testing.T) {
 				FROM eth.storage_cids, eth.state_cids, eth.header_cids
 				WHERE storage_cids.state_id = state_cids.id
 				AND state_cids.header_id = header_cids.id
-				AND header_cids.block_number = $1`
+				AND header_cids.block_number = $1
+				AND storage_cids.node_type != 3`
 		err = db.Select(&storageNodes, pgStr, mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
@@ -559,5 +588,38 @@ func TestPublishAndIndexer(t *testing.T) {
 			t.Fatal(err)
 		}
 		shared.ExpectEqual(t, data, mocks.StorageLeafNode)
+
+		// check that Removed storage nodes were properly indexed
+		storageNodes = make([]models.StorageNodeWithStateKeyModel, 0)
+		pgStr = `SELECT storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, storage_cids.storage_path
+				FROM eth.storage_cids, eth.state_cids, eth.header_cids
+				WHERE storage_cids.state_id = state_cids.id
+				AND state_cids.header_id = header_cids.id
+				AND header_cids.block_number = $1
+				AND storage_cids.node_type = 3`
+		err = db.Select(&storageNodes, pgStr, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+		shared.ExpectEqual(t, len(storageNodes), 1)
+		shared.ExpectEqual(t, storageNodes[0], models.StorageNodeWithStateKeyModel{
+			CID:        indexer.RemovedNodeStorageCID,
+			NodeType:   3,
+			StorageKey: common.BytesToHash(mocks.RemovedLeafKey).Hex(),
+			StateKey:   common.BytesToHash(mocks.ContractLeafKey).Hex(),
+			Path:       []byte{'\x03'},
+		})
+		dc, err = cid.Decode(storageNodes[0].CID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mhKey = dshelp.MultihashToDsKey(dc.Hash())
+		prefixedKey = blockstore.BlockPrefix.String() + mhKey.String()
+		shared.ExpectEqual(t, prefixedKey, indexer.RemovedNodeMhKey)
+		err = db.Get(&data, ipfsPgGet, prefixedKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		shared.ExpectEqual(t, data, []byte{})
 	})
 }

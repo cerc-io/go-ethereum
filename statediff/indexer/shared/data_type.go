@@ -57,7 +57,7 @@ func (r DataType) String() string {
 	}
 }
 
-// GenerateDataTypeFromString
+// GenerateDataTypeFromString returns a DataType from a provided string
 func GenerateDataTypeFromString(str string) (DataType, error) {
 	switch strings.ToLower(str) {
 	case "full", "f":
@@ -79,6 +79,7 @@ func GenerateDataTypeFromString(str string) (DataType, error) {
 	}
 }
 
+// SupportedDataType returns whether a DataType is supported
 func SupportedDataType(d DataType) (bool, error) {
 	switch d {
 	case Full:

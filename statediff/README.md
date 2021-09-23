@@ -81,6 +81,7 @@ This service introduces a CLI flag namespace `statediff`
 `--statediff.writing` is used to tell the service to write state diff objects it produces from synced ChainEvents directly to a configured Postgres database
 `--statediff.workers` is used to set the number of concurrent workers to process state diff objects and write them into the database
 `--statediff.db` is the connection string for the Postgres database to write to
+`--statediff.db.init` indicates whether we need to initialize a new database; set true if its the first time running the process on a given database
 `--statediff.dbnodeid` is the node id to use in the Postgres database
 `--statediff.dbclientname` is the client name to use in the Postgres database
 
@@ -88,7 +89,7 @@ The service can only operate in full sync mode (`--syncmode=full`), but only the
 
 e.g.
 `
-./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db=postgres://localhost:5432/vulcanize_testing?sslmode=disable --statediff.dbnodeid={nodeId} --statediff.dbclientname={dbClientName}
+./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db=postgres://localhost:5432/vulcanize_testing?sslmode=disable --statediff.db.init=true --statediff.dbnodeid={nodeId} --statediff.dbclientname={dbClientName}
 `
 
 ### RPC endpoints
