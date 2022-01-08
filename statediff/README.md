@@ -77,19 +77,18 @@ This state diffing service runs as an auxiliary service concurrent to the regula
 ### CLI configuration
 This service introduces a CLI flag namespace `statediff`
 
-`--statediff` flag is used to turn on the service
-`--statediff.writing` is used to tell the service to write state diff objects it produces from synced ChainEvents directly to a configured Postgres database
-`--statediff.workers` is used to set the number of concurrent workers to process state diff objects and write them into the database
-`--statediff.db` is the connection string for the Postgres database to write to
-`--statediff.db.init` indicates whether we need to initialize a new database; set true if its the first time running the process on a given database
-`--statediff.dbnodeid` is the node id to use in the Postgres database
-`--statediff.dbclientname` is the client name to use in the Postgres database
+- `--statediff` flag is used to turn on the service
+- `--statediff.writing` is used to tell the service to write state diff objects it produces from synced ChainEvents directly to a configured Postgres database
+- `--statediff.workers` is used to set the number of concurrent workers to process state diff objects and write them into the database
+- `--statediff.db` is the connection string for the Postgres database to write to
+- `--statediff.dbnodeid` is the node id to use in the Postgres database
+- `--statediff.dbclientname` is the client name to use in the Postgres database
 
 The service can only operate in full sync mode (`--syncmode=full`), but only the historical RPC endpoints require an archive node (`--gcmode=archive`)
 
 e.g.
 `
-./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db=postgres://localhost:5432/vulcanize_testing?sslmode=disable --statediff.db.init=true --statediff.dbnodeid={nodeId} --statediff.dbclientname={dbClientName}
+./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db="postgres://localhost:5432/vulcanize_testing?sslmode=disable" --statediff.db.init=true --statediff.dbnodeid={nodeId} --statediff.dbclientname={dbClientName}
 `
 
 ### RPC endpoints
@@ -179,7 +178,7 @@ and the `statediff` namespace exposed (`--http.api=statediff`).
 If `--statediff.writing` is set, the service will convert the state diff `StateObject` data into IPLD objects, persist them directly to Postgres,
 and generate secondary indexes around the IPLD data.
 
-The schema and migrations for this Postgres database are provided in `statediff/db/`.
+The schema and migrations for this Postgres database are provided in [vulcanize/statediff-migrations](https://github.com/vulcanize/statediff-migrations).
 
 #### Postgres setup
 We use [pressly/goose](https://github.com/pressly/goose) as our Postgres migration manager.
@@ -188,6 +187,8 @@ You can also load the Postgres schema directly into a database using
 `psql database_name < schema.sql`
 
 This will only work on a version 12.4 Postgres database.
+
+See [vulcanize/statediff-migrations](https://github.com/vulcanize/statediff-migrations) for more info.
 
 #### Schema overview
 Our Postgres schemas are built around a single IPFS backing Postgres IPLD blockstore table (`public.blocks`) that conforms with [go-ds-sql](https://github.com/ipfs/go-ds-sql/blob/master/postgres/postgres.go).
