@@ -25,6 +25,8 @@ import (
 	"runtime"
 	"time"
 
+	pgipfsethdb "github.com/vulcanize/ipfs-ethdb/postgres"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
@@ -209,6 +211,9 @@ type Config struct {
 	// OverrideTerminalTotalDifficulty (TODO: remove after the fork)
 	OverrideTerminalTotalDifficulty *big.Int `toml:",omitempty"`
 
+	PostgresDB    bool
+	PgConnStr     string
+	PgCacheConfig pgipfsethdb.CacheConfig
 	// Signify whether or not we are producing statediffs
 	// If we are, do not dereference state roots until the statediffing service is done with them
 	Diffing bool
