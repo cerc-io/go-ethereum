@@ -202,7 +202,7 @@ func (sdb *builder) buildStateDiffWithIntermediateStateNodes(args StateRoots, pa
 	// a map of their leafkey to all the accounts that were touched and exist at A
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		oldTrie.NodeIterator([]byte{}), newTrie.NodeIterator([]byte{}),
-		diffPathsAtB, output)
+		diffPathsAtB, params.WatchedAddresses, output)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
@@ -256,7 +256,7 @@ func (sdb *builder) buildStateDiffWithoutIntermediateStateNodes(args StateRoots,
 	// a map of their leafkey to all the accounts that were touched and exist at A
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		oldTrie.NodeIterator([]byte{}), newTrie.NodeIterator([]byte{}),
-		diffPathsAtB, output)
+		diffPathsAtB, params.WatchedAddresses, output)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
@@ -386,7 +386,7 @@ func (sdb *builder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIt
 
 // deletedOrUpdatedState returns a slice of all the pathes that are emptied at B
 // and a mapping of their leafkeys to all the accounts that exist in a different state at A than B
-func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB map[string]bool, output StateNodeSink) (AccountMap, error) {
+func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB map[string]bool, watchedAddresses []common.Address, output StateNodeSink) (AccountMap, error) {
 	diffAccountAtA := make(AccountMap)
 	it, _ := trie.NewDifferenceIterator(b, a)
 	for it.Next(true) {
@@ -409,24 +409,26 @@ func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB m
 			valueNodePath := append(node.Path, partialPath...)
 			encodedPath := trie.HexToCompact(valueNodePath)
 			leafKey := encodedPath[1:]
-			diffAccountAtA[common.Bytes2Hex(leafKey)] = accountWrapper{
-				NodeType:  node.NodeType,
-				Path:      node.Path,
-				NodeValue: node.NodeValue,
-				LeafKey:   leafKey,
-				Account:   &account,
-			}
-			// if this node's path did not show up in diffPathsAtB
-			// that means the node at this path was deleted (or moved) in B
-			// emit an empty "removed" diff to signify as such
-			if _, ok := diffPathsAtB[common.Bytes2Hex(node.Path)]; !ok {
-				if err := output(StateNode{
+			if isWatchedAddress(watchedAddresses, leafKey) {
+				diffAccountAtA[common.Bytes2Hex(leafKey)] = accountWrapper{
+					NodeType:  node.NodeType,
 					Path:      node.Path,
-					NodeValue: []byte{},
-					NodeType:  Removed,
+					NodeValue: node.NodeValue,
 					LeafKey:   leafKey,
-				}); err != nil {
-					return nil, err
+					Account:   &account,
+				}
+				// if this node's path did not show up in diffPathsAtB
+				// that means the node at this path was deleted (or moved) in B
+				// emit an empty "removed" diff to signify as such
+				if _, ok := diffPathsAtB[common.Bytes2Hex(node.Path)]; !ok {
+					if err := output(StateNode{
+						Path:      node.Path,
+						NodeValue: []byte{},
+						NodeType:  Removed,
+						LeafKey:   leafKey,
+					}); err != nil {
+						return nil, err
+					}
 				}
 			}
 		case Extension, Branch:
