@@ -53,6 +53,10 @@ func TearDownDB(t *testing.T, db *postgres.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = tx.Exec(`DELETE FROM eth.watched_addresses`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err)

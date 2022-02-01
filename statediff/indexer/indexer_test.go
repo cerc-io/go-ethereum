@@ -19,11 +19,13 @@ package indexer_test
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipfs"
@@ -32,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
+	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
@@ -45,12 +48,17 @@ var (
 	ind       *indexer.StateDiffIndexer
 	ipfsPgGet = `SELECT data FROM public.blocks
 					WHERE key = $1`
-	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5  []byte
-	mockBlock                                              *types.Block
-	headerCID, trx1CID, trx2CID, trx3CID, trx4CID, trx5CID cid.Cid
-	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID            cid.Cid
-	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5       []byte
-	state1CID, state2CID, storageCID                       cid.Cid
+	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
+	mockBlock                                                                      *types.Block
+	headerCID, trx1CID, trx2CID, trx3CID, trx4CID, trx5CID                         cid.Cid
+	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                                    cid.Cid
+	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5                               []byte
+	state1CID, state2CID, storageCID                                               cid.Cid
+	contract1Address, contract2Address, contract3Address, contract4Address         string
+	contract1CreatedAt, contract2CreatedAt, contract3CreatedAt, contract4CreatedAt uint64
+	slot1StorageKeyHex, slot2StorageKeyHex, slot3StorageKeyHex, slot4StorageKeyHex string
+	slot1CreatedAt, slot2CreatedAt, slot3CreatedAt, slot4CreatedAt                 uint64
+	lastFilledAt, watchedAt1, watchedAt2, watchedAt3                               uint64
 )
 
 func expectTrue(t *testing.T, value bool) {
@@ -161,15 +169,42 @@ func init() {
 	rctLeaf3 = orderedRctLeafNodes[2]
 	rctLeaf4 = orderedRctLeafNodes[3]
 	rctLeaf5 = orderedRctLeafNodes[4]
+
+	contract1Address = "0x5d663F5269090bD2A7DC2390c911dF6083D7b28F"
+	contract2Address = "0x6Eb7e5C66DB8af2E96159AC440cbc8CDB7fbD26B"
+	contract3Address = "0xcfeB164C328CA13EFd3C77E1980d94975aDfedfc"
+	contract4Address = "0x0Edf0c4f393a628DE4828B228C48175b3EA297fc"
+	contract1CreatedAt = uint64(1)
+	contract2CreatedAt = uint64(2)
+	contract3CreatedAt = uint64(3)
+	contract4CreatedAt = uint64(4)
+
+	slot1StorageKeyHex = crypto.Keccak256Hash(common.HexToHash("1").Bytes()).Hex()
+	slot2StorageKeyHex = crypto.Keccak256Hash(common.HexToHash("2").Bytes()).Hex()
+	slot3StorageKeyHex = crypto.Keccak256Hash(common.HexToHash("3").Bytes()).Hex()
+	slot4StorageKeyHex = crypto.Keccak256Hash(common.HexToHash("4").Bytes()).Hex()
+	slot1CreatedAt = uint64(1)
+	slot2CreatedAt = uint64(2)
+	slot3CreatedAt = uint64(3)
+	slot4CreatedAt = uint64(4)
+
+	lastFilledAt = uint64(0)
+	watchedAt1 = uint64(10)
+	watchedAt2 = uint64(15)
+	watchedAt3 = uint64(20)
 }
 
-func setup(t *testing.T) {
+func setupIndexer(t *testing.T) {
 	db, err = shared.SetupDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ind, err = indexer.NewStateDiffIndexer(mocks.TestConfig, db)
 	require.NoError(t, err)
+}
+
+func setup(t *testing.T) {
+	setupIndexer(t)
 	var tx *indexer.BlockTx
 	tx, err = ind.PushBlock(
 		mockBlock,
@@ -652,5 +687,610 @@ func TestPublishAndIndexer(t *testing.T) {
 			t.Fatal(err)
 		}
 		shared.ExpectEqual(t, data, []byte{})
+	})
+}
+
+func TestWatchAddressMethods(t *testing.T) {
+	setupIndexer(t)
+	defer tearDown(t)
+
+	type res struct {
+		Address      string `db:"address"`
+		Kind         int    `db:"kind"`
+		CreatedAt    uint64 `db:"created_at"`
+		WatchedAt    uint64 `db:"watched_at"`
+		LastFilledAt uint64 `db:"last_filled_at"`
+	}
+	pgStr := "SELECT * FROM eth.watched_addresses"
+
+	// Watched addresses
+	t.Run("Insert watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt1)), sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt2)), sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.RemoveWatchedAddresses(args, sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{}
+
+		ind.RemoveWatchedAddresses(args, sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt2)), sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract4Address,
+				CreatedAt: contract4CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract4Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract4CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				Kind:         sdtypes.WatchedAddress.Int(),
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt3)), sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched addresses", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses(sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses(sdtypes.WatchedAddress)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	// Watched storage slots
+	// Reset the db.
+	tearDown(t)
+
+	t.Run("Insert watched storage slots", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      slot1StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot2StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt1)), sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Insert watched storage slots (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      slot1StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot2StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot3StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt2)), sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched storage slots", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      slot1StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.RemoveWatchedAddresses(args, sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched storage slots (some non-watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		expectedData := []res{}
+
+		ind.RemoveWatchedAddresses(args, sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched storage slots", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      slot1StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot1CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot2StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot2CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot3StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt2)), sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched storage slots (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   slot4StorageKeyHex,
+				CreatedAt: slot4CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      slot4StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot4CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot2StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot2CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      slot3StorageKeyHex,
+				Kind:         sdtypes.WatchedStorageSlot.Int(),
+				CreatedAt:    slot3CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt3)), sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched storage slots", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses(sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched storage slots (empty table)", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses(sdtypes.WatchedStorageSlot)
+
+		rows := []res{}
+		err = db.Select(&rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			shared.ExpectEqual(t, row, expectedData[idx])
+		}
 	})
 }
