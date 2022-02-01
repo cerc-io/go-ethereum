@@ -90,8 +90,10 @@ func loadWatchedAddresses(db *postgres.DB) error {
 		return fmt.Errorf("error loading watched addresses: %v", err)
 	}
 
-	var watchedAddresses []common.Address
-	var watchedStorageSlots []common.Hash
+	var (
+		watchedAddresses    = []common.Address{}
+		watchedStorageSlots = []common.Hash{}
+	)
 	for _, entry := range watched {
 		switch entry.Kind {
 		case types.WatchedAddress.Int():

@@ -21,12 +21,14 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/statediff"
@@ -87,6 +89,7 @@ func init() {
 func TestAPI(t *testing.T) {
 	testSubscriptionAPI(t)
 	testHTTPAPI(t)
+	testWatchAddressAPI(t)
 }
 
 func testSubscriptionAPI(t *testing.T) {
@@ -244,5 +247,509 @@ func testHTTPAPI(t *testing.T) {
 	}
 	if !bytes.Equal(payload.TotalDifficulty.Bytes(), mockTotalDifficulty.Bytes()) {
 		t.Errorf("paylaod does not have the expected total difficulty\r\nactual td: %d\r\nexpected td: %d", payload.TotalDifficulty.Int64(), mockTotalDifficulty.Int64())
+	}
+}
+
+func testWatchAddressAPI(t *testing.T) {
+	blocks, chain := testhelpers.MakeChain(6, testhelpers.Genesis, testhelpers.TestChainGen)
+	defer chain.Stop()
+	block6 := blocks[5]
+
+	mockBlockChain := &BlockChain{}
+	mockBlockChain.SetCurrentBlock(block6)
+	mockIndexer := Indexer{}
+	mockService := MockStateDiffService{
+		BlockChain: mockBlockChain,
+		Indexer:    &mockIndexer,
+	}
+
+	var (
+		contract1Address   = "0x5d663F5269090bD2A7DC2390c911dF6083D7b28F"
+		contract2Address   = "0x6Eb7e5C66DB8af2E96159AC440cbc8CDB7fbD26B"
+		contract3Address   = "0xcfeB164C328CA13EFd3C77E1980d94975aDfedfc"
+		contract4Address   = "0x0Edf0c4f393a628DE4828B228C48175b3EA297fc"
+		contract1CreatedAt = uint64(1)
+		contract2CreatedAt = uint64(2)
+		contract3CreatedAt = uint64(3)
+		contract4CreatedAt = uint64(4)
+
+		slot1              = common.HexToHash("1")
+		slot2              = common.HexToHash("2")
+		slot3              = common.HexToHash("3")
+		slot4              = common.HexToHash("4")
+		slot1StorageKey    = crypto.Keccak256Hash(slot1.Bytes())
+		slot2StorageKey    = crypto.Keccak256Hash(slot2.Bytes())
+		slot3StorageKey    = crypto.Keccak256Hash(slot3.Bytes())
+		slot4StorageKey    = crypto.Keccak256Hash(slot4.Bytes())
+		slot1StorageKeyHex = crypto.Keccak256Hash(slot1.Bytes()).Hex()
+		slot2StorageKeyHex = crypto.Keccak256Hash(slot2.Bytes()).Hex()
+		slot3StorageKeyHex = crypto.Keccak256Hash(slot3.Bytes()).Hex()
+		slot4StorageKeyHex = crypto.Keccak256Hash(slot4.Bytes()).Hex()
+		slot1CreatedAt     = uint64(1)
+		slot2CreatedAt     = uint64(2)
+		slot3CreatedAt     = uint64(3)
+		slot4CreatedAt     = uint64(4)
+
+		args1 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		startingParams1 = statediff.Params{
+			WatchedAddresses: []common.Address{},
+		}
+		expectedParams1 = statediff.Params{
+			WatchedAddresses: []common.Address{
+				common.HexToAddress(contract1Address),
+				common.HexToAddress(contract2Address),
+			},
+		}
+
+		args2 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		startingParams2 = expectedParams1
+		expectedParams2 = statediff.Params{
+			WatchedAddresses: []common.Address{
+				common.HexToAddress(contract1Address),
+				common.HexToAddress(contract2Address),
+				common.HexToAddress(contract3Address),
+			},
+		}
+
+		args3 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		startingParams3 = expectedParams2
+		expectedParams3 = statediff.Params{
+			WatchedAddresses: []common.Address{
+				common.HexToAddress(contract1Address),
+			},
+		}
+
+		args4 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		startingParams4 = expectedParams3
+		expectedParams4 = statediff.Params{
+			WatchedAddresses: []common.Address{},
+		}
+
+		args5 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		startingParams5 = expectedParams4
+		expectedParams5 = statediff.Params{
+			WatchedAddresses: []common.Address{
+				common.HexToAddress(contract1Address),
+				common.HexToAddress(contract2Address),
+				common.HexToAddress(contract3Address),
+			},
+		}
+
+		args6 = []sdtypes.WatchAddressArg{
+			{
+				Address:   contract4Address,
+				CreatedAt: contract4CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		startingParams6 = expectedParams5
+		expectedParams6 = statediff.Params{
+			WatchedAddresses: []common.Address{
+				common.HexToAddress(contract4Address),
+				common.HexToAddress(contract2Address),
+				common.HexToAddress(contract3Address),
+			},
+		}
+
+		args7           = []sdtypes.WatchAddressArg{}
+		startingParams7 = expectedParams6
+		expectedParams7 = statediff.Params{
+			WatchedAddresses: []common.Address{},
+		}
+
+		args8           = []sdtypes.WatchAddressArg{}
+		startingParams8 = expectedParams6
+		expectedParams8 = statediff.Params{
+			WatchedAddresses: []common.Address{},
+		}
+
+		args9           = []sdtypes.WatchAddressArg{}
+		startingParams9 = expectedParams8
+		expectedParams9 = statediff.Params{
+			WatchedAddresses: []common.Address{},
+		}
+
+		args10 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		startingParams10 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{},
+		}
+		expectedParams10 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{
+				slot1StorageKey,
+				slot2StorageKey,
+			},
+		}
+
+		args11 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		startingParams11 = expectedParams10
+		expectedParams11 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{
+				slot1StorageKey,
+				slot2StorageKey,
+				slot3StorageKey,
+			},
+		}
+
+		args12 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		startingParams12 = expectedParams11
+		expectedParams12 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{
+				slot1StorageKey,
+			},
+		}
+
+		args13 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+		}
+		startingParams13 = expectedParams12
+		expectedParams13 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{},
+		}
+
+		args14 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot1StorageKeyHex,
+				CreatedAt: slot1CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+		}
+		startingParams14 = expectedParams13
+		expectedParams14 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{
+				slot1StorageKey,
+				slot2StorageKey,
+				slot3StorageKey,
+			},
+		}
+
+		args15 = []sdtypes.WatchAddressArg{
+			{
+				Address:   slot4StorageKeyHex,
+				CreatedAt: slot4CreatedAt,
+			},
+			{
+				Address:   slot2StorageKeyHex,
+				CreatedAt: slot2CreatedAt,
+			},
+			{
+				Address:   slot3StorageKeyHex,
+				CreatedAt: slot3CreatedAt,
+			},
+		}
+		startingParams15 = expectedParams14
+		expectedParams15 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{
+				slot4StorageKey,
+				slot2StorageKey,
+				slot3StorageKey,
+			},
+		}
+
+		args16           = []sdtypes.WatchAddressArg{}
+		startingParams16 = expectedParams15
+		expectedParams16 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{},
+		}
+
+		args17           = []sdtypes.WatchAddressArg{}
+		startingParams17 = expectedParams15
+		expectedParams17 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{},
+		}
+
+		args18           = []sdtypes.WatchAddressArg{}
+		startingParams18 = expectedParams17
+		expectedParams18 = statediff.Params{
+			WatchedStorageSlots: []common.Hash{},
+		}
+	)
+
+	tests := []struct {
+		name           string
+		operation      statediff.OperationType
+		args           []sdtypes.WatchAddressArg
+		startingParams statediff.Params
+		expectedParams statediff.Params
+		expectedErr    error
+	}{
+		// addresses tests
+		{
+			"testAddAddresses",
+			statediff.AddAddresses,
+			args1,
+			startingParams1,
+			expectedParams1,
+			nil,
+		},
+		{
+			"testAddAddressesSomeWatched",
+			statediff.AddAddresses,
+			args2,
+			startingParams2,
+			expectedParams2,
+			nil,
+		},
+		{
+			"testRemoveAddresses",
+			statediff.RemoveAddresses,
+			args3,
+			startingParams3,
+			expectedParams3,
+			nil,
+		},
+		{
+			"testRemoveAddressesSomeWatched",
+			statediff.RemoveAddresses,
+			args4,
+			startingParams4,
+			expectedParams4,
+			nil,
+		},
+		{
+			"testSetAddresses",
+			statediff.SetAddresses,
+			args5,
+			startingParams5,
+			expectedParams5,
+			nil,
+		},
+		{
+			"testSetAddressesSomeWatched",
+			statediff.SetAddresses,
+			args6,
+			startingParams6,
+			expectedParams6,
+			nil,
+		},
+		{
+			"testSetAddressesEmtpyArgs",
+			statediff.SetAddresses,
+			args7,
+			startingParams7,
+			expectedParams7,
+			nil,
+		},
+		{
+			"testClearAddresses",
+			statediff.ClearAddresses,
+			args8,
+			startingParams8,
+			expectedParams8,
+			nil,
+		},
+		{
+			"testClearAddressesEmpty",
+			statediff.ClearAddresses,
+			args9,
+			startingParams9,
+			expectedParams9,
+			nil,
+		},
+
+		// storage slots tests
+		{
+			"testAddStorageSlots",
+			statediff.AddStorageSlots,
+			args10,
+			startingParams10,
+			expectedParams10,
+			nil,
+		},
+		{
+			"testAddStorageSlotsSomeWatched",
+			statediff.AddStorageSlots,
+			args11,
+			startingParams11,
+			expectedParams11,
+			nil,
+		},
+		{
+			"testRemoveStorageSlots",
+			statediff.RemoveStorageSlots,
+			args12,
+			startingParams12,
+			expectedParams12,
+			nil,
+		},
+		{
+			"testRemoveStorageSlotsSomeWatched",
+			statediff.RemoveStorageSlots,
+			args13,
+			startingParams13,
+			expectedParams13,
+			nil,
+		},
+		{
+			"testSetStorageSlots",
+			statediff.SetStorageSlots,
+			args14,
+			startingParams14,
+			expectedParams14,
+			nil,
+		},
+		{
+			"testSetStorageSlotsSomeWatched",
+			statediff.SetStorageSlots,
+			args15,
+			startingParams15,
+			expectedParams15,
+			nil,
+		},
+		{
+			"testSetStorageSlotsEmtpyArgs",
+			statediff.SetStorageSlots,
+			args16,
+			startingParams16,
+			expectedParams16,
+			nil,
+		},
+		{
+			"testClearStorageSlots",
+			statediff.ClearStorageSlots,
+			args17,
+			startingParams17,
+			expectedParams17,
+			nil,
+		},
+		{
+			"testClearStorageSlotsEmpty",
+			statediff.ClearStorageSlots,
+			args18,
+			startingParams18,
+			expectedParams18,
+			nil,
+		},
+
+		// invalid args
+		{
+			"testInvalidOperation",
+			"WrongOp",
+			args18,
+			startingParams18,
+			statediff.Params{},
+			fmt.Errorf("Unexpected operation WrongOp"),
+		},
+	}
+
+	for _, test := range tests {
+		mockService.writeLoopParams = statediff.ParamsWithMutex{
+			Params: test.startingParams,
+		}
+
+		err := mockService.WatchAddress(test.operation, test.args)
+		if test.expectedErr != nil {
+			if err.Error() != test.expectedErr.Error() {
+				t.Logf("Test failed: %s", test.name)
+				t.Errorf("actual err: %+v\nexpected err: %+v", err, test.expectedErr)
+			}
+
+			continue
+		}
+		if err != nil {
+			t.Error(err)
+		}
+
+		updatedParams := mockService.writeLoopParams.Params
+		if !reflect.DeepEqual(updatedParams, test.expectedParams) {
+			t.Logf("Test failed: %s", test.name)
+			t.Errorf("actual params: %+v\nexpected params: %+v", updatedParams, test.expectedParams)
+		}
 	}
 }

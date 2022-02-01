@@ -39,6 +39,7 @@ type BlockChain struct {
 	Receipts               map[common.Hash]types.Receipts
 	TDByHash               map[common.Hash]*big.Int
 	TDByNum                map[uint64]*big.Int
+	currentBlock           *types.Block
 }
 
 // SetBlocksForHashes mock method
@@ -128,9 +129,14 @@ func (bc *BlockChain) GetTd(hash common.Hash, blockNum uint64) *big.Int {
 	return nil
 }
 
+// SetCurrentBlock test method
+func (bc *BlockChain) SetCurrentBlock(block *types.Block) {
+	bc.currentBlock = block
+}
+
 // CurrentBlock mock method
 func (bc *BlockChain) CurrentBlock() *types.Block {
-	return nil
+	return bc.currentBlock
 }
 
 func (bc *BlockChain) SetTd(hash common.Hash, blockNum uint64, td *big.Int) {

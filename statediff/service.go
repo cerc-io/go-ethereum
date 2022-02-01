@@ -109,8 +109,6 @@ type IService interface {
 	WriteLoop(chainEventCh chan core.ChainEvent)
 	// Method to change the addresses being watched in write loop params
 	WatchAddress(operation OperationType, args []WatchAddressArg) error
-	// Method to get currently watched addresses from write loop params
-	GetWatchedAddresses() []common.Address
 }
 
 // Wraps consructor parameters
@@ -825,7 +823,7 @@ func (sds *Service) WatchAddress(operation OperationType, args []WatchAddressArg
 		}
 
 		// update in-memory params
-		writeLoopParams.WatchedAddresses = nil
+		writeLoopParams.WatchedAddresses = []common.Address{}
 
 	case AddStorageSlots:
 		// filter out args having an already watched storage slot with a warning
@@ -902,16 +900,11 @@ func (sds *Service) WatchAddress(operation OperationType, args []WatchAddressArg
 			return err
 		}
 
-		writeLoopParams.WatchedStorageSlots = nil
+		writeLoopParams.WatchedStorageSlots = []common.Hash{}
 
 	default:
 		return fmt.Errorf("Unexpected operation %s", operation)
 	}
 
 	return nil
-}
-
-// Gets currently watched addresses from the in-memory write loop params
-func (sds *Service) GetWatchedAddresses() []common.Address {
-	return writeLoopParams.WatchedAddresses
 }
