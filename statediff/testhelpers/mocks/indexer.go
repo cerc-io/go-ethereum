@@ -42,18 +42,18 @@ func (sdi *Indexer) PushCodeAndCodeHash(tx *indexer.BlockTx, codeAndCodeHash sdt
 
 func (sdi *Indexer) ReportDBMetrics(delay time.Duration, quit <-chan bool) {}
 
-func (sdi *Indexer) InsertWatchedAddresses(addresses []sdtypes.WatchAddressArg, currentBlock *big.Int, kind sdtypes.WatchedAddressType) error {
+func (sdi *Indexer) InsertWatchedAddresses(addresses []sdtypes.WatchAddressArg, currentBlock *big.Int) error {
 	return nil
 }
 
-func (sdi *Indexer) RemoveWatchedAddresses(addresses []sdtypes.WatchAddressArg, kind sdtypes.WatchedAddressType) error {
+func (sdi *Indexer) RemoveWatchedAddresses(addresses []sdtypes.WatchAddressArg) error {
 	return nil
 }
 
-func (sdi *Indexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int, kind sdtypes.WatchedAddressType) error {
+func (sdi *Indexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
 	return nil
 }
 
-func (sdi *Indexer) ClearWatchedAddresses(kind sdtypes.WatchedAddressType) error {
+func (sdi *Indexer) ClearWatchedAddresses() error {
 	return nil
 }

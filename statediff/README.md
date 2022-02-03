@@ -106,15 +106,13 @@ type Params struct {
 	IncludeTD                bool
 	IncludeCode              bool
 	WatchedAddresses         []common.Address
-	WatchedStorageSlots      []common.Hash
 }
 ```
 
 Using these params we can tell the service whether to include state and/or storage intermediate nodes; whether
 to include the associated block (header, uncles, and transactions); whether to include the associated receipts;
 whether to include the total difficulty for this block; whether to include the set of code hashes and code for
-contracts deployed in this block; whether to limit the diffing process to a list of specific addresses; and/or
-whether to limit the diffing process to a list of specific storage slot keys.
+contracts deployed in this block; whether to limit the diffing process to a list of specific addresses.
 
 #### Subscription endpoint
 A websocket supporting RPC endpoint is exposed for subscribing to state diff `StateObjects` that come off the head of the chain while the geth node syncs.

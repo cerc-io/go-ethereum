@@ -51,7 +51,6 @@ type Params struct {
 	IncludeTD                bool
 	IncludeCode              bool
 	WatchedAddresses         []common.Address
-	WatchedStorageSlots      []common.Hash
 }
 
 // ParamsWithMutex allows to lock the parameters while they are being updated | read from
@@ -123,13 +122,8 @@ type accountWrapper struct {
 type OperationType string
 
 const (
-	AddAddresses    OperationType = "AddAddresses"
-	RemoveAddresses OperationType = "RemoveAddresses"
-	SetAddresses    OperationType = "SetAddresses"
-	ClearAddresses  OperationType = "ClearAddresses"
-
-	AddStorageSlots    OperationType = "AddStorageSlots"
-	RemoveStorageSlots OperationType = "RemoveStorageSlots"
-	SetStorageSlots    OperationType = "SetStorageSlots"
-	ClearStorageSlots  OperationType = "ClearStorageSlots"
+	Add    OperationType = "Add"
+	Remove OperationType = "Remove"
+	Set    OperationType = "Set"
+	Clear  OperationType = "Clear"
 )

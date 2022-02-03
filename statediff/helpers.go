@@ -26,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
-	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
 func sortKeys(data AccountMap) []string {
@@ -76,39 +75,27 @@ func findIntersection(a, b []string) []string {
 	}
 }
 
-// loadWatchedAddresses is used to load watched addresses and storage slots to the in-memory write loop params from the db
+// loadWatchedAddresses is used to load watched addresses to in-memory write loop params from the db
 func loadWatchedAddresses(db *postgres.DB) error {
 	type Watched struct {
 		Address string `db:"address"`
-		Kind    int    `db:"kind"`
 	}
 	var watched []Watched
 
-	pgStr := "SELECT address, kind FROM eth.watched_addresses"
+	pgStr := "SELECT address FROM eth.watched_addresses"
 	err := db.Select(&watched, pgStr)
 	if err != nil {
 		return fmt.Errorf("error loading watched addresses: %v", err)
 	}
 
-	var (
-		watchedAddresses    = []common.Address{}
-		watchedStorageSlots = []common.Hash{}
-	)
+	watchedAddresses := []common.Address{}
 	for _, entry := range watched {
-		switch entry.Kind {
-		case types.WatchedAddress.Int():
-			watchedAddresses = append(watchedAddresses, common.HexToAddress(entry.Address))
-		case types.WatchedStorageSlot.Int():
-			watchedStorageSlots = append(watchedStorageSlots, common.HexToHash(entry.Address))
-		default:
-			return fmt.Errorf("Unexpected kind %d", entry.Kind)
-		}
+		watchedAddresses = append(watchedAddresses, common.HexToAddress(entry.Address))
 	}
 
 	writeLoopParams.Lock()
 	defer writeLoopParams.Unlock()
 	writeLoopParams.WatchedAddresses = watchedAddresses
-	writeLoopParams.WatchedStorageSlots = watchedStorageSlots
 
 	return nil
 }

@@ -77,26 +77,7 @@ type CodeSink func(CodeAndCodeHash) error
 
 // WatchAddressArg is a arg type for WatchAddress API
 type WatchAddressArg struct {
-	// Address represents common.Address | common.Hash
+	// Address represents common.Address
 	Address   string
 	CreatedAt uint64
-}
-
-// WatchedAddressType for denoting watched: address | storage slot
-type WatchedAddressType string
-
-const (
-	WatchedAddress     WatchedAddressType = "WatchedAddress"
-	WatchedStorageSlot WatchedAddressType = "WatchedStorageSlot"
-)
-
-func (n WatchedAddressType) Int() int {
-	switch n {
-	case WatchedAddress:
-		return 0
-	case WatchedStorageSlot:
-		return 1
-	default:
-		return -1
-	}
 }

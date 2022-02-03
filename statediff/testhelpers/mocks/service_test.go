@@ -28,7 +28,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/statediff"
@@ -273,23 +272,6 @@ func testWatchAddressAPI(t *testing.T) {
 		contract3CreatedAt = uint64(3)
 		contract4CreatedAt = uint64(4)
 
-		slot1              = common.HexToHash("1")
-		slot2              = common.HexToHash("2")
-		slot3              = common.HexToHash("3")
-		slot4              = common.HexToHash("4")
-		slot1StorageKey    = crypto.Keccak256Hash(slot1.Bytes())
-		slot2StorageKey    = crypto.Keccak256Hash(slot2.Bytes())
-		slot3StorageKey    = crypto.Keccak256Hash(slot3.Bytes())
-		slot4StorageKey    = crypto.Keccak256Hash(slot4.Bytes())
-		slot1StorageKeyHex = crypto.Keccak256Hash(slot1.Bytes()).Hex()
-		slot2StorageKeyHex = crypto.Keccak256Hash(slot2.Bytes()).Hex()
-		slot3StorageKeyHex = crypto.Keccak256Hash(slot3.Bytes()).Hex()
-		slot4StorageKeyHex = crypto.Keccak256Hash(slot4.Bytes()).Hex()
-		slot1CreatedAt     = uint64(1)
-		slot2CreatedAt     = uint64(2)
-		slot3CreatedAt     = uint64(3)
-		slot4CreatedAt     = uint64(4)
-
 		args1 = []sdtypes.WatchAddressArg{
 			{
 				Address:   contract1Address,
@@ -424,141 +406,6 @@ func testWatchAddressAPI(t *testing.T) {
 		expectedParams9 = statediff.Params{
 			WatchedAddresses: []common.Address{},
 		}
-
-		args10 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot1StorageKeyHex,
-				CreatedAt: slot1CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-		}
-		startingParams10 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{},
-		}
-		expectedParams10 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{
-				slot1StorageKey,
-				slot2StorageKey,
-			},
-		}
-
-		args11 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot3StorageKeyHex,
-				CreatedAt: slot3CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-		}
-		startingParams11 = expectedParams10
-		expectedParams11 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{
-				slot1StorageKey,
-				slot2StorageKey,
-				slot3StorageKey,
-			},
-		}
-
-		args12 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot3StorageKeyHex,
-				CreatedAt: slot3CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-		}
-		startingParams12 = expectedParams11
-		expectedParams12 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{
-				slot1StorageKey,
-			},
-		}
-
-		args13 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot1StorageKeyHex,
-				CreatedAt: slot1CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-		}
-		startingParams13 = expectedParams12
-		expectedParams13 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{},
-		}
-
-		args14 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot1StorageKeyHex,
-				CreatedAt: slot1CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-			{
-				Address:   slot3StorageKeyHex,
-				CreatedAt: slot3CreatedAt,
-			},
-		}
-		startingParams14 = expectedParams13
-		expectedParams14 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{
-				slot1StorageKey,
-				slot2StorageKey,
-				slot3StorageKey,
-			},
-		}
-
-		args15 = []sdtypes.WatchAddressArg{
-			{
-				Address:   slot4StorageKeyHex,
-				CreatedAt: slot4CreatedAt,
-			},
-			{
-				Address:   slot2StorageKeyHex,
-				CreatedAt: slot2CreatedAt,
-			},
-			{
-				Address:   slot3StorageKeyHex,
-				CreatedAt: slot3CreatedAt,
-			},
-		}
-		startingParams15 = expectedParams14
-		expectedParams15 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{
-				slot4StorageKey,
-				slot2StorageKey,
-				slot3StorageKey,
-			},
-		}
-
-		args16           = []sdtypes.WatchAddressArg{}
-		startingParams16 = expectedParams15
-		expectedParams16 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{},
-		}
-
-		args17           = []sdtypes.WatchAddressArg{}
-		startingParams17 = expectedParams15
-		expectedParams17 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{},
-		}
-
-		args18           = []sdtypes.WatchAddressArg{}
-		startingParams18 = expectedParams17
-		expectedParams18 = statediff.Params{
-			WatchedStorageSlots: []common.Hash{},
-		}
 	)
 
 	tests := []struct {
@@ -572,7 +419,7 @@ func testWatchAddressAPI(t *testing.T) {
 		// addresses tests
 		{
 			"testAddAddresses",
-			statediff.AddAddresses,
+			statediff.Add,
 			args1,
 			startingParams1,
 			expectedParams1,
@@ -580,7 +427,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testAddAddressesSomeWatched",
-			statediff.AddAddresses,
+			statediff.Add,
 			args2,
 			startingParams2,
 			expectedParams2,
@@ -588,7 +435,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testRemoveAddresses",
-			statediff.RemoveAddresses,
+			statediff.Remove,
 			args3,
 			startingParams3,
 			expectedParams3,
@@ -596,7 +443,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testRemoveAddressesSomeWatched",
-			statediff.RemoveAddresses,
+			statediff.Remove,
 			args4,
 			startingParams4,
 			expectedParams4,
@@ -604,7 +451,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testSetAddresses",
-			statediff.SetAddresses,
+			statediff.Set,
 			args5,
 			startingParams5,
 			expectedParams5,
@@ -612,7 +459,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testSetAddressesSomeWatched",
-			statediff.SetAddresses,
+			statediff.Set,
 			args6,
 			startingParams6,
 			expectedParams6,
@@ -620,7 +467,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testSetAddressesEmtpyArgs",
-			statediff.SetAddresses,
+			statediff.Set,
 			args7,
 			startingParams7,
 			expectedParams7,
@@ -628,7 +475,7 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testClearAddresses",
-			statediff.ClearAddresses,
+			statediff.Clear,
 			args8,
 			startingParams8,
 			expectedParams8,
@@ -636,84 +483,10 @@ func testWatchAddressAPI(t *testing.T) {
 		},
 		{
 			"testClearAddressesEmpty",
-			statediff.ClearAddresses,
+			statediff.Clear,
 			args9,
 			startingParams9,
 			expectedParams9,
-			nil,
-		},
-
-		// storage slots tests
-		{
-			"testAddStorageSlots",
-			statediff.AddStorageSlots,
-			args10,
-			startingParams10,
-			expectedParams10,
-			nil,
-		},
-		{
-			"testAddStorageSlotsSomeWatched",
-			statediff.AddStorageSlots,
-			args11,
-			startingParams11,
-			expectedParams11,
-			nil,
-		},
-		{
-			"testRemoveStorageSlots",
-			statediff.RemoveStorageSlots,
-			args12,
-			startingParams12,
-			expectedParams12,
-			nil,
-		},
-		{
-			"testRemoveStorageSlotsSomeWatched",
-			statediff.RemoveStorageSlots,
-			args13,
-			startingParams13,
-			expectedParams13,
-			nil,
-		},
-		{
-			"testSetStorageSlots",
-			statediff.SetStorageSlots,
-			args14,
-			startingParams14,
-			expectedParams14,
-			nil,
-		},
-		{
-			"testSetStorageSlotsSomeWatched",
-			statediff.SetStorageSlots,
-			args15,
-			startingParams15,
-			expectedParams15,
-			nil,
-		},
-		{
-			"testSetStorageSlotsEmtpyArgs",
-			statediff.SetStorageSlots,
-			args16,
-			startingParams16,
-			expectedParams16,
-			nil,
-		},
-		{
-			"testClearStorageSlots",
-			statediff.ClearStorageSlots,
-			args17,
-			startingParams17,
-			expectedParams17,
-			nil,
-		},
-		{
-			"testClearStorageSlotsEmpty",
-			statediff.ClearStorageSlots,
-			args18,
-			startingParams18,
-			expectedParams18,
 			nil,
 		},
 
@@ -721,10 +494,10 @@ func testWatchAddressAPI(t *testing.T) {
 		{
 			"testInvalidOperation",
 			"WrongOp",
-			args18,
-			startingParams18,
+			args9,
+			startingParams9,
 			statediff.Params{},
-			fmt.Errorf("Unexpected operation WrongOp"),
+			fmt.Errorf("%s WrongOp", unexpectedOperation),
 		},
 	}
 
