@@ -565,7 +565,7 @@ func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressA
 	defer tx.Rollback()
 
 	for _, arg := range args {
-		_, err = tx.Exec(`INSERT INTO eth.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
+		_, err = tx.Exec(`INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
 			arg.Address, arg.CreatedAt, currentBlockNumber.Uint64())
 		if err != nil {
 			return fmt.Errorf("error inserting watched_addresses entry: %v", err)
@@ -589,7 +589,7 @@ func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressA
 	defer tx.Rollback()
 
 	for _, arg := range args {
-		_, err = tx.Exec(`DELETE FROM eth.watched_addresses WHERE address = $1`, arg.Address)
+		_, err = tx.Exec(`DELETE FROM eth_meta.watched_addresses WHERE address = $1`, arg.Address)
 		if err != nil {
 			return fmt.Errorf("error removing watched_addresses entry: %v", err)
 		}
@@ -611,13 +611,13 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(`DELETE FROM eth.watched_addresses`)
+	_, err = tx.Exec(`DELETE FROM eth_meta.watched_addresses`)
 	if err != nil {
 		return fmt.Errorf("error setting watched_addresses table: %v", err)
 	}
 
 	for _, arg := range args {
-		_, err = tx.Exec(`INSERT INTO eth.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
+		_, err = tx.Exec(`INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
 			arg.Address, arg.CreatedAt, currentBlockNumber.Uint64())
 		if err != nil {
 			return fmt.Errorf("error setting watched_addresses table: %v", err)
@@ -634,7 +634,7 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 
 // ClearWatchedAddresses clears all the watched addresses from the database
 func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
-	_, err := sdi.dbWriter.db.Exec(`DELETE FROM eth.watched_addresses`)
+	_, err := sdi.dbWriter.db.Exec(`DELETE FROM eth_meta.watched_addresses`)
 	if err != nil {
 		return fmt.Errorf("error clearing watched_addresses table: %v", err)
 	}

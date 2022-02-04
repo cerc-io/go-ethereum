@@ -262,6 +262,7 @@ func testWatchAddressAPI(t *testing.T) {
 		Indexer:    &mockIndexer,
 	}
 
+	// test data
 	var (
 		contract1Address   = "0x5d663F5269090bD2A7DC2390c911dF6083D7b28F"
 		contract2Address   = "0x6Eb7e5C66DB8af2E96159AC440cbc8CDB7fbD26B"
@@ -416,7 +417,6 @@ func testWatchAddressAPI(t *testing.T) {
 		expectedParams statediff.Params
 		expectedErr    error
 	}{
-		// addresses tests
 		{
 			"testAddAddresses",
 			statediff.Add,
@@ -502,10 +502,12 @@ func testWatchAddressAPI(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// set indexing params
 		mockService.writeLoopParams = statediff.ParamsWithMutex{
 			Params: test.startingParams,
 		}
 
+		// make the API call to change watched addresses
 		err := mockService.WatchAddress(test.operation, test.args)
 		if test.expectedErr != nil {
 			if err.Error() != test.expectedErr.Error() {
@@ -519,6 +521,7 @@ func testWatchAddressAPI(t *testing.T) {
 			t.Error(err)
 		}
 
+		// check updated indexing params
 		updatedParams := mockService.writeLoopParams.Params
 		if !reflect.DeepEqual(updatedParams, test.expectedParams) {
 			t.Logf("Test failed: %s", test.name)

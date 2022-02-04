@@ -688,9 +688,8 @@ func TestWatchAddressMethods(t *testing.T) {
 		WatchedAt    uint64 `db:"watched_at"`
 		LastFilledAt uint64 `db:"last_filled_at"`
 	}
-	pgStr := "SELECT * FROM eth.watched_addresses"
+	pgStr := "SELECT * FROM eth_meta.watched_addresses"
 
-	// Watched addresses
 	t.Run("Insert watched addresses", func(t *testing.T) {
 		args := []sdtypes.WatchAddressArg{
 			{

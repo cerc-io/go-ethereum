@@ -82,7 +82,7 @@ func loadWatchedAddresses(db *postgres.DB) error {
 	}
 	var watched []Watched
 
-	pgStr := "SELECT address FROM eth.watched_addresses"
+	pgStr := "SELECT address FROM eth_meta.watched_addresses"
 	err := db.Select(&watched, pgStr)
 	if err != nil {
 		return fmt.Errorf("error loading watched addresses: %v", err)
