@@ -423,6 +423,9 @@ func (sds *Service) streamStateDiff(currentBlock *types.Block, parentRoot common
 func (sds *Service) StateDiffAt(blockNumber uint64, params Params) (*Payload, error) {
 	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
 	log.Info("sending state diff", "block height", blockNumber)
+
+	params.ComputeWatchedAddressesLeafKeys()
+
 	if blockNumber == 0 {
 		return sds.processStateDiff(currentBlock, common.Hash{}, params)
 	}
@@ -435,6 +438,9 @@ func (sds *Service) StateDiffAt(blockNumber uint64, params Params) (*Payload, er
 func (sds *Service) StateDiffFor(blockHash common.Hash, params Params) (*Payload, error) {
 	currentBlock := sds.BlockChain.GetBlockByHash(blockHash)
 	log.Info("sending state diff", "block hash", blockHash)
+
+	params.ComputeWatchedAddressesLeafKeys()
+
 	if currentBlock.NumberU64() == 0 {
 		return sds.processStateDiff(currentBlock, common.Hash{}, params)
 	}
@@ -493,6 +499,9 @@ func (sds *Service) newPayload(stateObject []byte, block *types.Block, params Pa
 func (sds *Service) StateTrieAt(blockNumber uint64, params Params) (*Payload, error) {
 	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
 	log.Info("sending state trie", "block height", blockNumber)
+
+	params.ComputeWatchedAddressesLeafKeys()
+
 	return sds.processStateTrie(currentBlock, params)
 }
 
@@ -515,6 +524,9 @@ func (sds *Service) Subscribe(id rpc.ID, sub chan<- Payload, quitChan chan<- boo
 	if atomic.CompareAndSwapInt32(&sds.subscribers, 0, 1) {
 		log.Info("State diffing subscription received; beginning statediff processing")
 	}
+
+	params.ComputeWatchedAddressesLeafKeys()
+
 	// Subscription type is defined as the hash of the rlp-serialized subscription params
 	by, err := rlp.EncodeToBytes(params)
 	if err != nil {
@@ -661,6 +673,8 @@ func (sds *Service) StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- Cod
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
 func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) error {
+	params.ComputeWatchedAddressesLeafKeys()
+
 	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
 	parentRoot := common.Hash{}
 	if blockNumber != 0 {
@@ -674,6 +688,8 @@ func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) error {
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
 func (sds *Service) WriteStateDiffFor(blockHash common.Hash, params Params) error {
+	params.ComputeWatchedAddressesLeafKeys()
+
 	currentBlock := sds.BlockChain.GetBlockByHash(blockHash)
 	parentRoot := common.Hash{}
 	if currentBlock.NumberU64() != 0 {
@@ -736,7 +752,7 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 }
 
 // Performs one of following operations on the watched addresses in writeLoopParams and the db:
-// Add | Remove | Set | Clear
+// add | remove | set | clear
 func (sds *Service) WatchAddress(operation OperationType, args []WatchAddressArg) error {
 	// lock writeLoopParams for a write
 	writeLoopParams.Lock()
@@ -756,65 +772,66 @@ func (sds *Service) WatchAddress(operation OperationType, args []WatchAddressArg
 			return true
 		}).([]WatchAddressArg)
 		if !ok {
-			return fmt.Errorf("Add: filtered args %s", typeAssertionFailed)
+			return fmt.Errorf("add: filtered args %s", typeAssertionFailed)
 		}
 
 		// get addresses from the filtered args
-		filteredAddresses, ok := funk.Map(filteredArgs, func(arg WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Add: filtered addresses %s", typeAssertionFailed)
+		filteredAddresses, err := MapWatchAddressArgsToAddresses(filteredArgs)
+		if err != nil {
+			return fmt.Errorf("add: filtered addresses %s", err.Error())
 		}
 
 		// update the db
-		err := sds.indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
+		err = sds.indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = append(writeLoopParams.WatchedAddresses, filteredAddresses...)
+		funk.ForEach(filteredAddresses, func(address common.Address) {
+			writeLoopParams.watchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
+		})
 	case Remove:
 		// get addresses from args
-		argAddresses, ok := funk.Map(args, func(arg WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Remove: mapped addresses %s", typeAssertionFailed)
+		argAddresses, err := MapWatchAddressArgsToAddresses(args)
+		if err != nil {
+			return fmt.Errorf("remove: mapped addresses %s", err.Error())
 		}
 
 		// remove the provided addresses from currently watched addresses
 		addresses, ok := funk.Subtract(writeLoopParams.WatchedAddresses, argAddresses).([]common.Address)
 		if !ok {
-			return fmt.Errorf("Remove: filtered addresses %s", typeAssertionFailed)
+			return fmt.Errorf("remove: filtered addresses %s", typeAssertionFailed)
 		}
 
 		// update the db
-		err := sds.indexer.RemoveWatchedAddresses(args)
+		err = sds.indexer.RemoveWatchedAddresses(args)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = addresses
+		funk.ForEach(argAddresses, func(address common.Address) {
+			delete(writeLoopParams.watchedAddressesLeafKeys, crypto.Keccak256Hash(address.Bytes()))
+		})
 	case Set:
 		// get addresses from args
-		argAddresses, ok := funk.Map(args, func(arg WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Set: mapped addresses %s", typeAssertionFailed)
+		argAddresses, err := MapWatchAddressArgsToAddresses(args)
+		if err != nil {
+			return fmt.Errorf("set: mapped addresses %s", err.Error())
 		}
 
 		// update the db
-		err := sds.indexer.SetWatchedAddresses(args, currentBlockNumber)
+		err = sds.indexer.SetWatchedAddresses(args, currentBlockNumber)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = argAddresses
+		writeLoopParams.ComputeWatchedAddressesLeafKeys()
 	case Clear:
 		// update the db
 		err := sds.indexer.ClearWatchedAddresses()
@@ -824,6 +841,7 @@ func (sds *Service) WatchAddress(operation OperationType, args []WatchAddressArg
 
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = []common.Address{}
+		writeLoopParams.ComputeWatchedAddressesLeafKeys()
 
 	default:
 		return fmt.Errorf("%s %s", unexpectedOperation, operation)

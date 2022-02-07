@@ -202,7 +202,7 @@ func (sdb *builder) buildStateDiffWithIntermediateStateNodes(args StateRoots, pa
 	// a map of their leafkey to all the accounts that were touched and exist at A
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		oldTrie.NodeIterator([]byte{}), newTrie.NodeIterator([]byte{}),
-		diffPathsAtB, params.WatchedAddresses, output)
+		diffPathsAtB, params.watchedAddressesLeafKeys, output)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
@@ -247,7 +247,7 @@ func (sdb *builder) buildStateDiffWithoutIntermediateStateNodes(args StateRoots,
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, diffPathsAtB, err := sdb.createdAndUpdatedState(
 		oldTrie.NodeIterator([]byte{}), newTrie.NodeIterator([]byte{}),
-		params.WatchedAddresses)
+		params.watchedAddressesLeafKeys)
 	if err != nil {
 		return fmt.Errorf("error collecting createdAndUpdatedNodes: %v", err)
 	}
@@ -256,7 +256,7 @@ func (sdb *builder) buildStateDiffWithoutIntermediateStateNodes(args StateRoots,
 	// a map of their leafkey to all the accounts that were touched and exist at A
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		oldTrie.NodeIterator([]byte{}), newTrie.NodeIterator([]byte{}),
-		diffPathsAtB, params.WatchedAddresses, output)
+		diffPathsAtB, params.watchedAddressesLeafKeys, output)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
@@ -289,7 +289,7 @@ func (sdb *builder) buildStateDiffWithoutIntermediateStateNodes(args StateRoots,
 // createdAndUpdatedState returns
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
-func (sdb *builder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddresses []common.Address) (AccountMap, map[string]bool, error) {
+func (sdb *builder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddressesLeafKeys map[common.Hash]struct{}) (AccountMap, map[string]bool, error) {
 	diffPathsAtB := make(map[string]bool)
 	diffAcountsAtB := make(AccountMap)
 	it, _ := trie.NewDifferenceIterator(a, b)
@@ -313,7 +313,7 @@ func (sdb *builder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddres
 			valueNodePath := append(node.Path, partialPath...)
 			encodedPath := trie.HexToCompact(valueNodePath)
 			leafKey := encodedPath[1:]
-			if isWatchedAddress(watchedAddresses, leafKey) {
+			if isWatchedAddress(watchedAddressesLeafKeys, leafKey) {
 				diffAcountsAtB[common.Bytes2Hex(leafKey)] = accountWrapper{
 					NodeType:  node.NodeType,
 					Path:      node.Path,
@@ -386,7 +386,7 @@ func (sdb *builder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIt
 
 // deletedOrUpdatedState returns a slice of all the pathes that are emptied at B
 // and a mapping of their leafkeys to all the accounts that exist in a different state at A than B
-func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB map[string]bool, watchedAddresses []common.Address, output StateNodeSink) (AccountMap, error) {
+func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB map[string]bool, watchedAddressesLeafKeys map[common.Hash]struct{}, output StateNodeSink) (AccountMap, error) {
 	diffAccountAtA := make(AccountMap)
 	it, _ := trie.NewDifferenceIterator(b, a)
 	for it.Next(true) {
@@ -409,7 +409,7 @@ func (sdb *builder) deletedOrUpdatedState(a, b trie.NodeIterator, diffPathsAtB m
 			valueNodePath := append(node.Path, partialPath...)
 			encodedPath := trie.HexToCompact(valueNodePath)
 			leafKey := encodedPath[1:]
-			if isWatchedAddress(watchedAddresses, leafKey) {
+			if isWatchedAddress(watchedAddressesLeafKeys, leafKey) {
 				diffAccountAtA[common.Bytes2Hex(leafKey)] = accountWrapper{
 					NodeType:  node.NodeType,
 					Path:      node.Path,
@@ -713,16 +713,12 @@ func (sdb *builder) deletedOrUpdatedStorage(a, b trie.NodeIterator, diffPathsAtB
 }
 
 // isWatchedAddress is used to check if a state account corresponds to one of the addresses the builder is configured to watch
-func isWatchedAddress(watchedAddresses []common.Address, stateLeafKey []byte) bool {
+func isWatchedAddress(watchedAddressesLeafKeys map[common.Hash]struct{}, stateLeafKey []byte) bool {
 	// If we aren't watching any specific addresses, we are watching everything
-	if len(watchedAddresses) == 0 {
+	if len(watchedAddressesLeafKeys) == 0 {
 		return true
 	}
-	for _, addr := range watchedAddresses {
-		addrHashKey := crypto.Keccak256(addr.Bytes())
-		if bytes.Equal(addrHashKey, stateLeafKey) {
-			return true
-		}
-	}
-	return false
+
+	_, ok := watchedAddressesLeafKeys[common.BytesToHash(stateLeafKey)]
+	return ok
 }

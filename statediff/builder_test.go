@@ -987,6 +987,7 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 	params := statediff.Params{
 		WatchedAddresses: []common.Address{testhelpers.Account1Addr, testhelpers.ContractAddr},
 	}
+	params.ComputeWatchedAddressesLeafKeys()
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -1566,6 +1567,7 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 	params := statediff.Params{
 		WatchedAddresses: []common.Address{testhelpers.Account1Addr, testhelpers.Account2Addr},
 	}
+	params.ComputeWatchedAddressesLeafKeys()
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {

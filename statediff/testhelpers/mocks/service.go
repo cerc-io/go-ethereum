@@ -362,65 +362,62 @@ func (sds *MockStateDiffService) WatchAddress(operation statediff.OperationType,
 			return true
 		}).([]sdtypes.WatchAddressArg)
 		if !ok {
-			return fmt.Errorf("Add: filtered args %s", typeAssertionFailed)
+			return fmt.Errorf("add: filtered args %s", typeAssertionFailed)
 		}
 
 		// get addresses from the filtered args
-		filteredAddresses, ok := funk.Map(filteredArgs, func(arg sdtypes.WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Add: filtered addresses %s", typeAssertionFailed)
+		filteredAddresses, err := statediff.MapWatchAddressArgsToAddresses(filteredArgs)
+		if err != nil {
+			return fmt.Errorf("add: filtered addresses %s", err.Error())
 		}
 
 		// update the db
-		err := sds.Indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
+		err = sds.Indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		sds.writeLoopParams.WatchedAddresses = append(sds.writeLoopParams.WatchedAddresses, filteredAddresses...)
+		sds.writeLoopParams.ComputeWatchedAddressesLeafKeys()
 	case statediff.Remove:
 		// get addresses from args
-		argAddresses, ok := funk.Map(args, func(arg sdtypes.WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Remove: mapped addresses %s", typeAssertionFailed)
+		argAddresses, err := statediff.MapWatchAddressArgsToAddresses(args)
+		if err != nil {
+			return fmt.Errorf("remove: mapped addresses %s", err.Error())
 		}
 
 		// remove the provided addresses from currently watched addresses
 		addresses, ok := funk.Subtract(sds.writeLoopParams.WatchedAddresses, argAddresses).([]common.Address)
 		if !ok {
-			return fmt.Errorf("Remove: filtered addresses %s", typeAssertionFailed)
+			return fmt.Errorf("remove: filtered addresses %s", typeAssertionFailed)
 		}
 
 		// update the db
-		err := sds.Indexer.RemoveWatchedAddresses(args)
+		err = sds.Indexer.RemoveWatchedAddresses(args)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		sds.writeLoopParams.WatchedAddresses = addresses
+		sds.writeLoopParams.ComputeWatchedAddressesLeafKeys()
 	case statediff.Set:
 		// get addresses from args
-		argAddresses, ok := funk.Map(args, func(arg sdtypes.WatchAddressArg) common.Address {
-			return common.HexToAddress(arg.Address)
-		}).([]common.Address)
-		if !ok {
-			return fmt.Errorf("Set: mapped addresses %s", typeAssertionFailed)
+		argAddresses, err := statediff.MapWatchAddressArgsToAddresses(args)
+		if err != nil {
+			return fmt.Errorf("set: mapped addresses %s", err.Error())
 		}
 
 		// update the db
-		err := sds.Indexer.SetWatchedAddresses(args, currentBlockNumber)
+		err = sds.Indexer.SetWatchedAddresses(args, currentBlockNumber)
 		if err != nil {
 			return err
 		}
 
 		// update in-memory params
 		sds.writeLoopParams.WatchedAddresses = argAddresses
+		sds.writeLoopParams.ComputeWatchedAddressesLeafKeys()
 	case statediff.Clear:
 		// update the db
 		err := sds.Indexer.ClearWatchedAddresses()
@@ -430,6 +427,7 @@ func (sds *MockStateDiffService) WatchAddress(operation statediff.OperationType,
 
 		// update in-memory params
 		sds.writeLoopParams.WatchedAddresses = []common.Address{}
+		sds.writeLoopParams.ComputeWatchedAddressesLeafKeys()
 
 	default:
 		return fmt.Errorf("%s %s", unexpectedOperation, operation)

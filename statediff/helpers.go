@@ -24,8 +24,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/thoas/go-funk"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/postgres"
+	. "github.com/ethereum/go-ethereum/statediff/types"
 )
 
 func sortKeys(data AccountMap) []string {
@@ -96,6 +99,19 @@ func loadWatchedAddresses(db *postgres.DB) error {
 	writeLoopParams.Lock()
 	defer writeLoopParams.Unlock()
 	writeLoopParams.WatchedAddresses = watchedAddresses
+	writeLoopParams.ComputeWatchedAddressesLeafKeys()
 
 	return nil
+}
+
+// MapWatchAddressArgsToAddresses maps []WatchAddressArg to corresponding []common.Address
+func MapWatchAddressArgsToAddresses(args []WatchAddressArg) ([]common.Address, error) {
+	addresses, ok := funk.Map(args, func(arg WatchAddressArg) common.Address {
+		return common.HexToAddress(arg.Address)
+	}).([]common.Address)
+	if !ok {
+		return nil, fmt.Errorf(typeAssertionFailed)
+	}
+
+	return addresses, nil
 }

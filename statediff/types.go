@@ -26,6 +26,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
@@ -51,6 +52,15 @@ type Params struct {
 	IncludeTD                bool
 	IncludeCode              bool
 	WatchedAddresses         []common.Address
+	watchedAddressesLeafKeys map[common.Hash]struct{}
+}
+
+// ComputeWatchedAddressesLeafKeys populates a map with keys (Keccak256Hash) of each of the WatchedAddresses
+func (p *Params) ComputeWatchedAddressesLeafKeys() {
+	p.watchedAddressesLeafKeys = make(map[common.Hash]struct{}, len(p.WatchedAddresses))
+	for _, address := range p.WatchedAddresses {
+		p.watchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
+	}
 }
 
 // ParamsWithMutex allows to lock the parameters while they are being updated | read from
@@ -122,8 +132,8 @@ type accountWrapper struct {
 type OperationType string
 
 const (
-	Add    OperationType = "Add"
-	Remove OperationType = "Remove"
-	Set    OperationType = "Set"
-	Clear  OperationType = "Clear"
+	Add    OperationType = "add"
+	Remove OperationType = "remove"
+	Set    OperationType = "set"
+	Clear  OperationType = "clear"
 )
