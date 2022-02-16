@@ -6,6 +6,7 @@ on:
       - statediff
       - statediff-v2
       - statediff-v3
+      - v1.10.16-statediff-v3
       - v1.10.15-statediff-v3
       - v1.10.15-statediff-v2
       - v1.10.14-statediff
