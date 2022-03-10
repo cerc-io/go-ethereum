@@ -273,6 +273,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.StateDiffWritingFlag,
 			utils.StateDiffWorkersFlag,
 			utils.StateDiffFilePath,
+			utils.StateDiffWaitForSync,
 		},
 	},
 	{
