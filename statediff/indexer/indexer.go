@@ -558,11 +558,20 @@ func (sdi *StateDiffIndexer) PushCodeAndCodeHash(tx *BlockTx, codeAndCodeHash sd
 
 // InsertWatchedAddresses inserts the given addresses in the database
 func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
-	tx, err := sdi.dbWriter.db.Begin()
+	tx, err := sdi.dbWriter.db.Beginx()
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if p := recover(); p != nil {
+			shared.Rollback(tx)
+			panic(p)
+		} else if err != nil {
+			shared.Rollback(tx)
+		} else {
+			err = tx.Commit()
+		}
+	}()
 
 	for _, arg := range args {
 		_, err = tx.Exec(`INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
@@ -572,21 +581,25 @@ func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressA
 		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // RemoveWatchedAddresses removes the given watched addresses from the database
 func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressArg) error {
-	tx, err := sdi.dbWriter.db.Begin()
+	tx, err := sdi.dbWriter.db.Beginx()
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if p := recover(); p != nil {
+			shared.Rollback(tx)
+			panic(p)
+		} else if err != nil {
+			shared.Rollback(tx)
+		} else {
+			err = tx.Commit()
+		}
+	}()
 
 	for _, arg := range args {
 		_, err = tx.Exec(`DELETE FROM eth_meta.watched_addresses WHERE address = $1`, arg.Address)
@@ -595,21 +608,25 @@ func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressA
 		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // SetWatchedAddresses clears and inserts the given addresses in the database
 func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
-	tx, err := sdi.dbWriter.db.Begin()
+	tx, err := sdi.dbWriter.db.Beginx()
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if p := recover(); p != nil {
+			shared.Rollback(tx)
+			panic(p)
+		} else if err != nil {
+			shared.Rollback(tx)
+		} else {
+			err = tx.Commit()
+		}
+	}()
 
 	_, err = tx.Exec(`DELETE FROM eth_meta.watched_addresses`)
 	if err != nil {
@@ -624,12 +641,7 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 		}
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // ClearWatchedAddresses clears all the watched addresses from the database
