@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-OPTS="dapp testnet [<options>] <args>...
-dapp testnet --help
+OPTS="./deploy-local-network.sh [<options>] <args>...
+./deploy-local-network.sh --help
 --
 db-user=name          database user
 db-password=password  database password
