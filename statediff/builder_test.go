@@ -2082,16 +2082,10 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 						NodeValue: contractAccountAtBlock5LeafNode,
 						StorageNodes: []types2.StorageNode{
 							{
-								Path:      []byte{},
+								Path:      []byte{'\x0c'},
 								NodeType:  types2.Leaf,
-								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafRootNode,
-							},
-							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Removed,
-								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: []byte{},
+								LeafKey:   slot3StorageKey.Bytes(),
+								NodeValue: slot3StorageLeafNode,
 							},
 							{
 								Path:      []byte{'\x04'},
@@ -2128,6 +2122,20 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 						NodeType:  types2.Removed,
 						LeafKey:   contractLeafKey,
 						NodeValue: []byte{},
+						StorageNodes: []types2.StorageNode{
+							{
+								Path:      []byte{'\x02'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot0StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+							{
+								Path:      []byte{'\x0c'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot3StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+						},
 					},
 					{
 						Path:         []byte{'\x0e'},
