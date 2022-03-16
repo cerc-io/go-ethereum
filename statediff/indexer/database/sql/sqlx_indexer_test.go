@@ -927,3 +927,298 @@ func TestSQLXWatchAddressMethods(t *testing.T) {
 		}
 	})
 }
+
+func TestSQLXWatchAddressMethods(t *testing.T) {
+	setupSQLXIndexer(t)
+	defer tearDown(t)
+	defer checkTxClosure(t, 0, 0, 0)
+
+	type res struct {
+		Address      string `db:"address"`
+		CreatedAt    uint64 `db:"created_at"`
+		WatchedAt    uint64 `db:"watched_at"`
+		LastFilledAt uint64 `db:"last_filled_at"`
+	}
+	pgStr := "SELECT * FROM eth_meta.watched_addresses"
+
+	t.Run("Insert watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt1)))
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt1,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.RemoveWatchedAddresses(args)
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+		}
+		expectedData := []res{}
+
+		ind.RemoveWatchedAddresses(args)
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched addresses", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract1Address,
+				CreatedAt: contract1CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract1Address,
+				CreatedAt:    contract1CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt2,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
+		args := []sdtypes.WatchAddressArg{
+			{
+				Address:   contract4Address,
+				CreatedAt: contract4CreatedAt,
+			},
+			{
+				Address:   contract2Address,
+				CreatedAt: contract2CreatedAt,
+			},
+			{
+				Address:   contract3Address,
+				CreatedAt: contract3CreatedAt,
+			},
+		}
+		expectedData := []res{
+			{
+				Address:      contract4Address,
+				CreatedAt:    contract4CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract2Address,
+				CreatedAt:    contract2CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+			{
+				Address:      contract3Address,
+				CreatedAt:    contract3CreatedAt,
+				WatchedAt:    watchedAt3,
+				LastFilledAt: lastFilledAt,
+			},
+		}
+
+		ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt3)))
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched addresses", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses()
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+
+	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
+		expectedData := []res{}
+
+		ind.ClearWatchedAddresses()
+
+		rows := []res{}
+		err = db.Select(context.Background(), &rows, pgStr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectTrue(t, len(rows) == len(expectedData))
+		for idx, row := range rows {
+			test_helpers.ExpectEqual(t, row, expectedData[idx])
+		}
+	})
+}
