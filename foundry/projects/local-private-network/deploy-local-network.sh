@@ -89,43 +89,49 @@ for i in $(seq 0 "$ACCOUNTS"); do
   balance+=(' "'"${address[i]}"'": { "balance": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}')
 done
 
-#ALLOC_CLEAN=$(echo ${ALLOC} | jq .)
-EXTRA_DATA="0x3132333400000000000000000000000000000000000000000000000000000000${address[0]#0x}0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-JSON_VAL='{
- "config": {
-  "chainId": '"$CHAINID"',
-  "homesteadBlock": 0,
-  "eip150Block": 0,
-  "eip155Block": 0,
-  "eip158Block": 0,
-  "byzantiumBlock": 0,
-  "constantinopleBlock": 0,
-  "petersburgBlock": 0,
-  "istanbulBlock": 0,
-  "clique": {
-   "period": '"$PERIOD"',
-   "epoch": 3000
-  }
- },
- "difficulty": "0x1",
- "gaslimit": "0xffffffffffff",
- "extraData": "'"$EXTRA_DATA"'",
- "alloc": {'"$balance"'}
-}'
-echo $JSON_VAL | jq . > $chaindir/config/genesis.json
+if [[ ! -f "./genesis.json" ]]
+then
+  EXTRA_DATA="0x3132333400000000000000000000000000000000000000000000000000000000${address[0]#0x}0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  JSON_VAL='{
+  "config": {
+    "chainId": '"$CHAINID"',
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "clique": {
+    "period": '"$PERIOD"',
+    "epoch": 3000
+    }
+  },
+  "difficulty": "0x1",
+  "gaslimit": "0xffffffffffff",
+  "extraData": "'"$EXTRA_DATA"'",
+  "alloc": {'"$balance"'}
+  }'
+  echo $JSON_VAL | jq . > $chaindir/config/genesis.json
 
-geth 2>/dev/null --datadir "$chaindir" init "$chaindir/config/genesis.json"
+  geth 2>/dev/null --datadir "$chaindir" init "$chaindir/config/genesis.json"
+else
+  echo "Using local genesis file"
+  geth 2>/dev/null --datadir "$chaindir" init "./genesis.json"
+fi
 
 export ETH_RPC_URL=http://$RPC_ADDRESS:$RPC_PORT
 
 port=$((RPC_PORT + 30000))
 
 geth version
-echo >&2 "dapp-testnet:  RPC URL: $ETH_RPC_URL"
-echo >&2 "dapp-testnet:  TCP port: $port"
-echo >&2 "dapp-testnet:  Chain ID: $CHAINID"
-echo >&2 "dapp-testnet:  Database: $chaindir"
-echo >&2 "dapp-testnet:  Geth log: $chaindir/geth.log"
+echo >&2 "testnet:  RPC URL: $ETH_RPC_URL"
+echo >&2 "testnet:  DB ADDRESS: $DB_HOST"
+echo >&2 "testnet:  TCP port: $port"
+echo >&2 "testnet:  Chain ID: $CHAINID"
+echo >&2 "testnet:  Database: $chaindir"
+echo >&2 "testnet:  Geth log: $chaindir/geth.log"
 
 printf "%s\n" "${address[@]}" > "$chaindir/config/account"
 echo "$ETH_RPC_URL"           > "$chaindir/config/rpc-url"
@@ -145,24 +151,29 @@ set +m
 #   --statediff.db.type="$DB_TYPE" --statediff.db.driver="$DB_DRIVER" --statediff.waitforsync="$DB_WAIT_FOR_SYNC" \
 #   --ws --ws.addr="0.0.0.0" --unlock="$(IFS=,; echo "${address[*]}")" --password=<(exit) &
 
+echo "Starting Geth with following flags"
 geth \
   2> >(tee "$chaindir/geth.log" | grep --line-buffered Success | sed 's/^/geth: /' >&2) \
   --datadir "$chaindir" --networkid "$CHAINID" --port="$port" \
   --mine --miner.threads=1 --allow-insecure-unlock \
-  --http --http.api "web3,eth,net,debug,personal,statediff" --http.corsdomain '*' --http.vhosts '*' --nodiscover \
+  --http --http.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff" --http.corsdomain '*' --http.vhosts '*' --nodiscover \
   --http.addr="$RPC_ADDRESS" --http.port="$RPC_PORT" --syncmode=full --gcmode=archive \
   --statediff --statediff.db.host="$DB_HOST" --statediff.db.port="$DB_PORT" --statediff.db.user="$DB_USER" \
   --statediff.db.password="$DB_PASSWORD" --statediff.db.name="$DB_NAME" \
   --statediff.db.nodeid 1 --statediff.db.clientname test1 --statediff.writing="$DB_WRITE" \
   --statediff.db.type="$DB_TYPE" --statediff.db.driver="$DB_DRIVER" \
-  --ws --ws.addr="0.0.0.0" --unlock="$(IFS=,; echo "${address[*]}")" --password=<(exit) &
+  --ws --ws.addr="0.0.0.0" --ws.origins '*' --ws.api=admin,debug,eth,miner,net,personal,txpool,web3 \
+  --nat=none --miner.gasprice 16000000000 --nat=none \
+  --unlock="$(IFS=,; echo "${address[*]}")" --password=<(exit) &
 
 gethpid=$!
+echo "Geth started"
+echo "Geth PID: $gethpid"
 
 clean() {
   ( set -x; kill -INT $gethpid; wait )
   if [[ $SAVE ]]; then
-    echo >&2 "dapp-testnet: saving $gethdir/snapshots/$SAVE"
+    echo >&2 "testnet: saving $gethdir/snapshots/$SAVE"
     mkdir -p "$gethdir/snapshots/$SAVE"
     cp -r "$chaindir/keystore" "$gethdir/snapshots/$SAVE"
     cp -r "$chaindir/config" "$gethdir/snapshots/$SAVE"
@@ -173,15 +184,18 @@ clean() {
 }
 trap clean EXIT
 
+echo "Curling: $ETH_RPC_URL"
 until curl -s "$ETH_RPC_URL"; do sleep 1; done
 
+echo "Curling: $ETH_RPC_URL complete"
 # UPDATE
 #ETH_FROM=$(seth --rpc-url="$ETH_RPC_URL" rpc eth_coinbase)
 #export ETH_FROM
 export ETH_KEYSTORE=$chaindir/keystore
 export ETH_PASSWORD=/dev/null
-printf 'dapp-testnet:  Account: %s (default)\n' "${address[0]}" >&2
+printf 'testnet:  Account: %s (default)\n' "${address[0]}" >&2
 
-[[ "${#address[@]}" -gt 1 ]] && printf 'dapp-testnet:   Account: %s\n' "${address[@]:1}" >&2
+[[ "${#address[@]}" -gt 1 ]] && printf 'testnet:   Account: %s\n' "${address[@]:1}" >&2
 
+echo "Geth Start up completed!"
 while true; do sleep 3600; done

@@ -9,7 +9,7 @@ trap "exit 1" SIGINT SIGTERM
 TMPDIR=$(mktemp -d)
 /bin/bash deploy-local-network.sh --rpc-addr 0.0.0.0 --chain-id 4 --db-user $DB_USER --db-password $DB_PASSWORD --db-name $DB_NAME \
   --db-host $DB_HOST --db-port $DB_PORT --db-write $DB_WRITE --dir "$TMPDIR" --address $ADDRESS \
-  --db-type $DB_TYPE --db-driver $DB_DRIVER --db-waitforsync $DB_WAIT_FOR_SYNC &
+  --db-type $DB_TYPE --db-driver $DB_DRIVER --db-waitforsync $DB_WAIT_FOR_SYNC --chain-id $CHAIN_ID &
 echo "sleeping 90 sec"
 # give it a few secs to start up
 sleep 90
