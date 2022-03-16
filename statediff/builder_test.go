@@ -2003,6 +2003,168 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 	}
 }
 
+func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
+	blocks, chain := test_helpers.MakeChain(6, test_helpers.Genesis, test_helpers.TestChainGen)
+	contractLeafKey = test_helpers.AddressToLeafKey(test_helpers.ContractAddr)
+	defer chain.Stop()
+	block3 = blocks[2]
+	block4 = blocks[3]
+	block5 = blocks[4]
+	block6 = blocks[5]
+	params := statediff.Params{
+		WatchedAddresses: []common.Address{test_helpers.Account1Addr, test_helpers.ContractAddr},
+	}
+	params.ComputeWatchedAddressesLeafKeys()
+	builder = statediff.NewBuilder(chain.StateCache())
+
+	var tests = []struct {
+		name              string
+		startingArguments statediff.Args
+		expected          *types2.StateObject
+	}{
+		{
+			"testBlock4",
+			statediff.Args{
+				OldStateRoot: block3.Root(),
+				NewStateRoot: block4.Root(),
+				BlockNumber:  block4.Number(),
+				BlockHash:    block4.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block4.Number(),
+				BlockHash:   block4.Hash(),
+				Nodes: []types2.StateNode{
+					{
+						Path:      []byte{'\x06'},
+						NodeType:  types2.Leaf,
+						LeafKey:   contractLeafKey,
+						NodeValue: contractAccountAtBlock4LeafNode,
+						StorageNodes: []types2.StorageNode{
+							{
+								Path:      []byte{'\x04'},
+								NodeType:  types2.Leaf,
+								LeafKey:   slot2StorageKey.Bytes(),
+								NodeValue: slot2StorageLeafNode,
+							},
+							{
+								Path:      []byte{'\x0b'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot1StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+							{
+								Path:      []byte{'\x0c'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot3StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"testBlock5",
+			statediff.Args{
+				OldStateRoot: block4.Root(),
+				NewStateRoot: block5.Root(),
+				BlockNumber:  block5.Number(),
+				BlockHash:    block5.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block5.Number(),
+				BlockHash:   block5.Hash(),
+				Nodes: []types2.StateNode{
+					{
+						Path:      []byte{'\x06'},
+						NodeType:  types2.Leaf,
+						LeafKey:   contractLeafKey,
+						NodeValue: contractAccountAtBlock5LeafNode,
+						StorageNodes: []types2.StorageNode{
+							{
+								Path:      []byte{},
+								NodeType:  types2.Leaf,
+								LeafKey:   slot0StorageKey.Bytes(),
+								NodeValue: slot0StorageLeafRootNode,
+							},
+							{
+								Path:      []byte{'\x02'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot0StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+							{
+								Path:      []byte{'\x04'},
+								NodeType:  types2.Removed,
+								LeafKey:   slot2StorageKey.Bytes(),
+								NodeValue: []byte{},
+							},
+						},
+					},
+					{
+						Path:         []byte{'\x0e'},
+						NodeType:     types2.Leaf,
+						LeafKey:      test_helpers.Account1LeafKey,
+						NodeValue:    account1AtBlock5LeafNode,
+						StorageNodes: emptyStorage,
+					},
+				},
+			},
+		},
+		{
+			"testBlock6",
+			statediff.Args{
+				OldStateRoot: block5.Root(),
+				NewStateRoot: block6.Root(),
+				BlockNumber:  block6.Number(),
+				BlockHash:    block6.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block6.Number(),
+				BlockHash:   block6.Hash(),
+				Nodes: []types2.StateNode{
+					{
+						Path:      []byte{'\x06'},
+						NodeType:  types2.Removed,
+						LeafKey:   contractLeafKey,
+						NodeValue: []byte{},
+					},
+					{
+						Path:         []byte{'\x0e'},
+						NodeType:     types2.Leaf,
+						LeafKey:      test_helpers.Account1LeafKey,
+						NodeValue:    account1AtBlock6LeafNode,
+						StorageNodes: emptyStorage,
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		diff, err := builder.BuildStateDiffObject(test.startingArguments, params)
+		if err != nil {
+			t.Error(err)
+		}
+		receivedStateDiffRlp, err := rlp.EncodeToBytes(diff)
+		if err != nil {
+			t.Error(err)
+		}
+
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		if err != nil {
+			t.Error(err)
+		}
+
+		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
+		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
+		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			t.Logf("Test failed: %s", test.name)
+			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
+		}
+	}
+}
+
 var (
 	slot00StorageValue = common.Hex2Bytes("9471562b71999873db5b286df957af199ec94617f7") // prefixed TestBankAddress
 
