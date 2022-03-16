@@ -18,6 +18,7 @@ package statediff
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
