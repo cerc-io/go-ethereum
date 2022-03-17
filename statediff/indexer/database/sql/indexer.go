@@ -440,7 +440,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 }
 
 // PushStateNode publishes and indexes a state diff node object (including any child storage nodes) in the IPLD sql
-func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdtypes.StateNode, headerID string) error {
+func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdtypes.StateNode, blockNumber, headerID string) error {
 	tx, ok := batch.(*BatchTx)
 	if !ok {
 		return fmt.Errorf("sql: batch is expected to be of type %T, got %T", &BatchTx{}, batch)
