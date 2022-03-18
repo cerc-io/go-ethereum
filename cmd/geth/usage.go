@@ -275,6 +275,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 			utils.StateDiffFilePath,
 			utils.StateDiffKnownGapsFilePath,
 			utils.StateDiffWaitForSync,
+			utils.StateDiffWatchedAddressesFilePath,
 		},
 	},
 	{
