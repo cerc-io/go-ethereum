@@ -185,3 +185,15 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 	}
 	return nil
 }
+
+func (w *Writer) upsertKnownGaps(tx Tx, knownGaps models.KnownGapsModel) error {
+	res, err := tx.Exec(w.db.Context(), w.db.InsertKnownGapsStm(),
+		knownGaps.StartingBlockNumber, knownGaps.EndingBlockNumber, knownGaps.CheckedOut, knownGaps.ProcessingKey)
+	if err != nil {
+		return fmt.Errorf("error upserting known_gaps entry: %v", err)
+	}
+
+	ret, _ := res.RowsAffected()
+	fmt.Println("Res:", ret)
+	return nil
+}

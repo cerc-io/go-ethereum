@@ -75,12 +75,17 @@ func testPushBlockAndState(t *testing.T, block *types.Block, receipts types.Rece
 	})
 }
 
-func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) {
+func setupDb(t *testing.T) (interfaces.StateDiffIndexer, error) {
 	db, err = postgres.SetupSQLXDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ind, err = sql.NewStateDiffIndexer(context.Background(), chainConf, db)
+	return ind, err
+}
+
+func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) (interfaces.StateDiffIndexer, interfaces.Batch) {
+	ind, err = setupDb(t)
 	require.NoError(t, err)
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -109,4 +114,25 @@ func tearDown(t *testing.T) {
 	sql.TearDownDB(t, db)
 	err = ind.Close()
 	require.NoError(t, err)
+}
+
+func TestKnownGapsUpsert(t *testing.T) {
+	var blockNumber int64 = 111
+	startBlock := big.NewInt(blockNumber)
+	endBlock := big.NewInt(blockNumber + 10)
+
+	ind, err := setupDb(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.NoError(t, err)
+
+	processGapError := ind.PushKnownGaps(startBlock, endBlock, false, 1)
+	if processGapError != nil {
+		t.Fatal(processGapError)
+	}
+
+	// Read data from the database!
+	// And compare
+	require.NoError(t, processGapError)
 }
