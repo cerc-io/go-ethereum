@@ -1147,7 +1147,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt1)))
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1195,7 +1195,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1231,7 +1231,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.RemoveWatchedAddresses(args)
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1260,7 +1260,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.RemoveWatchedAddresses(args)
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1312,7 +1312,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1364,7 +1364,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt3)))
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1399,7 +1399,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.ClearWatchedAddresses()
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
@@ -1418,7 +1418,7 @@ func TestFileWatchAddressMethods(t *testing.T) {
 
 		err = ind.ClearWatchedAddresses()
 		require.NoError(t, err)
-		dumpWatchedAddressesFileData(t)
+		resetAndDumpWatchedAddressesFileData(t)
 
 		rows := []res{}
 		err = sqlxdb.Select(&rows, pgStr)
