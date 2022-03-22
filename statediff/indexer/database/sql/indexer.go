@@ -685,3 +685,16 @@ func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 
 	return nil
 }
+
+// This is a simple wrapper function which will run QueryRow on the DB
+func (sdi *StateDiffIndexer) QueryDb(queryString string) (string, error) {
+	var name string
+	err := sdi.dbWriter.db.QueryRow(context.Background(), queryString).Scan(&name)
+	// err := sdi.dbWriter.db.QueryRow(context.Background(), "SELECT ename FROM emp ORDER BY sal DESC LIMIT 1;").Scan(&name)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(name)
+
+	return name, nil
+}

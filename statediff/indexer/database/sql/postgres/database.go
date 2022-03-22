@@ -108,7 +108,8 @@ func (db *DB) InsertKnownGapsStm() string {
 			WHERE eth_meta.known_gaps.ending_block_number <= $2`
 }
 
+// InsertKnownGapsStm satisfies the sql.Statements interface
 func (db *DB) InsertKnownGapsStm() string {
-	return `INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) VALUES ($1, $2, $3, $4)`
+	return `INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) VALUES ($1, $2, $3, $4) ON CONFLICT (starting_block_number) DO NOTHING`
 	//return `INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) VALUES (1, 2, true, 1)`
 }

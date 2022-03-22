@@ -117,22 +117,28 @@ func tearDown(t *testing.T) {
 }
 
 func TestKnownGapsUpsert(t *testing.T) {
-	var blockNumber int64 = 111
-	startBlock := big.NewInt(blockNumber)
-	endBlock := big.NewInt(blockNumber + 10)
-
+	var startBlockNumber int64 = 111
+	var endBlockNumber int64 = 121
 	ind, err := setupDb(t)
 	if err != nil {
 		t.Fatal(err)
 	}
 	require.NoError(t, err)
 
+	testKnownGapsUpsert(t, startBlockNumber, endBlockNumber, ind)
+	//str, err := ind.QueryDb("SELECT MAX(block_number) FROM eth.header_cids") // Figure out the string.
+	queryString := fmt.Sprintf("SELECT starting_block_number from eth.known_gaps WHERE starting_block_number = %d AND ending_block_number = %d", startBlockNumber, endBlockNumber)
+	_, queryErr := ind.QueryDb(queryString) // Figure out the string.
+	require.NoError(t, queryErr)
+
+}
+func testKnownGapsUpsert(t *testing.T, startBlockNumber int64, endBlockNumber int64, ind interfaces.StateDiffIndexer) {
+	startBlock := big.NewInt(startBlockNumber)
+	endBlock := big.NewInt(endBlockNumber)
+
 	processGapError := ind.PushKnownGaps(startBlock, endBlock, false, 1)
 	if processGapError != nil {
 		t.Fatal(processGapError)
 	}
-
-	// Read data from the database!
-	// And compare
 	require.NoError(t, processGapError)
 }

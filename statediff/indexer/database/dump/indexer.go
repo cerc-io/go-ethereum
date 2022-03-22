@@ -534,3 +534,7 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 	return nil
 }
+
+func (sdi *StateDiffIndexer) QueryDb(queryString string) (string, error) {
+	return "", nil
+}
