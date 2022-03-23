@@ -688,13 +688,64 @@ func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 
 // This is a simple wrapper function which will run QueryRow on the DB
 func (sdi *StateDiffIndexer) QueryDb(queryString string) (string, error) {
-	var name string
-	err := sdi.dbWriter.db.QueryRow(context.Background(), queryString).Scan(&name)
-	// err := sdi.dbWriter.db.QueryRow(context.Background(), "SELECT ename FROM emp ORDER BY sal DESC LIMIT 1;").Scan(&name)
+	var ret string
+	err := sdi.dbWriter.db.QueryRow(context.Background(), queryString).Scan(&ret)
 	if err != nil {
+		log.Error("Can't properly query the DB for query: ", queryString)
 		return "", err
 	}
-	fmt.Println(name)
+	return ret, nil
+}
 
-	return name, nil
+// This function is a simple wrapper which will call QueryDb but the return value will be
+// a big int instead of a string
+func (sdi *StateDiffIndexer) QueryDbToBigInt(queryString string) (*big.Int, error) {
+	ret := new(big.Int)
+	res, err := sdi.QueryDb(queryString)
+	if err != nil {
+		return ret, err
+	}
+	ret, ok := ret.SetString(res, 10)
+	if !ok {
+		log.Error("Can't turn the res ", res, "into a bigInt")
+		return ret, fmt.Errorf("Can't turn %s into a bigInt", res)
+	}
+	return ret, nil
+}
+
+// Users provide the latestBlockInDb and the latestBlockOnChain
+// as well as the expected difference. This function does some simple math.
+// The expected difference for the time being is going to be 1, but as we run
+// More geth nodes, the expected difference might fluctuate.
+func isGap(latestBlockInDb *big.Int, latestBlockOnChain *big.Int, expectedDifference *big.Int) bool {
+	latestBlock := big.NewInt(0)
+	if latestBlock.Add(latestBlockOnChain, expectedDifference) != latestBlockInDb {
+		return true
+	}
+	return false
+
+}
+
+// This function will check for Gaps and update the DB if gaps are found.
+// The processingKey will currently be set to 0, but as we start to leverage horizontal scaling
+// It might be a useful parameter to update depending on the geth node.
+func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expectedDifference *big.Int, processingKey int64) error {
+	dbQueryString := "SELECT MAX(block_number) FROM eth.header_cids"
+	latestBlockInDb, err := sdi.QueryDbToBigInt(dbQueryString)
+	if err != nil {
+		return err
+	}
+
+	gapExists := isGap(latestBlockInDb, latestBlockOnChain, expectedDifference)
+	if gapExists {
+		startBlock := big.NewInt(0)
+		endBlock := big.NewInt(0)
+		startBlock.Add(latestBlockInDb, expectedDifference)
+		endBlock.Sub(latestBlockOnChain, expectedDifference)
+
+		log.Warn("Found Gaps starting at, ", startBlock, " and ending at, ", endBlock)
+		sdi.pushKnownGaps(startBlock, endBlock, false, processingKey)
+	}
+
+	return nil
 }

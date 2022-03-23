@@ -2,7 +2,9 @@ package sql_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 
@@ -11,8 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
@@ -22,6 +26,7 @@ var (
 	db        sql.Database
 	err       error
 	ind       interfaces.StateDiffIndexer
+	chainConf = params.MainnetChainConfig
 	ipfsPgGet = `SELECT data FROM public.blocks
 					WHERE key = $1 AND block_number = $2`
 	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
@@ -165,8 +170,60 @@ func checkTxClosure(t *testing.T, idle, inUse, open int64) {
 	require.Equal(t, open, db.Stats().Open())
 }
 
+func setupDb(t *testing.T) (*sql.StateDiffIndexer, error) {
+	db, err = postgres.SetupSQLXDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateDiff, err := sql.NewStateDiffIndexer(context.Background(), chainConf, db)
+	return stateDiff, err
+}
+
 func tearDown(t *testing.T) {
 	sql.TearDownDB(t, db)
 	err := ind.Close()
 	require.NoError(t, err)
+}
+func TestKnownGapsUpsert(t *testing.T) {
+	testKnownGapsUpsert(t)
+
+}
+func testKnownGapsUpsert(t *testing.T) {
+	gapDifference := big.NewInt(10)     // Set a difference between latestBlock in DB and on Chain
+	expectedDifference := big.NewInt(1) // Set what the expected difference between latestBlock in DB and on Chain should be
+
+	stateDiff, err := setupDb(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the latest block from the DB
+	latestBlockInDb, err := stateDiff.QueryDbToBigInt("SELECT MAX(block_number) FROM eth.header_cids")
+	if err != nil {
+		t.Fatal("Can't find a block in the eth.header_cids table.. Please put one there")
+	}
+
+	// Add the gapDifference for testing purposes
+	latestBlockOnChain := big.NewInt(0)
+	latestBlockOnChain.Add(latestBlockInDb, gapDifference)
+
+	t.Log("The latest block on the chain is: ", latestBlockOnChain)
+	t.Log("The latest block on the DB is: ", latestBlockInDb)
+
+	gapUpsertErr := stateDiff.FindAndUpdateGaps(latestBlockOnChain, expectedDifference, 0)
+	require.NoError(t, gapUpsertErr)
+
+	// Calculate what the start and end block should be in known_gaps
+	// And check to make sure it is properly inserted
+	startBlock := big.NewInt(0)
+	endBlock := big.NewInt(0)
+	startBlock.Add(latestBlockInDb, expectedDifference)
+	endBlock.Sub(latestBlockOnChain, expectedDifference)
+
+	queryString := fmt.Sprintf("SELECT starting_block_number from eth.known_gaps WHERE starting_block_number = %d AND ending_block_number = %d", startBlock, endBlock)
+
+	_, queryErr := stateDiff.QueryDb(queryString) // Figure out the string.
+	t.Logf("Updated Known Gaps table starting from, %d, and ending at, %d", startBlock, endBlock)
+	require.NoError(t, queryErr)
+
 }
