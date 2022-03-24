@@ -21,6 +21,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/lib/pq"
+
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
@@ -204,6 +206,14 @@ func TestPGXIndexer(t *testing.T) {
 				}
 				if txRes.Value != transactions[3].Value().String() {
 					t.Fatalf("expected tx value %s got %s", transactions[3].Value().String(), txRes.Value)
+				}
+				// AccessListElementModel is the db model for eth.access_list_entry
+				type AccessListElementModel struct {
+					BlockNumber string         `db:"block_number"`
+					Index       int64          `db:"index"`
+					TxID        string         `db:"tx_id"`
+					Address     string         `db:"address"`
+					StorageKeys pq.StringArray `db:"storage_keys"`
 				}
 				accessListElementModels := make([]models.AccessListElementModel, 0)
 				pgStr = "SELECT cast(access_list_elements.block_number AS TEXT), access_list_elements.index, access_list_elements.tx_id, " +
