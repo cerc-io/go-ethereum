@@ -220,7 +220,7 @@ func (sdi *StateDiffIndexer) processHeader(header *types.Header, headerNode node
 		CID:             headerNode.Cid().String(),
 		MhKey:           shared.MultihashKeyFromCID(headerNode.Cid()),
 		ParentHash:      header.ParentHash.String(),
-		BlockNumber:     header.Number.String(),
+		BlockNumber:     sdi.blockNumber,
 		BlockHash:       headerID,
 		TotalDifficulty: td.String(),
 		Reward:          reward.String(),
