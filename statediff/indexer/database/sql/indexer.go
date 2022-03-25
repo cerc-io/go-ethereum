@@ -691,7 +691,7 @@ func (sdi *StateDiffIndexer) QueryDb(queryString string) (string, error) {
 	var ret string
 	err := sdi.dbWriter.db.QueryRow(context.Background(), queryString).Scan(&ret)
 	if err != nil {
-		log.Error("Can't properly query the DB for query: ", queryString)
+		log.Error(fmt.Sprint("Can't properly query the DB for query: ", queryString))
 		return "", err
 	}
 	return ret, nil
@@ -707,7 +707,7 @@ func (sdi *StateDiffIndexer) QueryDbToBigInt(queryString string) (*big.Int, erro
 	}
 	ret, ok := ret.SetString(res, 10)
 	if !ok {
-		log.Error("Can't turn the res ", res, "into a bigInt")
+		log.Error(fmt.Sprint("Can't turn the res ", res, "into a bigInt"))
 		return ret, fmt.Errorf("Can't turn %s into a bigInt", res)
 	}
 	return ret, nil
@@ -729,6 +729,9 @@ func isGap(latestBlockInDb *big.Int, latestBlockOnChain *big.Int, expectedDiffer
 // This function will check for Gaps and update the DB if gaps are found.
 // The processingKey will currently be set to 0, but as we start to leverage horizontal scaling
 // It might be a useful parameter to update depending on the geth node.
+// TODO:
+// REmove the return value
+// Write to file if err in writing to DB
 func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expectedDifference *big.Int, processingKey int64) error {
 	dbQueryString := "SELECT MAX(block_number) FROM eth.header_cids"
 	latestBlockInDb, err := sdi.QueryDbToBigInt(dbQueryString)
@@ -743,8 +746,13 @@ func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expe
 		startBlock.Add(latestBlockInDb, expectedDifference)
 		endBlock.Sub(latestBlockOnChain, expectedDifference)
 
-		log.Warn("Found Gaps starting at, ", startBlock, " and ending at, ", endBlock)
-		sdi.pushKnownGaps(startBlock, endBlock, false, processingKey)
+		log.Warn(fmt.Sprint("Found Gaps starting at, ", startBlock, " and ending at, ", endBlock))
+		err := sdi.PushKnownGaps(startBlock, endBlock, false, processingKey)
+		if err != nil {
+			// Write to file SQL file instead!!!
+			// If write to SQL file fails, write to disk. Handle this within the write to SQL file function!
+			return err
+		}
 	}
 
 	return nil

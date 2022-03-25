@@ -148,6 +148,91 @@ type Service struct {
 	maxRetry uint
 }
 
+type KnownGaps struct {
+	// Should we check for gaps by looking at the DB and comparing the latest block with head
+	checkForGaps bool
+	// Arbitrary processingKey that can be used down the line to differentiate different geth nodes.
+	processingKey int64
+	// This number indicates the expected difference between blocks.
+	// Currently, this is 1 since the geth node processes each block. But down the road this can be used in
+	// Tandom with the processingKey to differentiate block processing logic.
+	expectedDifference *big.Int
+	// Indicates if Geth is in an error state
+	// This is used to indicate the right time to upserts
+	errorState bool
+	// This array keeps track of errorBlocks as they occur.
+	// When the errorState is false again, we can process these blocks.
+	// Do we need a list, can we have /KnownStartErrorBlock and knownEndErrorBlock ints instead?
+	knownErrorBlocks []*big.Int
+	// The last processed block keeps track of the last processed block.
+	// Its used to make sure we didn't skip over any block!
+	lastProcessedBlock *big.Int
+}
+
+// This function will capture any missed blocks that were not captured in sds.KnownGaps.knownErrorBlocks.
+// It is invoked when the sds.KnownGaps.lastProcessed block is not one unit
+// away from sds.KnownGaps.expectedDifference
+// Essentially, if geth ever misses blocks but doesn't output an error, we are covered.
+func (sds *Service) capturedMissedBlocks(currentBlock *big.Int, knownErrorBlocks []*big.Int, lastProcessedBlock *big.Int) {
+	// last processed: 110
+	// current block: 125
+	if len(knownErrorBlocks) > 0 {
+		// 115
+		startErrorBlock := new(big.Int).Set(knownErrorBlocks[0])
+		// 120
+		endErrorBlock := new(big.Int).Set(knownErrorBlocks[len(knownErrorBlocks)-1])
+
+		// 111
+		expectedStartErrorBlock := big.NewInt(0).Add(lastProcessedBlock, sds.KnownGaps.expectedDifference)
+		// 124
+		expectedEndErrorBlock := big.NewInt(0).Sub(currentBlock, sds.KnownGaps.expectedDifference)
+
+		if (expectedStartErrorBlock == startErrorBlock) &&
+			(expectedEndErrorBlock == endErrorBlock) {
+			log.Info("All Gaps already captured in knownErrorBlocks")
+		}
+
+		if expectedEndErrorBlock.Cmp(endErrorBlock) == 1 {
+			log.Warn(fmt.Sprint("There are gaps in the knownErrorBlocks list: ", knownErrorBlocks))
+			log.Warn("But there are gaps that were also not added there.")
+			log.Warn(fmt.Sprint("Last Block in knownErrorBlocks: ", endErrorBlock))
+			log.Warn(fmt.Sprint("Last processed Block: ", lastProcessedBlock))
+			log.Warn(fmt.Sprint("Current Block: ", currentBlock))
+			//120 + 1 == 121
+			startBlock := big.NewInt(0).Add(endErrorBlock, sds.KnownGaps.expectedDifference)
+			// 121 to 124
+			log.Warn(fmt.Sprintf("Adding the following block range to known_gaps table: %d - %d", startBlock, expectedEndErrorBlock))
+			sds.indexer.PushKnownGaps(startBlock, expectedEndErrorBlock, false, sds.KnownGaps.processingKey)
+		}
+
+		if expectedStartErrorBlock.Cmp(startErrorBlock) == -1 {
+			log.Warn(fmt.Sprint("There are gaps in the knownErrorBlocks list: ", knownErrorBlocks))
+			log.Warn("But there are gaps that were also not added there.")
+			log.Warn(fmt.Sprint("First Block in knownErrorBlocks: ", startErrorBlock))
+			log.Warn(fmt.Sprint("Last processed Block: ", lastProcessedBlock))
+			// 115 - 1 == 114
+			endBlock := big.NewInt(0).Sub(startErrorBlock, sds.KnownGaps.expectedDifference)
+			// 111 to 114
+			log.Warn(fmt.Sprintf("Adding the following block range to known_gaps table: %d - %d", expectedStartErrorBlock, endBlock))
+			sds.indexer.PushKnownGaps(expectedStartErrorBlock, endBlock, false, sds.KnownGaps.processingKey)
+		}
+
+		log.Warn(fmt.Sprint("The following Gaps were found: ", knownErrorBlocks))
+		log.Warn(fmt.Sprint("Updating known Gaps table from ", startErrorBlock, " to ", endErrorBlock, " with processing key, ", sds.KnownGaps.processingKey))
+		sds.indexer.PushKnownGaps(startErrorBlock, endErrorBlock, false, sds.KnownGaps.processingKey)
+
+	} else {
+		log.Warn("We missed blocks without any errors.")
+		// 110 + 1 == 111
+		startBlock := big.NewInt(0).Add(lastProcessedBlock, sds.KnownGaps.expectedDifference)
+		// 125 - 1 == 124
+		endBlock := big.NewInt(0).Sub(currentBlock, sds.KnownGaps.expectedDifference)
+		log.Warn(fmt.Sprint("Missed blocks starting from: ", startBlock))
+		log.Warn(fmt.Sprint("Missed blocks ending at: ", endBlock))
+		sds.indexer.PushKnownGaps(startBlock, endBlock, false, sds.KnownGaps.processingKey)
+	}
+}
+
 // BlockCache caches the last block for safe access from different service loops
 type BlockCache struct {
 	sync.Mutex
