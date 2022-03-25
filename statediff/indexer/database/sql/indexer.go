@@ -732,7 +732,7 @@ func isGap(latestBlockInDb *big.Int, latestBlockOnChain *big.Int, expectedDiffer
 // TODO:
 // REmove the return value
 // Write to file if err in writing to DB
-func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expectedDifference *big.Int, processingKey int64) error {
+func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expectedDifference *big.Int, processingKey int64, fileIndexer interfaces.StateDiffIndexer) error {
 	dbQueryString := "SELECT MAX(block_number) FROM eth.header_cids"
 	latestBlockInDb, err := sdi.QueryDbToBigInt(dbQueryString)
 	if err != nil {
@@ -747,7 +747,7 @@ func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expe
 		endBlock.Sub(latestBlockOnChain, expectedDifference)
 
 		log.Warn(fmt.Sprint("Found Gaps starting at, ", startBlock, " and ending at, ", endBlock))
-		err := sdi.PushKnownGaps(startBlock, endBlock, false, processingKey)
+		err := sdi.PushKnownGaps(startBlock, endBlock, false, processingKey, fileIndexer)
 		if err != nil {
 			// Write to file SQL file instead!!!
 			// If write to SQL file fails, write to disk. Handle this within the write to SQL file function!

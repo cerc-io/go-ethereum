@@ -35,7 +35,7 @@ import (
 func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, nodeInfo node.Info, config interfaces.Config) (sql.Database, interfaces.StateDiffIndexer, error) {
 	switch config.Type() {
 	case shared.FILE:
-		log.Info("Starting statediff service in SQL file writing mode")
+		log.Info("Creating a statediff indexer in SQL file writing mode")
 		fc, ok := config.(file.Config)
 		if !ok {
 			return nil, nil, fmt.Errorf("file config is not the correct type: got %T, expected %T", config, file.Config{})
@@ -44,7 +44,7 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, n
 		ind, err := file.NewStateDiffIndexer(ctx, chainConfig, fc)
 		return nil, ind, err
 	case shared.POSTGRES:
-		log.Info("Starting statediff service in Postgres writing mode")
+		log.Info("Creating a statediff service in Postgres writing mode")
 		pgc, ok := config.(postgres.Config)
 		if !ok {
 			return nil, nil, fmt.Errorf("postgres config is not the correct type: got %T, expected %T", config, postgres.Config{})
@@ -69,7 +69,7 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, n
 		ind, err := sql.NewStateDiffIndexer(ctx, chainConfig, db)
 		return db, ind, err
 	case shared.DUMP:
-		log.Info("Starting statediff service in data dump mode")
+		log.Info("Creating statediff indexer in data dump mode")
 		dumpc, ok := config.(dump.Config)
 		if !ok {
 			return nil, nil, fmt.Errorf("dump config is not the correct type: got %T, expected %T", config, dump.Config{})

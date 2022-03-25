@@ -3,18 +3,21 @@ package sql_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"testing"
 
 	"github.com/ipfs/go-cid"
+	"github.com/jmoiron/sqlx"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
@@ -24,6 +27,7 @@ import (
 
 var (
 	db        sql.Database
+	sqlxdb    *sqlx.DB
 	err       error
 	ind       interfaces.StateDiffIndexer
 	chainConf = params.MainnetChainConfig
@@ -179,6 +183,16 @@ func setupDb(t *testing.T) (*sql.StateDiffIndexer, error) {
 	return stateDiff, err
 }
 
+func setupFile(t *testing.T) interfaces.StateDiffIndexer {
+	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.TestConfig.FilePath)
+		require.NoError(t, err)
+	}
+	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.TestConfig)
+	require.NoError(t, err)
+	return ind
+}
+
 func tearDown(t *testing.T) {
 	sql.TearDownDB(t, db)
 	err := ind.Close()
@@ -197,6 +211,8 @@ func testKnownGapsUpsert(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	fileInd := setupFile(t)
+
 	// Get the latest block from the DB
 	latestBlockInDb, err := stateDiff.QueryDbToBigInt("SELECT MAX(block_number) FROM eth.header_cids")
 	if err != nil {
@@ -210,7 +226,7 @@ func testKnownGapsUpsert(t *testing.T) {
 	t.Log("The latest block on the chain is: ", latestBlockOnChain)
 	t.Log("The latest block on the DB is: ", latestBlockInDb)
 
-	gapUpsertErr := stateDiff.FindAndUpdateGaps(latestBlockOnChain, expectedDifference, 0)
+	gapUpsertErr := stateDiff.FindAndUpdateGaps(latestBlockOnChain, expectedDifference, 0, fileInd)
 	require.NoError(t, gapUpsertErr)
 
 	// Calculate what the start and end block should be in known_gaps
@@ -223,7 +239,7 @@ func testKnownGapsUpsert(t *testing.T) {
 	queryString := fmt.Sprintf("SELECT starting_block_number from eth.known_gaps WHERE starting_block_number = %d AND ending_block_number = %d", startBlock, endBlock)
 
 	_, queryErr := stateDiff.QueryDb(queryString) // Figure out the string.
-	t.Logf("Updated Known Gaps table starting from, %d, and ending at, %d", startBlock, endBlock)
 	require.NoError(t, queryErr)
+	t.Logf("Updated Known Gaps table starting from, %d, and ending at, %d", startBlock, endBlock)
 
 }

@@ -257,3 +257,12 @@ func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
 		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey))
 }
+
+func (sqw *SQLWriter) upsertKnownGaps(knownGaps models.KnownGapsModel) {
+	sqw.stmts <- []byte(fmt.Sprintf(knownGaps.StartingBlockNumber, knownGaps.EndingBlockNumber, knownGaps.CheckedOut, knownGaps.ProcessingKey,
+		knownGaps.EndingBlockNumber, knownGaps.ProcessingKey, knownGaps.EndingBlockNumber))
+	//knownGapsInsert = "INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) " +
+	//	"VALUES ('%s', '%s', %t, %d) " +
+	//	"ON CONFLICT (starting_block_number) DO UPDATE SET (ending_block_number, processing_key) = ('%s', %d) " +
+	//	"WHERE eth.known_gaps.ending_block_number <= '%s';\n"
+}

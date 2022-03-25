@@ -148,7 +148,8 @@ type Service struct {
 	maxRetry uint
 }
 
-type KnownGaps struct {
+// This structure keeps track of the knownGaps at any given moment in time
+type KnownGapsState struct {
 	// Should we check for gaps by looking at the DB and comparing the latest block with head
 	checkForGaps bool
 	// Arbitrary processingKey that can be used down the line to differentiate different geth nodes.
@@ -167,6 +168,9 @@ type KnownGaps struct {
 	// The last processed block keeps track of the last processed block.
 	// Its used to make sure we didn't skip over any block!
 	lastProcessedBlock *big.Int
+	// This fileIndexer is used to write the knownGaps to file
+	// If we can't properly write to DB
+	fileIndexer interfaces.StateDiffIndexer
 }
 
 // This function will capture any missed blocks that were not captured in sds.KnownGaps.knownErrorBlocks.
@@ -202,7 +206,7 @@ func (sds *Service) capturedMissedBlocks(currentBlock *big.Int, knownErrorBlocks
 			startBlock := big.NewInt(0).Add(endErrorBlock, sds.KnownGaps.expectedDifference)
 			// 121 to 124
 			log.Warn(fmt.Sprintf("Adding the following block range to known_gaps table: %d - %d", startBlock, expectedEndErrorBlock))
-			sds.indexer.PushKnownGaps(startBlock, expectedEndErrorBlock, false, sds.KnownGaps.processingKey)
+			sds.indexer.PushKnownGaps(startBlock, expectedEndErrorBlock, false, sds.KnownGaps.processingKey, sds.KnownGaps.fileIndexer)
 		}
 
 		if expectedStartErrorBlock.Cmp(startErrorBlock) == -1 {
@@ -214,12 +218,12 @@ func (sds *Service) capturedMissedBlocks(currentBlock *big.Int, knownErrorBlocks
 			endBlock := big.NewInt(0).Sub(startErrorBlock, sds.KnownGaps.expectedDifference)
 			// 111 to 114
 			log.Warn(fmt.Sprintf("Adding the following block range to known_gaps table: %d - %d", expectedStartErrorBlock, endBlock))
-			sds.indexer.PushKnownGaps(expectedStartErrorBlock, endBlock, false, sds.KnownGaps.processingKey)
+			sds.indexer.PushKnownGaps(expectedStartErrorBlock, endBlock, false, sds.KnownGaps.processingKey, sds.KnownGaps.fileIndexer)
 		}
 
 		log.Warn(fmt.Sprint("The following Gaps were found: ", knownErrorBlocks))
 		log.Warn(fmt.Sprint("Updating known Gaps table from ", startErrorBlock, " to ", endErrorBlock, " with processing key, ", sds.KnownGaps.processingKey))
-		sds.indexer.PushKnownGaps(startErrorBlock, endErrorBlock, false, sds.KnownGaps.processingKey)
+		sds.indexer.PushKnownGaps(startErrorBlock, endErrorBlock, false, sds.KnownGaps.processingKey, sds.KnownGaps.fileIndexer)
 
 	} else {
 		log.Warn("We missed blocks without any errors.")
@@ -229,7 +233,7 @@ func (sds *Service) capturedMissedBlocks(currentBlock *big.Int, knownErrorBlocks
 		endBlock := big.NewInt(0).Sub(currentBlock, sds.KnownGaps.expectedDifference)
 		log.Warn(fmt.Sprint("Missed blocks starting from: ", startBlock))
 		log.Warn(fmt.Sprint("Missed blocks ending at: ", endBlock))
-		sds.indexer.PushKnownGaps(startBlock, endBlock, false, sds.KnownGaps.processingKey)
+		sds.indexer.PushKnownGaps(startBlock, endBlock, false, sds.KnownGaps.processingKey, sds.KnownGaps.fileIndexer)
 	}
 }
 
@@ -268,6 +272,18 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		if err != nil {
 			return err
 		}
+		if params.IndexerConfig.Type() != shared.FILE {
+			fileIndexer, err = ind.NewStateDiffIndexer(params.Context, blockChain.Config(), info, params.IndexerConfig, "")
+			log.Info("Starting the statediff service in ", "mode", params.IndexerConfig.Type())
+			if err != nil {
+				return err
+			}
+
+		} else {
+			log.Info("Starting the statediff service in ", "mode", "File")
+			fileIndexer = indexer
+		}
+		//fileIndexer, fileErr = file.NewStateDiffIndexer(params.Context, blockChain.Config(), info)
 		indexer.ReportDBMetrics(10*time.Second, quitCh)
 	}
 
