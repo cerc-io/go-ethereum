@@ -534,6 +534,21 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 	return nil
 }
+
+// Written but not tested. Unsure if there is a real use case for this anywhere.
 func (sdi *StateDiffIndexer) PushKnownGaps(startingBlockNumber *big.Int, endingBlockNumber *big.Int, checkedOut bool, processingKey int64, index interfaces.StateDiffIndexer) error {
+	log.Info("Dumping known gaps")
+	if startingBlockNumber.Cmp(endingBlockNumber) != -1 {
+		return fmt.Errorf("Starting Block %d, is greater than ending block %d", startingBlockNumber, endingBlockNumber)
+	}
+	knownGap := models.KnownGapsModel{
+		StartingBlockNumber: startingBlockNumber.String(),
+		EndingBlockNumber:   endingBlockNumber.String(),
+		CheckedOut:          checkedOut,
+		ProcessingKey:       processingKey,
+	}
+	if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", knownGap); err != nil {
+		return err
+	}
 	return nil
 }

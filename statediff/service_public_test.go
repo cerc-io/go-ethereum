@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -24,18 +26,19 @@ var (
 	chainConf = params.MainnetChainConfig
 )
 
+type gapValues struct {
+	lastProcessedBlock    int64
+	currentBlock          int64
+	knownErrorBlocksStart int64
+	knownErrorBlocksEnd   int64
+	expectedDif           int64
+	processingKey         int64
+}
+
 // Add clean db
 // Test for failures when they are expected, when we go from smaller block to larger block
 // We should no longer see the smaller block in DB
 func TestKnownGaps(t *testing.T) {
-	type gapValues struct {
-		lastProcessedBlock    int64
-		currentBlock          int64
-		knownErrorBlocksStart int64
-		knownErrorBlocksEnd   int64
-		expectedDif           int64
-		processingKey         int64
-	}
 
 	tests := []gapValues{
 		// Unprocessed gaps before and after knownErrorBlock
@@ -61,64 +64,132 @@ func TestKnownGaps(t *testing.T) {
 		{lastProcessedBlock: 2000, knownErrorBlocksStart: 2002, knownErrorBlocksEnd: 2050, currentBlock: 2100, expectedDif: 2, processingKey: 2},
 		// Test update when block number is larger!!
 		{lastProcessedBlock: 2000, knownErrorBlocksStart: 2002, knownErrorBlocksEnd: 2052, currentBlock: 2100, expectedDif: 2, processingKey: 2},
+		// Update when processing key is different!
 		{lastProcessedBlock: 2000, knownErrorBlocksStart: 2002, knownErrorBlocksEnd: 2052, currentBlock: 2100, expectedDif: 2, processingKey: 10},
 	}
-	for _, tc := range tests {
-		// Reuse processing key from expecteDiff
-		testCaptureMissedBlocks(t, tc.lastProcessedBlock, tc.currentBlock, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd, tc.expectedDif, tc.expectedDif, false)
+
+	testWriteToDb(t, tests, true)
+	testWriteToFile(t, tests, true)
+}
+
+// test writing blocks to the DB
+func testWriteToDb(t *testing.T, tests []gapValues, wipeDbBeforeStart bool) {
+	stateDiff, db, err := setupDb(t)
+	require.NoError(t, err)
+
+	// Clear Table first, this is needed because we updated an entry to have a larger endblock number
+	// so we can't find the original start and endblock pair.
+	if wipeDbBeforeStart {
+		db.Exec(context.Background(), "DELETE FROM eth.known_gaps")
 	}
+
+	for _, tc := range tests {
+		// Create an array with knownGaps based on user inputs
+		checkGaps := tc.knownErrorBlocksStart != 0 && tc.knownErrorBlocksEnd != 0
+		knownErrorBlocks := (make([]*big.Int, 0))
+		if checkGaps {
+			knownErrorBlocks = createKnownErrorBlocks(knownErrorBlocks, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
+		}
+		// Upsert
+		testCaptureMissedBlocks(t, tc.lastProcessedBlock, tc.currentBlock, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd,
+			tc.expectedDif, tc.processingKey, stateDiff, knownErrorBlocks, nil)
+		// Validate that the upsert was done correctly.
+		callValidateUpsert(t, checkGaps, stateDiff, tc.lastProcessedBlock, tc.currentBlock, tc.expectedDif, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
+	}
+	tearDown(t, stateDiff)
+
+}
+
+// test writing blocks to file and then inserting them to DB
+func testWriteToFile(t *testing.T, tests []gapValues, wipeDbBeforeStart bool) {
+	stateDiff, db, err := setupDb(t)
+	require.NoError(t, err)
+
+	// Clear Table first, this is needed because we updated an entry to have a larger endblock number
+	// so we can't find the original start and endblock pair.
+	if wipeDbBeforeStart {
+		db.Exec(context.Background(), "DELETE FROM eth.known_gaps")
+	}
+
+	tearDown(t, stateDiff)
 	for _, tc := range tests {
 		// Reuse processing key from expecteDiff
-		testCaptureMissedBlocks(t, tc.lastProcessedBlock, tc.currentBlock, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd, tc.expectedDif, tc.expectedDif, true)
+		checkGaps := tc.knownErrorBlocksStart != 0 && tc.knownErrorBlocksEnd != 0
+		knownErrorBlocks := (make([]*big.Int, 0))
+		if checkGaps {
+			knownErrorBlocks = createKnownErrorBlocks(knownErrorBlocks, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
+		}
+
+		fileInd := setupFile(t)
+		testCaptureMissedBlocks(t, tc.lastProcessedBlock, tc.currentBlock, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd,
+			tc.expectedDif, tc.processingKey, stateDiff, knownErrorBlocks, fileInd)
+		fileInd.Close()
+
+		newStateDiff, db, _ := setupDb(t)
+
+		file, ioErr := ioutil.ReadFile(file.TestConfig.FilePath)
+		require.NoError(t, ioErr)
+
+		requests := strings.Split(string(file), ";")
+
+		// Skip the first two enteries
+		for _, request := range requests[2:] {
+			_, err := db.Exec(context.Background(), request)
+			require.NoError(t, err)
+		}
+		callValidateUpsert(t, checkGaps, newStateDiff, tc.lastProcessedBlock, tc.currentBlock, tc.expectedDif, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
 	}
 }
 
-// It also makes sure we properly calculate any missed gaps not in the known gaps lists
-// either before or after the list.
-func testCaptureMissedBlocks(t *testing.T, lastBlockProcessed int64, currentBlockNum int64, knownErrorBlocksStart int64, knownErrorBlocksEnd int64, expectedDif int64, processingKey int64, skipDb bool) {
+// test capturing missed blocks
+func testCaptureMissedBlocks(t *testing.T, lastBlockProcessed int64, currentBlockNum int64, knownErrorBlocksStart int64, knownErrorBlocksEnd int64, expectedDif int64, processingKey int64,
+	stateDiff *sql.StateDiffIndexer, knownErrorBlocks []*big.Int, fileInd interfaces.StateDiffIndexer) {
 
 	lastProcessedBlock := big.NewInt(lastBlockProcessed)
 	currentBlock := big.NewInt(currentBlockNum)
-	knownErrorBlocks := (make([]*big.Int, 0))
 
-	checkGaps := knownErrorBlocksStart != 0 && knownErrorBlocksEnd != 0
-	if checkGaps {
-		for i := knownErrorBlocksStart; i <= knownErrorBlocksEnd; i++ {
-			knownErrorBlocks = append(knownErrorBlocks, big.NewInt(i))
-		}
-	}
-
-	// Comment out values which should not be used
-	fileInd := setupFile(t)
 	knownGaps := KnownGapsState{
 		processingKey:      processingKey,
 		expectedDifference: big.NewInt(expectedDif),
 		fileIndexer:        fileInd,
 	}
-	stateDiff, err := setupDb(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	service := &Service{
 		KnownGaps: knownGaps,
 		indexer:   stateDiff,
 	}
-	service.capturedMissedBlocks(currentBlock, knownErrorBlocks, lastProcessedBlock)
+	service.captureMissedBlocks(currentBlock, knownErrorBlocks, lastProcessedBlock)
+}
 
+// Helper function to create an array of gaps given a start and end block
+func createKnownErrorBlocks(knownErrorBlocks []*big.Int, knownErrorBlocksStart int64, knownErrorBlocksEnd int64) []*big.Int {
+	for i := knownErrorBlocksStart; i <= knownErrorBlocksEnd; i++ {
+		knownErrorBlocks = append(knownErrorBlocks, big.NewInt(i))
+	}
+	return knownErrorBlocks
+}
+
+// This function will call the validateUpsert function based on various conditions.
+func callValidateUpsert(t *testing.T, checkGaps bool, stateDiff *sql.StateDiffIndexer,
+	lastBlockProcessed int64, currentBlockNum int64, expectedDif int64, knownErrorBlocksStart int64, knownErrorBlocksEnd int64) {
+	// If there are gaps in knownErrorBlocks array
 	if checkGaps {
 
+		// If there are no unexpected gaps before or after the entries in the knownErrorBlocks array
+		// Only handle the knownErrorBlocks Array
 		if lastBlockProcessed+expectedDif == knownErrorBlocksStart && knownErrorBlocksEnd+expectedDif == currentBlockNum {
 			validateUpsert(t, stateDiff, knownErrorBlocksStart, knownErrorBlocksEnd)
 
+			// If there are gaps after knownErrorBlocks array, process them
 		} else if lastBlockProcessed+expectedDif == knownErrorBlocksStart {
 			validateUpsert(t, stateDiff, knownErrorBlocksStart, knownErrorBlocksEnd)
 			validateUpsert(t, stateDiff, knownErrorBlocksEnd+expectedDif, currentBlockNum-expectedDif)
 
+			// If there are gaps before knownErrorBlocks array, process them
 		} else if knownErrorBlocksEnd+expectedDif == currentBlockNum {
 			validateUpsert(t, stateDiff, lastBlockProcessed+expectedDif, knownErrorBlocksStart-expectedDif)
 			validateUpsert(t, stateDiff, knownErrorBlocksStart, knownErrorBlocksEnd)
 
+			// if there are gaps before, after, and within the knownErrorBlocks array,handle all the errors.
 		} else {
 			validateUpsert(t, stateDiff, lastBlockProcessed+expectedDif, knownErrorBlocksStart-expectedDif)
 			validateUpsert(t, stateDiff, knownErrorBlocksStart, knownErrorBlocksEnd)
@@ -129,9 +200,9 @@ func testCaptureMissedBlocks(t *testing.T, lastBlockProcessed int64, currentBloc
 		validateUpsert(t, stateDiff, lastBlockProcessed+expectedDif, currentBlockNum-expectedDif)
 	}
 
-	tearDown(t, stateDiff)
 }
 
+// Make sure the upsert was performed correctly
 func validateUpsert(t *testing.T, stateDiff *sql.StateDiffIndexer, startingBlock int64, endingBlock int64) {
 	t.Logf("Starting to query blocks: %d - %d", startingBlock, endingBlock)
 	queryString := fmt.Sprintf("SELECT starting_block_number from eth.known_gaps WHERE starting_block_number = %d AND ending_block_number = %d", startingBlock, endingBlock)
@@ -142,15 +213,16 @@ func validateUpsert(t *testing.T, stateDiff *sql.StateDiffIndexer, startingBlock
 }
 
 // Create a DB object to use
-func setupDb(t *testing.T) (*sql.StateDiffIndexer, error) {
+func setupDb(t *testing.T) (*sql.StateDiffIndexer, sql.Database, error) {
 	db, err = postgres.SetupSQLXDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	stateDiff, err := sql.NewStateDiffIndexer(context.Background(), chainConf, db)
-	return stateDiff, err
+	return stateDiff, db, err
 }
 
+// Create a file statediff indexer.
 func setupFile(t *testing.T) interfaces.StateDiffIndexer {
 	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
 		err := os.Remove(file.TestConfig.FilePath)

@@ -719,7 +719,8 @@ func (sdi *StateDiffIndexer) QueryDbToBigInt(queryString string) (*big.Int, erro
 // More geth nodes, the expected difference might fluctuate.
 func isGap(latestBlockInDb *big.Int, latestBlockOnChain *big.Int, expectedDifference *big.Int) bool {
 	latestBlock := big.NewInt(0)
-	if latestBlock.Add(latestBlockOnChain, expectedDifference) != latestBlockInDb {
+	if latestBlock.Sub(latestBlockOnChain, expectedDifference).Cmp(latestBlockInDb) != 0 {
+		log.Warn("We found a gap", "latestBlockInDb", latestBlockInDb, "latestBlockOnChain", latestBlockOnChain, "expectedDifference", expectedDifference)
 		return true
 	}
 	return false
@@ -746,9 +747,10 @@ func (sdi *StateDiffIndexer) FindAndUpdateGaps(latestBlockOnChain *big.Int, expe
 		startBlock.Add(latestBlockInDb, expectedDifference)
 		endBlock.Sub(latestBlockOnChain, expectedDifference)
 
-		log.Warn(fmt.Sprint("Found Gaps starting at, ", startBlock, " and ending at, ", endBlock))
+		log.Warn("Found Gaps starting at", "startBlock", startBlock, "endingBlock", endBlock)
 		err := sdi.PushKnownGaps(startBlock, endBlock, false, processingKey, fileIndexer)
 		if err != nil {
+			log.Error("We were unable to write the following gap to the DB", "start Block", startBlock, "endBlock", endBlock, "error", err)
 			// Write to file SQL file instead!!!
 			// If write to SQL file fails, write to disk. Handle this within the write to SQL file function!
 			return err

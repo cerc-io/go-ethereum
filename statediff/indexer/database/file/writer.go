@@ -259,7 +259,7 @@ func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 }
 
 func (sqw *SQLWriter) upsertKnownGaps(knownGaps models.KnownGapsModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(knownGaps.StartingBlockNumber, knownGaps.EndingBlockNumber, knownGaps.CheckedOut, knownGaps.ProcessingKey,
+	sqw.stmts <- []byte(fmt.Sprintf(knownGapsInsert, knownGaps.StartingBlockNumber, knownGaps.EndingBlockNumber, knownGaps.CheckedOut, knownGaps.ProcessingKey,
 		knownGaps.EndingBlockNumber, knownGaps.ProcessingKey, knownGaps.EndingBlockNumber))
 	//knownGapsInsert = "INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) " +
 	//	"VALUES ('%s', '%s', %t, %d) " +

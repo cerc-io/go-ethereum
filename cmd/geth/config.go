@@ -195,6 +195,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
 		var indexerConfig interfaces.Config
+		var fileConfig interfaces.Config
 		var clientName, nodeID string
 		if ctx.GlobalIsSet(utils.StateDiffWritingFlag.Name) {
 			clientName = ctx.GlobalString(utils.StateDiffDBClientNameFlag.Name)
@@ -209,6 +210,15 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 			if err != nil {
 				utils.Fatalf("%v", err)
 			}
+
+			if dbType != shared.FILE {
+				fileConfig = file.Config{
+					FilePath: ctx.GlobalString(utils.StateDiffFilePath.Name),
+				}
+			} else {
+				fileConfig = nil
+			}
+
 			switch dbType {
 			case shared.FILE:
 				indexerConfig = file.Config{
