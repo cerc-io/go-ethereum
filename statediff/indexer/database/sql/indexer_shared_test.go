@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"testing"
 
@@ -197,49 +196,4 @@ func tearDown(t *testing.T) {
 	sql.TearDownDB(t, db)
 	err := ind.Close()
 	require.NoError(t, err)
-}
-func TestKnownGapsUpsert(t *testing.T) {
-	testKnownGapsUpsert(t)
-
-}
-func testKnownGapsUpsert(t *testing.T) {
-	gapDifference := big.NewInt(10)     // Set a difference between latestBlock in DB and on Chain
-	expectedDifference := big.NewInt(1) // Set what the expected difference between latestBlock in DB and on Chain should be
-
-	stateDiff, err := setupDb(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fileInd := setupFile(t)
-
-	// Get the latest block from the DB
-	latestBlockInDb, err := stateDiff.QueryDbToBigInt("SELECT MAX(block_number) FROM eth.header_cids")
-	if err != nil {
-		t.Fatal("Can't find a block in the eth.header_cids table.. Please put one there")
-	}
-
-	// Add the gapDifference for testing purposes
-	latestBlockOnChain := big.NewInt(0)
-	latestBlockOnChain.Add(latestBlockInDb, gapDifference)
-
-	t.Log("The latest block on the chain is: ", latestBlockOnChain)
-	t.Log("The latest block on the DB is: ", latestBlockInDb)
-
-	gapUpsertErr := stateDiff.FindAndUpdateGaps(latestBlockOnChain, expectedDifference, 0, fileInd)
-	require.NoError(t, gapUpsertErr)
-
-	// Calculate what the start and end block should be in known_gaps
-	// And check to make sure it is properly inserted
-	startBlock := big.NewInt(0)
-	endBlock := big.NewInt(0)
-	startBlock.Add(latestBlockInDb, expectedDifference)
-	endBlock.Sub(latestBlockOnChain, expectedDifference)
-
-	queryString := fmt.Sprintf("SELECT starting_block_number from eth.known_gaps WHERE starting_block_number = %d AND ending_block_number = %d", startBlock, endBlock)
-
-	_, queryErr := stateDiff.QueryDb(queryString) // Figure out the string.
-	require.NoError(t, queryErr)
-	t.Logf("Updated Known Gaps table starting from, %d, and ending at, %d", startBlock, endBlock)
-
 }

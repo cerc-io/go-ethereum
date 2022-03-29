@@ -17,7 +17,6 @@
 package sql
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -184,17 +183,5 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 	if err != nil {
 		return fmt.Errorf("error upserting storage_cids entry: %v", err)
 	}
-	return nil
-}
-
-// Upserts known gaps to the DB.
-// INSERT INTO eth.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) VALUES ($1, $2, $3, $4)
-func (w *Writer) upsertKnownGaps(knownGaps models.KnownGapsModel) error {
-	_, err := w.db.Exec(context.Background(), w.db.InsertKnownGapsStm(),
-		knownGaps.StartingBlockNumber, knownGaps.EndingBlockNumber, knownGaps.CheckedOut, knownGaps.ProcessingKey)
-	if err != nil {
-		return fmt.Errorf("error upserting known_gaps entry: %v", err)
-	}
-
 	return nil
 }
