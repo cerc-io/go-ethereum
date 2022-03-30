@@ -9,7 +9,8 @@ The folder will allow developers to clone/move related repositories to this dire
 It is recommended that you move the following repositories under this folder. Keep the repository names!
 
 - `vulcanize/foundry-tests`
-- `vulcanize/hive`
 - `vulcanize/ipld-eth-db`
 
 ## Symlinks
+
+You can also create symlinks in this folder with the location of your repositories.
