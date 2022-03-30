@@ -2,23 +2,18 @@ package sql_test
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/ipfs/go-cid"
-	"github.com/jmoiron/sqlx"
 	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
@@ -26,7 +21,6 @@ import (
 
 var (
 	db        sql.Database
-	sqlxdb    *sqlx.DB
 	err       error
 	ind       interfaces.StateDiffIndexer
 	chainConf = params.MainnetChainConfig
@@ -171,25 +165,6 @@ func checkTxClosure(t *testing.T, idle, inUse, open int64) {
 	require.Equal(t, idle, db.Stats().Idle())
 	require.Equal(t, inUse, db.Stats().InUse())
 	require.Equal(t, open, db.Stats().Open())
-}
-
-func setupDb(t *testing.T) (*sql.StateDiffIndexer, error) {
-	db, err = postgres.SetupSQLXDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stateDiff, err := sql.NewStateDiffIndexer(context.Background(), chainConf, db)
-	return stateDiff, err
-}
-
-func setupFile(t *testing.T) interfaces.StateDiffIndexer {
-	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.FilePath)
-		require.NoError(t, err)
-	}
-	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.TestConfig)
-	require.NoError(t, err)
-	return ind
 }
 
 func tearDown(t *testing.T) {

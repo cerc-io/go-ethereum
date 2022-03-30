@@ -147,8 +147,6 @@ type Service struct {
 	maxRetry uint
 }
 
-// This structure keeps track of the knownGaps at any given moment in time
-
 // BlockCache caches the last block for safe access from different service loops
 type BlockCache struct {
 	sync.Mutex
