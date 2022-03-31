@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
@@ -23,7 +22,6 @@ var (
 	db        sql.Database
 	err       error
 	ind       interfaces.StateDiffIndexer
-	chainConf = params.MainnetChainConfig
 	ipfsPgGet = `SELECT data FROM public.blocks
 					WHERE key = $1 AND block_number = $2`
 	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
