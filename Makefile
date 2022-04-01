@@ -52,6 +52,7 @@ ios:
 
 .PHONY: statedifftest
 statedifftest: | $(GOOSE)
+	go get github.com/stretchr/testify/assert@v1.7.0
 	MODE=statediff go test ./statediff/... -v
 
 test: all
