@@ -420,7 +420,7 @@ func init() {
 	}
 	db = rawdb.NewMemoryDatabase()
 	genesisBlock = core.DefaultGenesisBlock().MustCommit(db)
-	genBy, err := rlp.EncodeToBytes(genesisBlock)
+	genBy, err := rlp.EncodeToBytes(&genesisBlock)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -671,7 +671,7 @@ func TestBuilderOnMainnetBlocks(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		receivedStateDiffRlp, err := rlp.EncodeToBytes(diff)
+		receivedStateDiffRlp, err := rlp.EncodeToBytes(&diff)
 		if err != nil {
 			t.Error(err)
 		}

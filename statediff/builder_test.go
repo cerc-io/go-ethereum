@@ -702,7 +702,7 @@ func TestBuilder(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -965,7 +965,7 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1155,7 +1155,7 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1385,7 +1385,7 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1871,7 +1871,7 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 			t.Error(err)
 		}
 
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1984,12 +1984,12 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		receivedStateDiffRlp, err := rlp.EncodeToBytes(diff)
+		receivedStateDiffRlp, err := rlp.EncodeToBytes(&diff)
 		if err != nil {
 			t.Error(err)
 		}
 
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -2154,12 +2154,12 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		receivedStateDiffRlp, err := rlp.EncodeToBytes(diff)
+		receivedStateDiffRlp, err := rlp.EncodeToBytes(&diff)
 		if err != nil {
 			t.Error(err)
 		}
 
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -2391,7 +2391,7 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -2527,7 +2527,7 @@ func TestBuilderWithMovedAccountOnlyLeafs(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}
@@ -2758,7 +2758,7 @@ func TestBuildStateTrie(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expectedStateTrieRlp, err := rlp.EncodeToBytes(test.expected)
+		expectedStateTrieRlp, err := rlp.EncodeToBytes(&test.expected)
 		if err != nil {
 			t.Error(err)
 		}

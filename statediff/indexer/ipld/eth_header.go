@@ -46,7 +46,7 @@ var _ node.Node = (*EthHeader)(nil)
 
 // NewEthHeader converts a *types.Header into an EthHeader IPLD node
 func NewEthHeader(header *types.Header) (*EthHeader, error) {
-	headerRLP, err := rlp.EncodeToBytes(header)
+	headerRLP, err := rlp.EncodeToBytes(&header)
 	if err != nil {
 		return nil, err
 	}
