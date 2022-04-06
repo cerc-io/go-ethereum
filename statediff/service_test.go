@@ -235,7 +235,7 @@ func testErrorInStateDiffAt(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expectedBlockRlp, err := rlp.EncodeToBytes(&testBlock1)
+	expectedBlockRlp, err := rlp.EncodeToBytes(testBlock1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -269,7 +269,7 @@ func testErrorInStateDiffAt(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	stateDiffPayloadRlp, err := rlp.EncodeToBytes(&stateDiffPayload)
+	stateDiffPayloadRlp, err := rlp.EncodeToBytes(stateDiffPayload)
 	if err != nil {
 		t.Error(err)
 	}

@@ -97,7 +97,7 @@ func testSubscriptionAPI(t *testing.T) {
 	defer chain.Stop()
 	block0 = test_helpers.Genesis
 	block1 = blocks[0]
-	expectedBlockRlp, _ := rlp.EncodeToBytes(&block1)
+	expectedBlockRlp, _ := rlp.EncodeToBytes(block1)
 	mockReceipt := &types.Receipt{
 		BlockNumber: block1.Number(),
 		BlockHash:   block1.Hash(),
@@ -189,7 +189,7 @@ func testHTTPAPI(t *testing.T) {
 	defer chain.Stop()
 	block0 = test_helpers.Genesis
 	block1 = blocks[0]
-	expectedBlockRlp, _ := rlp.EncodeToBytes(&block1)
+	expectedBlockRlp, _ := rlp.EncodeToBytes(block1)
 	mockReceipt := &types.Receipt{
 		BlockNumber: block1.Number(),
 		BlockHash:   block1.Hash(),
