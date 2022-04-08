@@ -100,7 +100,7 @@ func minMax(array []*big.Int) (*big.Int, *big.Int) {
 // 3. Write to prometheus directly.
 // 4. Logs and error.
 func (kg *KnownGapsState) pushKnownGaps(startingBlockNumber *big.Int, endingBlockNumber *big.Int, checkedOut bool, processingKey int64) error {
-	if startingBlockNumber.Cmp(endingBlockNumber) != -1 {
+	if startingBlockNumber.Cmp(endingBlockNumber) == 1 {
 		return fmt.Errorf("Starting Block %d, is greater than ending block %d", startingBlockNumber, endingBlockNumber)
 	}
 	knownGap := models.KnownGapsModel{
