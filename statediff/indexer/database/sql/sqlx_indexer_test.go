@@ -352,7 +352,7 @@ func TestSQLXIndexer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			postStatePgStr := `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
+			postStatePgStr := `SELECT COALESCE(post_state, '') as post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 			switch c {
 			case rct1CID.String():
 				require.Equal(t, rctLeaf1, data)
@@ -405,7 +405,7 @@ func TestSQLXIndexer(t *testing.T) {
 		defer checkTxClosure(t, 0, 0, 0)
 		// check that state nodes were properly indexed and published
 		stateNodes := make([]models.StateNodeModel, 0)
-		pgStr := `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
+		pgStr := `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, COALESCE(state_cids.state_path, '') as state_path, state_cids.header_id
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
 				WHERE header_cids.block_number = $1 AND node_type != 3`
 		err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
@@ -465,7 +465,7 @@ func TestSQLXIndexer(t *testing.T) {
 
 		// check that Removed state nodes were properly indexed and published
 		stateNodes = make([]models.StateNodeModel, 0)
-		pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
+		pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, COALESCE(state_cids.state_path, '') as state_path, state_cids.header_id
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
 				WHERE header_cids.block_number = $1 AND node_type = 3`
 		err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
