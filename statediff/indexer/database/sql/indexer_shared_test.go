@@ -22,7 +22,7 @@ var (
 	db        sql.Database
 	err       error
 	ind       interfaces.StateDiffIndexer
-	ipfsPgGet = `SELECT data FROM public.blocks
+	ipfsPgGet = `SELECT COALESCE(data, '') as data FROM public.blocks
 					WHERE key = $1 AND block_number = $2`
 	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
 	mockBlock                                                                      *types.Block
