@@ -55,14 +55,14 @@ type Params struct {
 	IncludeTD                bool
 	IncludeCode              bool
 	WatchedAddresses         []common.Address
-	watchedAddressesLeafKeys map[common.Hash]struct{}
+	WatchedAddressesLeafKeys map[common.Hash]struct{}
 }
 
 // ComputeWatchedAddressesLeafKeys populates a map with keys (Keccak256Hash) of each of the WatchedAddresses
 func (p *Params) ComputeWatchedAddressesLeafKeys() {
-	p.watchedAddressesLeafKeys = make(map[common.Hash]struct{}, len(p.WatchedAddresses))
+	p.WatchedAddressesLeafKeys = make(map[common.Hash]struct{}, len(p.WatchedAddresses))
 	for _, address := range p.WatchedAddresses {
-		p.watchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
+		p.WatchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
 	}
 }
 
