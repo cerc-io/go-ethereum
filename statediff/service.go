@@ -903,7 +903,7 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = append(writeLoopParams.WatchedAddresses, filteredAddresses...)
 		funk.ForEach(filteredAddresses, func(address common.Address) {
-			writeLoopParams.WatchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
+			writeLoopParams.watchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
 		})
 	case types2.Remove:
 		// get addresses from args
@@ -927,7 +927,7 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		// update in-memory params
 		writeLoopParams.WatchedAddresses = addresses
 		funk.ForEach(argAddresses, func(address common.Address) {
-			delete(writeLoopParams.WatchedAddressesLeafKeys, crypto.Keccak256Hash(address.Bytes()))
+			delete(writeLoopParams.watchedAddressesLeafKeys, crypto.Keccak256Hash(address.Bytes()))
 		})
 	case types2.Set:
 		// get addresses from args

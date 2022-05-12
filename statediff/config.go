@@ -55,15 +55,19 @@ type Params struct {
 	IncludeTD                bool
 	IncludeCode              bool
 	WatchedAddresses         []common.Address
-	WatchedAddressesLeafKeys map[common.Hash]struct{}
+	watchedAddressesLeafKeys map[common.Hash]struct{}
 }
 
 // ComputeWatchedAddressesLeafKeys populates a map with keys (Keccak256Hash) of each of the WatchedAddresses
 func (p *Params) ComputeWatchedAddressesLeafKeys() {
-	p.WatchedAddressesLeafKeys = make(map[common.Hash]struct{}, len(p.WatchedAddresses))
+	p.watchedAddressesLeafKeys = make(map[common.Hash]struct{}, len(p.WatchedAddresses))
 	for _, address := range p.WatchedAddresses {
-		p.WatchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
+		p.watchedAddressesLeafKeys[crypto.Keccak256Hash(address.Bytes())] = struct{}{}
 	}
+}
+
+func (p *Params) WatchedAddressesLeafKeys() map[common.Hash]struct{} {
+	return p.watchedAddressesLeafKeys
 }
 
 // ParamsWithMutex allows to lock the parameters while they are being updated | read from
