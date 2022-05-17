@@ -253,7 +253,7 @@ func TestSQLXIndexer(t *testing.T) {
 				AND transaction_cids.header_id = header_cids.block_hash
 				AND header_cids.block_number = $1
 				ORDER BY transaction_cids.index`
-		logsPgStr := `SELECT log_cids.index, log_cids.address, COALESCE(log_cids.topic0, '') as topic0, COALESCE(log_cids.topic1, '') as topic1, data FROM eth.log_cids
+		logsPgStr := `SELECT log_cids.index, log_cids.address, log_cids.topic0, log_cids.topic1, data FROM eth.log_cids
     				INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
 					INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
 					WHERE receipt_cids.leaf_cid = $1 ORDER BY eth.log_cids.index ASC`
@@ -322,7 +322,7 @@ func TestSQLXIndexer(t *testing.T) {
 
 		for idx, c := range rcts {
 			result := make([]models.IPLDModel, 0)
-			pgStr = `SELECT COALESCE(data, '') as data
+			pgStr = `SELECT data
 					FROM eth.receipt_cids
 					INNER JOIN public.blocks ON (receipt_cids.leaf_mh_key = public.blocks.key)
 					WHERE receipt_cids.leaf_cid = $1`
@@ -352,7 +352,7 @@ func TestSQLXIndexer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			postStatePgStr := `SELECT COALESCE(post_state, '') as post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
+			postStatePgStr := `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
 			switch c {
 			case rct1CID.String():
 				require.Equal(t, rctLeaf1, data)
@@ -405,7 +405,7 @@ func TestSQLXIndexer(t *testing.T) {
 		defer checkTxClosure(t, 0, 0, 0)
 		// check that state nodes were properly indexed and published
 		stateNodes := make([]models.StateNodeModel, 0)
-		pgStr := `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, COALESCE(state_cids.state_path, '') as state_path, state_cids.header_id
+		pgStr := `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
 				WHERE header_cids.block_number = $1 AND node_type != 3`
 		err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
@@ -465,7 +465,7 @@ func TestSQLXIndexer(t *testing.T) {
 
 		// check that Removed state nodes were properly indexed and published
 		stateNodes = make([]models.StateNodeModel, 0)
-		pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, COALESCE(state_cids.state_path, '') as state_path, state_cids.header_id
+		pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
 				WHERE header_cids.block_number = $1 AND node_type = 3`
 		err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
@@ -508,7 +508,7 @@ func TestSQLXIndexer(t *testing.T) {
 		defer checkTxClosure(t, 0, 0, 0)
 		// check that storage nodes were properly indexed
 		storageNodes := make([]models.StorageNodeWithStateKeyModel, 0)
-		pgStr := `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, COALESCE(storage_cids.storage_path, '') as storage_path
+		pgStr := `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, storage_cids.storage_path
 				FROM eth.storage_cids, eth.state_cids, eth.header_cids
 				WHERE (storage_cids.state_path, storage_cids.header_id) = (state_cids.state_path, state_cids.header_id)
 				AND state_cids.header_id = header_cids.block_hash
@@ -542,7 +542,7 @@ func TestSQLXIndexer(t *testing.T) {
 
 		// check that Removed storage nodes were properly indexed
 		storageNodes = make([]models.StorageNodeWithStateKeyModel, 0)
-		pgStr = `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, COALESCE(storage_cids.storage_path, '') as storage_path
+		pgStr = `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, storage_cids.storage_path
 				FROM eth.storage_cids, eth.state_cids, eth.header_cids
 				WHERE (storage_cids.state_path, storage_cids.header_id) = (state_cids.state_path, state_cids.header_id)
 				AND state_cids.header_id = header_cids.block_hash
