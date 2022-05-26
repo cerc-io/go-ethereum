@@ -117,7 +117,7 @@ jobs:
           COUNT=0
           ATTEMPTS=10
           until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
-          [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && (exit 1)
+          [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
           cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
           sleep 15;
 
