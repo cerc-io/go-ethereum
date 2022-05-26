@@ -94,13 +94,13 @@ jobs:
         run: |
           echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > ./config.sh
           echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ > ./config.sh
-          echo db_write=true >> ./config.sh
+          echo db_write=true >> $GITHUB_WORKSPACE/config.sh
           cat ./config.sh
 
       - name: Compile Geth
         run: |
           cd $GITHUB_WORKSPACE/stack-orchestrator/helper-scripts
-          ./compile-geth.sh -e docker -p ../config.sh
+          ./compile-geth.sh -e docker -p $GITHUB_WORKSPACE/config.sh
           cd -
 
       - name: Run docker compose
@@ -108,7 +108,7 @@ jobs:
           docker-compose  \
           -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db.yml" \
           -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" \
-          --env-file ./config.sh \
+          --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
 
       - name: Make sure the /root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS exists within a certain time frame.
