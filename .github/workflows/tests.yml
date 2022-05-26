@@ -93,8 +93,15 @@ jobs:
       - name: Create config file
         run: |
           echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > ./config.sh
+          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ > ./config.sh
           echo db_write=true >> ./config.sh
           cat ./config.sh
+
+      - name: Compile Geth
+        run: |
+          cd $GITHUB_WORKSPACE/stack-orchestrator/helper-scripts
+          ./compile-geth.sh -e docker -p ../config.sh
+          cd -
 
       - name: Run docker compose
         run: |
