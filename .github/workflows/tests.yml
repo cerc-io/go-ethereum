@@ -92,10 +92,10 @@ jobs:
 
       - name: Create config file
         run: |
-          echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > ./config.sh
-          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ > ./config.sh
+          echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > $GITHUB_WORKSPACE/config.sh
+          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ > $GITHUB_WORKSPACE/config.sh
           echo db_write=true >> $GITHUB_WORKSPACE/config.sh
-          cat ./config.sh
+          cat $GITHUB_WORKSPACE/config.sh
 
       - name: Compile Geth
         run: |
