@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'feature/client-build'}}
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'main'}}
   ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'main' }}
   GOPATH: /tmp/go
 
