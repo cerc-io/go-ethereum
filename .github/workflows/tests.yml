@@ -1,0 +1,121 @@
+name: Tests for Geth that are used in multiple jobs.
+
+on:
+  workflow_call:
+
+env:
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'feature/client-build'}}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'main' }}
+  GOPATH: /tmp/go
+
+jobs:
+  build:
+    name: Run docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run docker build
+        run: docker build -t vulcanize/go-ethereum .
+
+  geth-unit-test:
+    name: Run geth unit test
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: |
+          make test
+
+  statediff-unit-test:
+    name: Run state diff unit test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Start database
+        run: docker-compose -f docker-compose.yml up -d ipld-eth-db
+
+      - name: Run unit tests
+        run: make statedifftest
+
+  private-network-test:
+    name: Start Geth in a private network.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: "./go-ethereum"
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.stack-orchestrator-ref }}
+          path: "./stack-orchestrator/"
+          repository: vulcanize/stack-orchestrator
+          fetch-depth: 0
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.ipld-eth-db-ref }}
+          repository: vulcanize/ipld-eth-db
+          path: "./ipld-eth-db/"
+          fetch-depth: 0
+
+      - name: Create config file
+        run: |
+          echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > ./config.sh
+          echo db_write=true >> ./config.sh
+          cat ./config.sh
+
+      - name: Run docker compose
+        run: |
+          docker-compose  \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-eth-db.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" \
+          --env-file ./config.sh \
+          up -d --build
+
+      - name: Make sure the /root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS exists within a certain time frame.
+        shell: bash
+        run: |
+          COUNT=0
+          ATTEMPTS=10
+          until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
+          [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && (exit 1)
+          cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
+          sleep 15;
+
+      - name: Create a new transaction.
+        shell: bash
+        run: |
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
+          echo $?

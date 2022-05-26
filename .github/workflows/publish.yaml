@@ -3,8 +3,11 @@ on:
   release:
     types: [published]
 jobs:
+  run-tests:
+    uses: ./.github/workflows/tests.yml
   build:
     name: Run docker build and publish
+    needs: run-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

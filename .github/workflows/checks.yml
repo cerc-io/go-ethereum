@@ -6,9 +6,10 @@ jobs:
   linter-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: '1.16.x'
+          go-version: ">=1.18.0"
+          check-latest: true
       - uses: actions/checkout@v2
       - name: Run linter
-        run:  go run build/ci.go lint
+        run: go run build/ci.go lint
