@@ -25,7 +25,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
 
@@ -102,16 +101,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 
 	// Generate the block iplds
-	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld2.FromBlockAndReceipts(block, receipts)
+	headerNode, uncleNodes, txNodes, rctNodes, logNodes, err := ipld2.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
 
-	if len(txNodes) != len(rctNodes) || len(rctNodes) != len(rctLeafNodeCIDs) {
-		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d), and receipt trie leaf nodes (%d) to be equal", len(txNodes), len(rctNodes), len(rctLeafNodeCIDs))
-	}
-	if len(txTrieNodes) != len(rctTrieNodes) {
-		return nil, fmt.Errorf("expected number of tx trie (%d) and rct trie (%d) nodes to be equal", len(txTrieNodes), len(rctTrieNodes))
+	if len(txNodes) != len(rctNodes) {
+		return nil, fmt.Errorf("expected number of transactions (%d) and receipts (%d) to be equal", len(txNodes), len(rctNodes))
 	}
 
 	// Calculate reward
@@ -130,7 +126,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		return nil, err
 	}
 	defer func() {
-		if p := recover(); p != nil {
+		if p := recover(); p != (any)(nil) {
 			rollback(sdi.ctx, tx)
 			panic(p)
 		} else if err != nil {
@@ -156,7 +152,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 				close(self.quit)
 				close(self.iplds)
 			}()
-			if p := recover(); p != nil {
+			if p := recover(); p != (any)(nil) {
 				log.Info("panic detected before tx submission, rolling back the tx", "panic", p)
 				rollback(sdi.ctx, tx)
 				panic(p)
@@ -218,12 +214,8 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		receipts:        receipts,
 		txs:             transactions,
 		rctNodes:        rctNodes,
-		rctTrieNodes:    rctTrieNodes,
 		txNodes:         txNodes,
-		txTrieNodes:     txTrieNodes,
-		logTrieNodes:    logTrieNodes,
-		logLeafNodeCIDs: logLeafNodeCIDs,
-		rctLeafNodeCIDs: rctLeafNodeCIDs,
+		logNodes: logNodes,
 	})
 	if err != nil {
 		return nil, err
@@ -301,12 +293,8 @@ type processArgs struct {
 	receipts        types.Receipts
 	txs             types.Transactions
 	rctNodes        []*ipld2.EthReceipt
-	rctTrieNodes    []*ipld2.EthRctTrie
 	txNodes         []*ipld2.EthTx
-	txTrieNodes     []*ipld2.EthTxTrie
-	logTrieNodes    [][]node.Node
-	logLeafNodeCIDs [][]cid.Cid
-	rctLeafNodeCIDs []cid.Cid
+	logNodes        [][]*ipld2.EthLog
 }
 
 // processReceiptsAndTxs publishes and indexes receipt and transaction IPLDs in Postgres
@@ -314,9 +302,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 	// Process receipts and txs
 	signer := types.MakeSigner(sdi.chainConfig, args.blockNumber)
 	for i, receipt := range args.receipts {
-		for _, logTrieNode := range args.logTrieNodes[i] {
-			tx.cacheIPLD(logTrieNode)
-		}
 		txNode := args.txNodes[i]
 		tx.cacheIPLD(txNode)
 
@@ -334,6 +319,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 		if err != nil {
 			return fmt.Errorf("error deriving tx sender: %v", err)
 		}
+		txCid := txNode.Cid()
 		txModel := models.TxModel{
 			BlockNumber: sdi.blockNumber,
 			HeaderID:    args.headerID,
@@ -342,8 +328,8 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			TxHash:      txID,
 			Index:       int64(i),
 			Data:        trx.Data(),
-			CID:         txNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(txNode.Cid()),
+			CID:         txCid.String(),
+			MhKey:       shared.MultihashKeyFromCID(txCid),
 			Type:        trx.Type(),
 			Value:       val,
 		}
@@ -375,20 +361,14 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 		if contract != "" {
 			contractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
 		}
-
-		// index receipt
-		if !args.rctLeafNodeCIDs[i].Defined() {
-			return fmt.Errorf("invalid receipt leaf node cid")
-		}
-
+		rctCid := args.rctNodes[i].Cid()
 		rctModel := &models.ReceiptModel{
 			BlockNumber:  sdi.blockNumber,
 			TxID:         txID,
 			Contract:     contract,
 			ContractHash: contractHash,
-			LeafCID:      args.rctLeafNodeCIDs[i].String(),
-			LeafMhKey:    shared.MultihashKeyFromCID(args.rctLeafNodeCIDs[i]),
-			LogRoot:      args.rctNodes[i].LogRoot.String(),
+			CID:      rctCid.String(),
+			MhKey:    shared.MultihashKeyFromCID(rctCid),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -407,19 +387,15 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			for ti, topic := range l.Topics {
 				topicSet[ti] = topic.Hex()
 			}
-
-			if !args.logLeafNodeCIDs[i][idx].Defined() {
-				return fmt.Errorf("invalid log cid")
-			}
-
+			logCid := args.logNodes[i][idx].Cid()
 			logDataSet[idx] = &models.LogsModel{
 				BlockNumber: sdi.blockNumber,
 				ReceiptID:   txID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),
 				Data:        l.Data,
-				LeafCID:     args.logLeafNodeCIDs[i][idx].String(),
-				LeafMhKey:   shared.MultihashKeyFromCID(args.logLeafNodeCIDs[i][idx]),
+				CID:     logCid.String(),
+				MhKey:   shared.MultihashKeyFromCID(logCid),
 				Topic0:      topicSet[0],
 				Topic1:      topicSet[1],
 				Topic2:      topicSet[2],
@@ -432,12 +408,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 		}
 	}
 
-	// publish trie nodes, these aren't indexed directly
-	for i, n := range args.txTrieNodes {
-		tx.cacheIPLD(n)
-		tx.cacheIPLD(args.rctTrieNodes[i])
-	}
-
 	return nil
 }
 
@@ -448,41 +418,23 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		return fmt.Errorf("sql batch is expected to be of type %T, got %T", &BatchTx{}, batch)
 	}
 	// publish the state node
-	var stateModel models.StateNodeModel
+	var stateModel models.StateLeafModel
 	if stateNode.NodeType == sdtypes.Removed {
+		// TODO: we need to continue tracking removed nodes for leaves?
 		tx.cacheRemoved(shared.RemovedNodeMhKey, []byte{})
-		stateModel = models.StateNodeModel{
+		stateModel = models.StateLeafModel{
 			BlockNumber: sdi.blockNumber,
 			HeaderID:    headerID,
 			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         shared.RemovedNodeStateCID,
 			MhKey:       shared.RemovedNodeMhKey,
-			NodeType:    stateNode.NodeType.Int(),
 		}
 	} else {
 		stateCIDStr, stateMhKey, err := tx.cacheRaw(ipld2.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
 		if err != nil {
 			return fmt.Errorf("error generating and cacheing state node IPLD: %v", err)
 		}
-		stateModel = models.StateNodeModel{
-			BlockNumber: sdi.blockNumber,
-			HeaderID:    headerID,
-			Path:        stateNode.Path,
-			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
-			CID:         stateCIDStr,
-			MhKey:       stateMhKey,
-			NodeType:    stateNode.NodeType.Int(),
-		}
-	}
-
-	// index the state node
-	if err := sdi.dbWriter.upsertStateCID(tx.dbtx, stateModel); err != nil {
-		return err
-	}
-
-	// if we have a leaf, decode and index the account data
-	if stateNode.NodeType == sdtypes.Leaf {
 		var i []interface{}
 		if err := rlp.DecodeBytes(stateNode.NodeValue, &i); err != nil {
 			return fmt.Errorf("error decoding state leaf node rlp: %s", err.Error())
@@ -494,25 +446,31 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		if err := rlp.DecodeBytes(i[1].([]byte), &account); err != nil {
 			return fmt.Errorf("error decoding state account rlp: %s", err.Error())
 		}
-		accountModel := models.StateAccountModel{
+		stateModel = models.StateLeafModel{
 			BlockNumber: sdi.blockNumber,
 			HeaderID:    headerID,
-			StatePath:   stateNode.Path,
+			Path:        stateNode.Path,
+			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
+			CID:         stateCIDStr,
+			MhKey:       stateMhKey,
 			Balance:     account.Balance.String(),
 			Nonce:       account.Nonce,
 			CodeHash:    account.CodeHash,
 			StorageRoot: account.Root.String(),
 		}
-		if err := sdi.dbWriter.upsertStateAccount(tx.dbtx, accountModel); err != nil {
-			return err
-		}
+	}
+
+	// index the state node
+	if err := sdi.dbWriter.upsertStateCID(tx.dbtx, stateModel); err != nil {
+		return err
 	}
 
 	// if there are any storage nodes associated with this node, publish and index them
 	for _, storageNode := range stateNode.StorageNodes {
+		// TODO: we still need to handle leaf deletions
 		if storageNode.NodeType == sdtypes.Removed {
 			tx.cacheRemoved(shared.RemovedNodeMhKey, []byte{})
-			storageModel := models.StorageNodeModel{
+			storageModel := models.StorageLeafModel{
 				BlockNumber: sdi.blockNumber,
 				HeaderID:    headerID,
 				StatePath:   stateNode.Path,
@@ -520,7 +478,6 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
 				MhKey:       shared.RemovedNodeMhKey,
-				NodeType:    storageNode.NodeType.Int(),
 			}
 			if err := sdi.dbWriter.upsertStorageCID(tx.dbtx, storageModel); err != nil {
 				return err
@@ -531,7 +488,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		if err != nil {
 			return fmt.Errorf("error generating and cacheing storage node IPLD: %v", err)
 		}
-		storageModel := models.StorageNodeModel{
+		storageModel := models.StorageLeafModel{
 			BlockNumber: sdi.blockNumber,
 			HeaderID:    headerID,
 			StatePath:   stateNode.Path,
@@ -539,7 +496,6 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageCIDStr,
 			MhKey:       storageMhKey,
-			NodeType:    storageNode.NodeType.Int(),
 		}
 		if err := sdi.dbWriter.upsertStorageCID(tx.dbtx, storageModel); err != nil {
 			return err
@@ -595,7 +551,7 @@ func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressA
 		return err
 	}
 	defer func() {
-		if p := recover(); p != nil {
+		if p := recover(); p != (any)(nil) {
 			rollback(sdi.ctx, tx)
 			panic(p)
 		} else if err != nil {
@@ -623,7 +579,7 @@ func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressA
 		return err
 	}
 	defer func() {
-		if p := recover(); p != nil {
+		if p := recover(); p != (any)(nil) {
 			rollback(sdi.ctx, tx)
 			panic(p)
 		} else if err != nil {
@@ -650,7 +606,7 @@ func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg,
 		return err
 	}
 	defer func() {
-		if p := recover(); p != nil {
+		if p := recover(); p != (any)(nil) {
 			rollback(sdi.ctx, tx)
 			panic(p)
 		} else if err != nil {
