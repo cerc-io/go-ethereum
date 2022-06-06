@@ -69,7 +69,6 @@ type ReceiptBatch struct {
 	PostStates     []string
 	Contracts      []string
 	ContractHashes []string
-	LogRoots       []string
 }
 
 // LogBatch holds the arguments for a batch insert of log data
@@ -87,37 +86,28 @@ type LogBatch struct {
 	Topic3s      []string
 }
 
-// StateBatch holds the arguments for a batch insert of state data
-type StateBatch struct {
+// StateLeafBatch holds the arguments for a batch insert of state data
+type StateLeafBatch struct {
 	BlockNumbers []string
 	HeaderID     string
 	Paths        [][]byte
 	StateKeys    []string
-	NodeTypes    []int
 	CIDs         []string
 	MhKeys       []string
 	Diff         bool
-}
-
-// AccountBatch holds the arguments for a batch insert of account data
-type AccountBatch struct {
-	BlockNumbers []string
-	HeaderID     string
-	StatePaths   [][]byte
 	Balances     []string
 	Nonces       []uint64
 	CodeHashes   [][]byte
 	StorageRoots []string
 }
 
-// StorageBatch holds the arguments for a batch insert of storage data
-type StorageBatch struct {
+// StorageLeafBatch holds the arguments for a batch insert of storage data
+type StorageLeafBatch struct {
 	BlockNumbers []string
 	HeaderID     string
 	StatePaths   [][]string
 	Paths        [][]byte
 	StorageKeys  []string
-	NodeTypes    []int
 	CIDs         []string
 	MhKeys       []string
 	Diff         bool

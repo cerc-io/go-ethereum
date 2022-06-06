@@ -90,57 +90,46 @@ type ReceiptModel struct {
 	PostState    string `db:"post_state"`
 	Contract     string `db:"contract"`
 	ContractHash string `db:"contract_hash"`
-	LogRoot      string `db:"log_root"`
 }
 
-// StateNodeModel is the db model for eth.state_cids
-type StateNodeModel struct {
+// StateLeafModel is the db model for eth.state_cids
+type StateLeafModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
 	Path        []byte `db:"state_path"`
 	StateKey    string `db:"state_leaf_key"`
-	NodeType    int    `db:"node_type"`
 	CID         string `db:"cid"`
 	MhKey       string `db:"mh_key"`
 	Diff        bool   `db:"diff"`
+	Balance     string `db:"balance"`
+	Nonce       uint64 `db:"nonce"`
+	CodeHash    []byte `db:"code_hash"`
+	StorageRoot string `db:"storage_root"`
 }
 
-// StorageNodeModel is the db model for eth.storage_cids
-type StorageNodeModel struct {
+// StorageLeafModel is the db model for eth.storage_cids
+type StorageLeafModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
 	StatePath   []byte `db:"state_path"`
 	Path        []byte `db:"storage_path"`
 	StorageKey  string `db:"storage_leaf_key"`
-	NodeType    int    `db:"node_type"`
 	CID         string `db:"cid"`
 	MhKey       string `db:"mh_key"`
 	Diff        bool   `db:"diff"`
 }
 
-// StorageNodeWithStateKeyModel is a db model for eth.storage_cids + eth.state_cids.state_key
-type StorageNodeWithStateKeyModel struct {
+// StorageLeafWithStateKeyModel is a db model for eth.storage_cids + eth.state_cids.state_key
+type StorageLeafWithStateKeyModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
 	StatePath   []byte `db:"state_path"`
 	Path        []byte `db:"storage_path"`
 	StateKey    string `db:"state_leaf_key"`
 	StorageKey  string `db:"storage_leaf_key"`
-	NodeType    int    `db:"node_type"`
 	CID         string `db:"cid"`
 	MhKey       string `db:"mh_key"`
 	Diff        bool   `db:"diff"`
-}
-
-// StateAccountModel is a db model for an eth state account (decoded value of state leaf node)
-type StateAccountModel struct {
-	BlockNumber string `db:"block_number"`
-	HeaderID    string `db:"header_id"`
-	StatePath   []byte `db:"state_path"`
-	Balance     string `db:"balance"`
-	Nonce       uint64 `db:"nonce"`
-	CodeHash    []byte `db:"code_hash"`
-	StorageRoot string `db:"storage_root"`
 }
 
 // LogsModel is the db model for eth.logs
