@@ -142,20 +142,17 @@ const (
 	alInsert = "INSERT INTO eth.access_list_elements (block_number, tx_id, index, address, storage_keys) VALUES " +
 		"('%s', '%s', %d, '%s', '%s');\n"
 
-	rctInsert = "INSERT INTO eth.receipt_cids (block_number, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, " +
-		"post_status, log_root) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, '%s');\n"
+	rctInsert = "INSERT INTO eth.receipt_cids (block_number, tx_id, cid, contract, contract_hash, mh_key, post_state, " +
+		"post_status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
 
-	logInsert = "INSERT INTO eth.log_cids (block_number, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, " +
+	logInsert = "INSERT INTO eth.log_cids (block_number, cid, mh_key, rct_id, address, index, topic0, topic1, topic2, " +
 		"topic3, log_data) VALUES ('%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '\\x%x');\n"
 
-	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) " +
-		"VALUES ('%s', '%s', '%s', '%s', '\\x%x', %d, %t, '%s');\n"
-
-	accountInsert = "INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, nonce, code_hash, storage_root) " +
-		"VALUES ('%s', '%s', '\\x%x', '%s', %d, '\\x%x', '%s');\n"
+	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, diff, mh_key, " +
+	"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', '\\x%x', %t, '%s', '%s', %d, '\\x%x', '%s');\n"
 
 	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, " +
-		"node_type, diff, mh_key) VALUES ('%s', '%s', '\\x%x', '%s', '%s', '\\x%x', %d, %t, '%s');\n"
+		"diff, mh_key) VALUES ('%s', '%s', '\\x%x', '%s', '%s', '\\x%x', %t, '%s');\n"
 )
 
 func (sqw *SQLWriter) upsertNode(node nodeinfo.Info) {
@@ -222,38 +219,33 @@ func (sqw *SQLWriter) upsertAccessListElement(accessListElement models.AccessLis
 }
 
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
-		rct.PostState, rct.PostStatus, rct.LogRoot))
+	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.TxID, rct.CID, rct.Contract, rct.ContractHash, rct.MhKey,
+		rct.PostState, rct.PostStatus))
 	indexerMetrics.receipts.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
-		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
+		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.CID, l.MhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3, l.Data))
 		indexerMetrics.logs.Inc(1)
 	}
 }
 
-func (sqw *SQLWriter) upsertStateCID(stateNode models.StateNodeModel) {
+func (sqw *SQLWriter) upsertStateCID(stateNode models.StateLeafModel) {
 	var stateKey string
 	if stateNode.StateKey != nullHash.String() {
 		stateKey = stateNode.StateKey
 	}
 	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
-		stateNode.NodeType, true, stateNode.MhKey))
+		true, stateNode.MhKey, stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot))
 }
 
-func (sqw *SQLWriter) upsertStateAccount(stateAccount models.StateAccountModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(accountInsert, stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot))
-}
-
-func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
+func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageLeafModel) {
 	var storageKey string
 	if storageCID.StorageKey != nullHash.String() {
 		storageKey = storageCID.StorageKey
 	}
 	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
-		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey))
+		storageCID.Path, true, storageCID.MhKey))
 }
