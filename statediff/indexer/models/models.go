@@ -84,8 +84,8 @@ type AccessListElementModel struct {
 type ReceiptModel struct {
 	BlockNumber  string `db:"block_number"`
 	TxID         string `db:"tx_id"`
-	LeafCID      string `db:"leaf_cid"`
-	LeafMhKey    string `db:"leaf_mh_key"`
+	CID          string `db:"cid"`
+	MhKey        string `db:"mh_key"`
 	PostStatus   uint64 `db:"post_status"`
 	PostState    string `db:"post_state"`
 	Contract     string `db:"contract"`
@@ -136,8 +136,8 @@ type StorageLeafWithStateKeyModel struct {
 type LogsModel struct {
 	BlockNumber string `db:"block_number"`
 	ReceiptID   string `db:"rct_id"`
-	LeafCID     string `db:"leaf_cid"`
-	LeafMhKey   string `db:"leaf_mh_key"`
+	CID         string `db:"cid"`
+	MhKey       string `db:"mh_key"`
 	Address     string `db:"address"`
 	Index       int64  `db:"index"`
 	Data        []byte `db:"log_data"`

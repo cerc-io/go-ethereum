@@ -105,13 +105,13 @@ func (w *Writer) upsertAccessListElement(tx Tx, accessListElement models.AccessL
 }
 
 /*
-INSERT INTO eth.receipt_cids (block_number, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO eth.receipt_cids (block_number, tx_id, cid, contract, contract_hash, mh_key, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (tx_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertRctStm(),
-		rct.BlockNumber, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey, rct.PostState,
-		rct.PostStatus, rct.LogRoot)
+		rct.BlockNumber, rct.TxID, rct.CID, rct.Contract, rct.ContractHash, rct.MhKey, rct.PostState,
+		rct.PostStatus)
 	if err != nil {
 		return fmt.Errorf("error upserting receipt_cids entry: %w", err)
 	}
@@ -120,13 +120,13 @@ func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 }
 
 /*
-INSERT INTO eth.log_cids (block_number, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, topic3, log_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO eth.log_cids (block_number, cid, mh_key, rct_id, address, index, topic0, topic1, topic2, topic3, log_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (rct_id, index, block_number) DO NOTHING
 */
 func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 	for _, log := range logs {
 		_, err := tx.Exec(w.db.Context(), w.db.InsertLogStm(),
-			log.BlockNumber, log.LeafCID, log.LeafMhKey, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
+			log.BlockNumber, log.CID, log.MhKey, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
 			log.Topic2, log.Topic3, log.Data)
 		if err != nil {
 			return fmt.Errorf("error upserting logs entry: %w", err)
@@ -137,17 +137,17 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 }
 
 /*
-INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-ON CONFLICT (header_id, state_path, block_number) DO UPDATE SET (block_number, state_leaf_key, cid, node_type, diff, mh_key) = ($1 $3, $4, $6, $7, $8)
+INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, diff, mh_key, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+ON CONFLICT (header_id, state_path, block_number) DO UPDATE SET (block_number, state_leaf_key, cid, diff, mh_key, balance, nonce, code_hash, storage_root) = ($1 $3, $4, $6, $7, $8, $9, $10, $11)
 */
-func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
+func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateLeafModel) error {
 	var stateKey string
 	if stateNode.StateKey != nullHash.String() {
 		stateKey = stateNode.StateKey
 	}
 	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-		stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
-		stateNode.MhKey)
+		stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, true,
+		stateNode.MhKey, stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
 	if err != nil {
 		return fmt.Errorf("error upserting state_cids entry: %v", err)
 	}
@@ -155,31 +155,17 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 }
 
 /*
-INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (header_id, state_path, block_number) DO NOTHING
+INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (header_id, state_path, storage_path, block_number) DO UPDATE SET (block_number, storage_leaf_key, cid, diff, mh_key) = ($1, $4, $5, $7, $8)
 */
-func (w *Writer) upsertStateAccount(tx Tx, stateAccount models.StateAccountModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertAccountStm(),
-		stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot)
-	if err != nil {
-		return fmt.Errorf("error upserting state_accounts entry: %v", err)
-	}
-	return nil
-}
-
-/*
-INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-ON CONFLICT (header_id, state_path, storage_path, block_number) DO UPDATE SET (block_number, storage_leaf_key, cid, node_type, diff, mh_key) = ($1, $4, $5, $7, $8, $9)
-*/
-func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) error {
+func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageLeafModel) error {
 	var storageKey string
 	if storageCID.StorageKey != nullHash.String() {
 		storageKey = storageCID.StorageKey
 	}
 	_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
 		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
-		storageCID.NodeType, true, storageCID.MhKey)
+		true, storageCID.MhKey)
 	if err != nil {
 		return fmt.Errorf("error upserting storage_cids entry: %v", err)
 	}
