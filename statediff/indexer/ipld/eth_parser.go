@@ -124,12 +124,12 @@ func FromBlockJSON(r io.Reader) (*EthHeader, []*EthTx, []*EthTxTrie, error) {
 }
 
 // FromBlockAndReceipts takes a block and processes it
-// to return it a set of IPLD nodes for further processing.
-func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthHeader, []*EthTx, []*EthTxTrie, []*EthReceipt, []*EthRctTrie, [][]node.Node, [][]cid.Cid, []cid.Cid, error) {
+// to return a set of IPLD nodes for further processing.
+func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthHeader, []*EthTx, []*EthReceipt, [][]*EthLog, error) {
 	// Process the header
 	headerNode, err := NewEthHeader(block.Header())
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Process the uncles
@@ -137,23 +137,72 @@ func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHe
 	for i, uncle := range block.Uncles() {
 		uncleNode, err := NewEthHeader(uncle)
 		if err != nil {
-			return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+			return nil, nil, nil, nil, nil, err
 		}
 		uncleNodes[i] = uncleNode
 	}
 
 	// Process the txs
-	txNodes, txTrieNodes, err := processTransactions(block.Transactions(),
-		block.Header().TxHash[:])
+	txNodes, err := processTransactionsSuccinct(block.Transactions())
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	// Process the receipts and logs
-	rctNodes, tctTrieNodes, logTrieAndLogNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := processReceiptsAndLogs(receipts,
+	rctNodes, logNodes, err := processReceiptsAndLogsSuccinct(receipts,
 		block.Header().ReceiptHash[:])
 
-	return headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, tctTrieNodes, logTrieAndLogNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err
+	return headerNode, uncleNodes, txNodes, rctNodes, logNodes, err
+}
+
+// processTransactions converts txs to IPLDs
+func processTransactionsSuccinct(txs []*types.Transaction) ([]*EthTx, error) {
+	ethTxNodes := make([]*EthTx, len(txs))
+
+	for i, tx := range txs {
+		ethTx, err := NewEthTx(tx)
+		if err != nil {
+			return nil, err
+		}
+		ethTxNodes[i] = ethTx
+	}
+	return ethTxNodes, nil
+}
+
+// processReceiptsAndLogsSuccinct will take in receipts and returns the IPLDs for the receipts and logs contained within
+func processReceiptsAndLogsSuccinct(rcts []*types.Receipt, expectedRctRoot []byte) ([]*EthReceipt, [][]*EthLog, error) {
+	// Pre allocating memory.
+	ethRctNodes := make([]*EthReceipt, len(rcts))
+	ethLogNodes := make([][]*EthLog, 0, len(rcts))
+
+	for i, rct := range rcts {
+		// Process logs for each receipt.
+		ethLogs, err := processLogsSuccinct(rct.Logs)
+		if err != nil {
+			return nil, nil, err
+		}
+		ethRct, err := NewReceipt(rct)
+		if err != nil {
+			return nil, nil, err
+		}
+		ethRctNodes[i] = ethRct
+		ethLogNodes[i] = ethLogs
+	}
+
+	return ethRctNodes, ethLogNodes, nil
+}
+
+func processLogsSuccinct(logs []*types.Log) ([]*EthLog, error) {
+	ethLogs := make([]*EthLog, len(logs))
+	for i, log := range logs {
+		logNode, err := NewLog(log)
+		if err != nil {
+			return nil, err
+		}
+		ethLogs[i] = logNode
+	}
+
+	return ethLogs, nil
 }
 
 // processTransactions will take the found transactions in a parsed block body
