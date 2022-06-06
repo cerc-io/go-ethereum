@@ -149,8 +149,7 @@ func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHe
 	}
 
 	// Process the receipts and logs
-	rctNodes, logNodes, err := processReceiptsAndLogsSuccinct(receipts,
-		block.Header().ReceiptHash[:])
+	rctNodes, logNodes, err := processReceiptsAndLogsSuccinct(receipts)
 
 	return headerNode, uncleNodes, txNodes, rctNodes, logNodes, err
 }
@@ -170,7 +169,7 @@ func processTransactionsSuccinct(txs []*types.Transaction) ([]*EthTx, error) {
 }
 
 // processReceiptsAndLogsSuccinct will take in receipts and returns the IPLDs for the receipts and logs contained within
-func processReceiptsAndLogsSuccinct(rcts []*types.Receipt, expectedRctRoot []byte) ([]*EthReceipt, [][]*EthLog, error) {
+func processReceiptsAndLogsSuccinct(rcts []*types.Receipt) ([]*EthReceipt, [][]*EthLog, error) {
 	// Pre allocating memory.
 	ethRctNodes := make([]*EthReceipt, len(rcts))
 	ethLogNodes := make([][]*EthLog, 0, len(rcts))

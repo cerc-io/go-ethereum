@@ -76,11 +76,11 @@ func (sqw *SQLWriter) Loop() {
 				l = len(stmt)
 				if sqw.collationIndex+l > writeBufferSize {
 					if err := sqw.flush(); err != nil {
-						panic(fmt.Sprintf("error writing sql stmts buffer to file: %v", err))
+						panic((any)(fmt.Sprintf("error writing sql stmts buffer to file: %v", err)))
 					}
 					if l > writeBufferSize {
 						if _, err := sqw.wc.Write(stmt); err != nil {
-							panic(fmt.Sprintf("error writing large sql stmt to file: %v", err))
+							panic((any)(fmt.Sprintf("error writing large sql stmt to file: %v", err)))
 						}
 						continue
 					}
@@ -89,12 +89,12 @@ func (sqw *SQLWriter) Loop() {
 				sqw.collationIndex += l
 			case <-sqw.quitChan:
 				if err := sqw.flush(); err != nil {
-					panic(fmt.Sprintf("error writing sql stmts buffer to file: %v", err))
+					panic((any)(fmt.Sprintf("error writing sql stmts buffer to file: %v", err)))
 				}
 				return
 			case <-sqw.flushChan:
 				if err := sqw.flush(); err != nil {
-					panic(fmt.Sprintf("error writing sql stmts buffer to file: %v", err))
+					panic((any)(fmt.Sprintf("error writing sql stmts buffer to file: %v", err)))
 				}
 				sqw.flushFinished <- struct{}{}
 			}

@@ -430,10 +430,10 @@ func TestEthBlockCopy(t *testing.T) {
 
 	defer func() {
 		r := recover()
-		if r == nil {
+		if r == (any)(nil) {
 			t.Fatal("Expected panic")
 		}
-		if r != "implement me" {
+		if r != (any)("implement me") {
 			t.Fatalf("Wrong panic message\r\nexpected %s\r\ngot %s", "'implement me'", r)
 		}
 	}()
