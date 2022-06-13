@@ -197,8 +197,10 @@ func (sqw *SQLWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []
 }
 
 func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
+	nodeId := fmt.Sprintf("{%s}", header.NodeID)
+	// {'1'}
 	stmt := fmt.Sprintf(headerInsert, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
+		header.TotalDifficulty, nodeId, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UncleRoot, header.Bloom, header.Timestamp, header.MhKey, 1, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
 	indexerMetrics.blocks.Inc(1)

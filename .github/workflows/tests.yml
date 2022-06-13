@@ -4,8 +4,8 @@ on:
   workflow_call:
 
 env:
-  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'feature/geth-testing'}}
-  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'feature/startup-script' }}
+  stack-orchestrator-ref: "382aca8e42bc5e33f301f77cdd2e09cc80602fc3"
+  ipld-eth-db-ref: "7002ec054fd600d3023470bf1ccf3fc75aacb17c"
   GOPATH: /tmp/go
 
 jobs:
