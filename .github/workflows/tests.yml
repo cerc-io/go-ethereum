@@ -70,20 +70,14 @@ jobs:
       - name: Create config file
         run: |
           echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > $GITHUB_WORKSPACE/config.sh
-          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ >> $GITHUB_WORKSPACE/config.sh
-          echo db_write=true >> $GITHUB_WORKSPACE/config.sh
           cat $GITHUB_WORKSPACE/config.sh
 
       - name: Run docker compose
         run: |
           docker-compose  \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-migration.yml" \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/latest/docker-compose-timescale-db.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db.yml" \
           --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
-
-      - name: Give the migration a few seconds
-        run: sleep 30;
 
       - name: Run unit tests
         run: make statedifftest
@@ -160,7 +154,7 @@ jobs:
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
-          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing_v4  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
           [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
           echo $rows
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing_v4  -AXqtc "SELECT * FROM eth.header_cids"
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
