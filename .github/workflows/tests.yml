@@ -80,9 +80,6 @@ jobs:
           --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
 
-      - name: Give the migration a few seconds
-        run: sleep 30;
-
       - name: Run unit tests
         run: make statedifftest
 
