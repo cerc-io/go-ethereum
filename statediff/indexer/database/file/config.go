@@ -41,7 +41,7 @@ var TestConfig = Config{
 		GenesisBlock: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
 		NetworkID:    "1",
 		ChainID:      1,
-		ID:           "mockNodeID",
+		ID:           "1",
 		ClientName:   "go-ethereum",
 	},
 }
