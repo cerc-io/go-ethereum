@@ -251,3 +251,7 @@ func (backend *Backend) ChainConfig() *params.ChainConfig {
 func (backend *Backend) Engine() consensus.Engine {
 	panic("not implemented") // TODO: Implement
 }
+
+func (backend *Backend) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
+	return nil, nil
+}
