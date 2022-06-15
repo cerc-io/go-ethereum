@@ -157,7 +157,7 @@ jobs:
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
-          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
           [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
           echo $rows
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
