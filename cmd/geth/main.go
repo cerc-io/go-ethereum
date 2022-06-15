@@ -69,7 +69,7 @@ var (
 		utils.NoUSBFlag,
 		utils.USBFlag,
 		utils.SmartCardDaemonPathFlag,
-		utils.OverrideArrowGlacierFlag,
+		utils.OverrideGrayGlacierFlag,
 		utils.OverrideTerminalTotalDifficulty,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,
@@ -174,6 +174,7 @@ var (
 		utils.StateDiffKnownGapsFilePath,
 		utils.StateDiffWaitForSync,
 		utils.StateDiffWatchedAddressesFilePath,
+		utils.IgnoreLegacyReceiptsFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
