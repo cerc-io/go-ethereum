@@ -241,13 +241,13 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 					pgConfig.MaxIdle = ctx.GlobalInt(utils.StateDiffDBMaxIdleConns.Name)
 				}
 				if ctx.GlobalIsSet(utils.StateDiffDBMaxConnLifetime.Name) {
-					pgConfig.MaxConnLifetime = ctx.GlobalDuration(utils.StateDiffDBMaxConnLifetime.Name) * time.Second
+					pgConfig.MaxConnLifetime = time.Duration(ctx.GlobalDuration(utils.StateDiffDBMaxConnLifetime.Name).Seconds())
 				}
 				if ctx.GlobalIsSet(utils.StateDiffDBMaxConnIdleTime.Name) {
-					pgConfig.MaxConnIdleTime = ctx.GlobalDuration(utils.StateDiffDBMaxConnIdleTime.Name) * time.Second
+					pgConfig.MaxConnIdleTime = time.Duration(ctx.GlobalDuration(utils.StateDiffDBMaxConnIdleTime.Name).Seconds())
 				}
 				if ctx.GlobalIsSet(utils.StateDiffDBConnTimeout.Name) {
-					pgConfig.ConnTimeout = ctx.GlobalDuration(utils.StateDiffDBConnTimeout.Name) * time.Second
+					pgConfig.ConnTimeout = time.Duration(ctx.GlobalDuration(utils.StateDiffDBConnTimeout.Name).Seconds())
 				}
 				indexerConfig = pgConfig
 			case shared.DUMP:

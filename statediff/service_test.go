@@ -112,8 +112,8 @@ func testErrorInChainEventLoop(t *testing.T) {
 
 	payloads := make([]statediff.Payload, 0, 2)
 	wg := new(sync.WaitGroup)
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for i := 0; i < 2; i++ {
 			select {
 			case payload := <-payloadChan:

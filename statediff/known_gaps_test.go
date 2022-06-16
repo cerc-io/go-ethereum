@@ -18,8 +18,6 @@ var (
 )
 
 type gapValues struct {
-	lastProcessedBlock    int64
-	currentBlock          int64
 	knownErrorBlocksStart int64
 	knownErrorBlocksEnd   int64
 	expectedDif           int64

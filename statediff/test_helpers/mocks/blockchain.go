@@ -34,7 +34,6 @@ type BlockChain struct {
 	HashesLookedUp         []common.Hash
 	blocksToReturnByHash   map[common.Hash]*types.Block
 	blocksToReturnByNumber map[uint64]*types.Block
-	callCount              int
 	ChainEvents            []core.ChainEvent
 	Receipts               map[common.Hash]types.Receipts
 	TDByHash               map[common.Hash]*big.Int

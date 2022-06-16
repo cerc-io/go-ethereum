@@ -154,8 +154,8 @@ func testSubscriptionAPI(t *testing.T) {
 	payloadChan := make(chan statediff.Payload)
 	quitChan := make(chan bool)
 	wg := new(sync.WaitGroup)
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		sort.Slice(expectedStateDiffBytes, func(i, j int) bool { return expectedStateDiffBytes[i] < expectedStateDiffBytes[j] })
 		select {
@@ -177,7 +177,7 @@ func testSubscriptionAPI(t *testing.T) {
 			t.Errorf("channel quit before delivering payload")
 		}
 	}()
-	time.Sleep(1)
+	time.Sleep(1 * time.Second)
 	mockService.Subscribe(id, payloadChan, quitChan, parameters)
 	blockChan <- block1
 	parentBlockChain <- block0
