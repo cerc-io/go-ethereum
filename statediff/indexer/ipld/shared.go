@@ -106,7 +106,7 @@ func newLocalTrie() *localTrie {
 	lt := &localTrie{}
 	lt.db = rawdb.NewMemoryDatabase()
 	lt.trieDB = trie.NewDatabase(lt.db)
-	lt.trie, err = trie.New(common.Hash{}, lt.trieDB)
+	lt.trie, err = trie.New(common.Hash{}, common.Hash{}, lt.trieDB)
 	if err != nil {
 		panic(err)
 	}

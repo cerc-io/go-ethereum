@@ -4,8 +4,8 @@ on:
   workflow_call:
 
 env:
-  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'feature/geth-testing'}}
-  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'feature/startup-script' }}
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || '382aca8e42bc5e33f301f77cdd2e09cc80602fc3'}}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || '48eb594ea95763bda8e51590f105f7a2657ac6d4' }}
   GOPATH: /tmp/go
 
 jobs:
@@ -70,15 +70,13 @@ jobs:
       - name: Create config file
         run: |
           echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > $GITHUB_WORKSPACE/config.sh
-          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ >> $GITHUB_WORKSPACE/config.sh
           echo db_write=true >> $GITHUB_WORKSPACE/config.sh
           cat $GITHUB_WORKSPACE/config.sh
 
       - name: Run docker compose
         run: |
           docker-compose  \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-migration.yml" \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/latest/docker-compose-timescale-db.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" \
           --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
 
@@ -135,9 +133,8 @@ jobs:
       - name: Run docker compose
         run: |
           docker-compose  \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-migration.yml" \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum4.yml" \
-          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/latest/docker-compose-timescale-db.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" \
           --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
 
@@ -160,7 +157,7 @@ jobs:
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
-          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing_v4  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
           [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
           echo $rows
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec access-node psql -U vdbm -d vulcanize_testing_v4  -AXqtc "SELECT * FROM eth.header_cids"
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
