@@ -1,0 +1,27 @@
+version: "3.2"
+
+services:
+  migrations:
+    restart: on-failure
+    depends_on:
+      - ipld-eth-db
+    image: vulcanize/ipld-eth-db:v4.2.0-alpha
+    environment:
+      DATABASE_USER: "vdbm"
+      DATABASE_NAME: "vulcanize_testing"
+      DATABASE_PASSWORD: "password"
+      DATABASE_HOSTNAME: "ipld-eth-db"
+      DATABASE_PORT: 5432
+
+  ipld-eth-db:
+    image: timescale/timescaledb:latest-pg14
+    restart: always
+    command: ["postgres", "-c", "log_statement=all"]
+    environment:
+      POSTGRES_USER: "vdbm"
+      POSTGRES_DB: "vulcanize_testing"
+      POSTGRES_PASSWORD: "password"
+    ports:
+      - "127.0.0.1:8077:5432"
+    volumes:
+      - ./statediff/indexer/database/file:/file_indexer

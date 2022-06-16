@@ -22,6 +22,8 @@ require (
 	github.com/fjl/gencodec v0.0.0-20220412091415-8bb9e558978c
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff
+	github.com/georgysavva/scany v0.2.9
+	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0
 	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/golang/protobuf v1.5.2
@@ -37,15 +39,29 @@ require (
 	github.com/huin/goupnp v1.0.3
 	github.com/influxdata/influxdb v1.8.3
 	github.com/influxdata/influxdb-client-go/v2 v2.4.0
+	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
+	github.com/ipfs/go-block-format v0.0.2
+	github.com/ipfs/go-cid v0.0.7
+	github.com/ipfs/go-ipfs-blockstore v1.0.1
+	github.com/ipfs/go-ipfs-ds-help v1.0.0
+	github.com/ipfs/go-ipld-format v0.2.0
+	github.com/jackc/pgconn v1.10.0
+	github.com/jackc/pgx/v4 v4.13.0
 	github.com/jackpal/go-nat-pmp v1.0.2
 	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/karalabe/usb v0.0.2
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/lib/pq v1.10.2
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mattn/go-isatty v0.0.12
+	github.com/multiformats/go-multihash v0.0.14
+	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
+	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/prometheus/tsdb v0.7.1
 	github.com/rjeczalik/notify v0.9.1
 	github.com/rs/cors v1.7.0
@@ -53,7 +69,9 @@ require (
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	github.com/stretchr/testify v1.7.2
 	github.com/supranational/blst v0.3.8-0.20220526154634-513d2456b344
-	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/thoas/go-funk v0.9.2
+	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	github.com/urfave/cli/v2 v2.10.2
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
@@ -82,14 +100,31 @@ require (
 	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
 	github.com/garslo/gogen v0.0.0-20170306192744-1d203ffc1f61 // indirect
-	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
-	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/ipfs/bbloom v0.0.4 // indirect
+	github.com/ipfs/go-datastore v0.4.2 // indirect
+	github.com/ipfs/go-ipfs-util v0.0.1 // indirect
+	github.com/ipfs/go-log v0.0.1 // indirect
+	github.com/ipfs/go-metrics-interface v0.0.1 // indirect
+	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgproto3/v2 v2.1.1 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
+	github.com/jackc/pgtype v1.8.1 // indirect
+	github.com/jackc/puddle v1.1.3 // indirect
+	github.com/jbenet/goprocess v0.0.0-20160826012719-b497e2f366b8 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
+	github.com/minio/sha256-simd v0.1.1-0.20190913151208-6de447530771 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mitchellh/pointerstructure v1.2.0 // indirect
-	github.com/naoina/go-stringutil v0.1.0 // indirect
+	github.com/mr-tron/base58 v1.1.3 // indirect
+	github.com/multiformats/go-base32 v0.0.3 // indirect
+	github.com/multiformats/go-base36 v0.1.0 // indirect
+	github.com/multiformats/go-multibase v0.0.3 // indirect
+	github.com/multiformats/go-varint v0.0.5 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -97,6 +132,10 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc // indirect
+	go.uber.org/atomic v1.6.0 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20211013180041-c96bc1413d57 // indirect
 	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect

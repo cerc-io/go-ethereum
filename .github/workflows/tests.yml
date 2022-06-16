@@ -1,0 +1,140 @@
+name: Tests for Geth that are used in multiple jobs.
+
+on:
+  workflow_call:
+
+env:
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || '382aca8e42bc5e33f301f77cdd2e09cc80602fc3'}}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || '65b7bee7a6757c1fc527c8bfdc4f99ab915fcf36' }}
+  GOPATH: /tmp/go
+
+jobs:
+  build:
+    name: Run docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run docker build
+        run: docker build -t vulcanize/go-ethereum .
+
+  geth-unit-test:
+    name: Run geth unit test
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: |
+          make test
+
+  statediff-unit-test:
+    name: Run state diff unit test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run docker compose
+        run: |
+          docker-compose up -d
+
+      - name: Give the migration a few seconds
+        run: sleep 30;
+
+      - name: Run unit tests
+        run: make statedifftest
+
+  private-network-test:
+    name: Start Geth in a private network.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: "./go-ethereum"
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.stack-orchestrator-ref }}
+          path: "./stack-orchestrator/"
+          repository: vulcanize/stack-orchestrator
+          fetch-depth: 0
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.ipld-eth-db-ref }}
+          repository: vulcanize/ipld-eth-db
+          path: "./ipld-eth-db/"
+          fetch-depth: 0
+
+      - name: Create config file
+        run: |
+          echo vulcanize_ipld_eth_db=$GITHUB_WORKSPACE/ipld-eth-db/ > $GITHUB_WORKSPACE/config.sh
+          echo vulcanize_go_ethereum=$GITHUB_WORKSPACE/go-ethereum/ >> $GITHUB_WORKSPACE/config.sh
+          echo db_write=true >> $GITHUB_WORKSPACE/config.sh
+          cat $GITHUB_WORKSPACE/config.sh
+
+      - name: Compile Geth
+        run: |
+          cd $GITHUB_WORKSPACE/stack-orchestrator/helper-scripts
+          ./compile-geth.sh -e docker -p $GITHUB_WORKSPACE/config.sh
+          cd -
+
+      - name: Run docker compose
+        run: |
+          docker-compose  \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" \
+          -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" \
+          --env-file $GITHUB_WORKSPACE/config.sh \
+          up -d --build
+
+      - name: Make sure the /root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS exists within a certain time frame.
+        shell: bash
+        run: |
+          COUNT=0
+          ATTEMPTS=15
+          until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
+          [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
+          cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
+          sleep 15;
+
+      - name: Create a new transaction.
+        shell: bash
+        run: |
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
+          echo $?
+
+      - name: Make sure we see entries in the header table
+        shell: bash
+        run: |
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
+          echo $rows
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"

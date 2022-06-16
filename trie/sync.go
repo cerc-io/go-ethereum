@@ -82,7 +82,7 @@ func NewSyncPath(path []byte) SyncPath {
 	if len(path) < 64 {
 		return SyncPath{hexToCompact(path)}
 	}
-	return SyncPath{hexToKeybytes(path[:64]), hexToCompact(path[64:])}
+	return SyncPath{hexToKeyBytes(path[:64]), hexToCompact(path[64:])}
 }
 
 // SyncResult is a response with requested data along with it's hash.
@@ -381,10 +381,10 @@ func (s *Sync) children(req *request, object node) ([]*request, error) {
 			if node, ok := (child.node).(valueNode); ok {
 				var paths [][]byte
 				if len(child.path) == 2*common.HashLength {
-					paths = append(paths, hexToKeybytes(child.path))
+					paths = append(paths, hexToKeyBytes(child.path))
 				} else if len(child.path) == 4*common.HashLength {
-					paths = append(paths, hexToKeybytes(child.path[:2*common.HashLength]))
-					paths = append(paths, hexToKeybytes(child.path[2*common.HashLength:]))
+					paths = append(paths, hexToKeyBytes(child.path[:2*common.HashLength]))
+					paths = append(paths, hexToKeyBytes(child.path[2*common.HashLength:]))
 				}
 				if err := req.callback(paths, child.path, node, req.hash); err != nil {
 					return nil, err

@@ -35,6 +35,7 @@ const (
 	MetricsCategory    = "METRICS AND STATS"
 	MiscCategory       = "MISC"
 	DeprecatedCategory = "ALIASED (deprecated)"
+	StateDiff          = "STATEDIFF"
 )
 
 func init() {

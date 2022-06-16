@@ -18,13 +18,16 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"reflect"
+	"time"
 	"unicode"
 
+	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ethereum/go-ethereum/accounts/external"
@@ -40,7 +43,12 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/naoina/toml"
+	"github.com/ethereum/go-ethereum/statediff"
+	dumpdb "github.com/ethereum/go-ethereum/statediff/indexer/database/dump"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
+	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 )
 
 var (
@@ -150,6 +158,9 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.String(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
+	if ctx.Bool(utils.StateDiffFlag.Name) {
+		cfg.Eth.Diffing = true
+	}
 
 	return stack, cfg
 }
@@ -163,6 +174,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if ctx.IsSet(utils.OverrideTerminalTotalDifficulty.Name) {
 		cfg.Eth.OverrideTerminalTotalDifficulty = flags.GlobalBig(ctx, utils.OverrideTerminalTotalDifficulty.Name)
 	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 	// Warn users to migrate if they have a legacy freezer format.
 	if eth != nil && !ctx.IsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
@@ -180,6 +192,103 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 			stack.Close()
 			utils.Fatalf("Database has receipts with a legacy format. Please run `geth db freezer-migrate`.")
 		}
+	}
+	if ctx.Bool(utils.StateDiffFlag.Name) {
+		var indexerConfig interfaces.Config
+		var clientName, nodeID string
+		if ctx.IsSet(utils.StateDiffWritingFlag.Name) {
+			clientName = ctx.String(utils.StateDiffDBClientNameFlag.Name)
+			if ctx.IsSet(utils.StateDiffDBNodeIDFlag.Name) {
+				nodeID = ctx.String(utils.StateDiffDBNodeIDFlag.Name)
+			} else {
+				utils.Fatalf("Must specify node ID for statediff DB output")
+			}
+
+			dbTypeStr := ctx.String(utils.StateDiffDBTypeFlag.Name)
+			dbType, err := shared.ResolveDBType(dbTypeStr)
+			if err != nil {
+				utils.Fatalf("%v", err)
+			}
+			switch dbType {
+			case shared.FILE:
+				fileModeStr := ctx.String(utils.StateDiffFileMode.Name)
+				fileMode, err := file.ResolveFileMode(fileModeStr)
+				if err != nil {
+					utils.Fatalf("%v", err)
+				}
+
+				indexerConfig = file.Config{
+					Mode:                     fileMode,
+					OutputDir:                ctx.String(utils.StateDiffFileCsvDir.Name),
+					FilePath:                 ctx.String(utils.StateDiffFilePath.Name),
+					WatchedAddressesFilePath: ctx.String(utils.StateDiffWatchedAddressesFilePath.Name),
+				}
+			case shared.POSTGRES:
+				driverTypeStr := ctx.String(utils.StateDiffDBDriverTypeFlag.Name)
+				driverType, err := postgres.ResolveDriverType(driverTypeStr)
+				if err != nil {
+					utils.Fatalf("%v", err)
+				}
+				pgConfig := postgres.Config{
+					Hostname:     ctx.String(utils.StateDiffDBHostFlag.Name),
+					Port:         ctx.Int(utils.StateDiffDBPortFlag.Name),
+					DatabaseName: ctx.String(utils.StateDiffDBNameFlag.Name),
+					Username:     ctx.String(utils.StateDiffDBUserFlag.Name),
+					Password:     ctx.String(utils.StateDiffDBPasswordFlag.Name),
+					ID:           nodeID,
+					ClientName:   clientName,
+					Driver:       driverType,
+				}
+				if ctx.IsSet(utils.StateDiffDBMinConns.Name) {
+					pgConfig.MinConns = ctx.Int(utils.StateDiffDBMinConns.Name)
+				}
+				if ctx.IsSet(utils.StateDiffDBMaxConns.Name) {
+					pgConfig.MaxConns = ctx.Int(utils.StateDiffDBMaxConns.Name)
+				}
+				if ctx.IsSet(utils.StateDiffDBMaxIdleConns.Name) {
+					pgConfig.MaxIdle = ctx.Int(utils.StateDiffDBMaxIdleConns.Name)
+				}
+				if ctx.IsSet(utils.StateDiffDBMaxConnLifetime.Name) {
+					pgConfig.MaxConnLifetime = time.Duration(ctx.Duration(utils.StateDiffDBMaxConnLifetime.Name).Seconds())
+				}
+				if ctx.IsSet(utils.StateDiffDBMaxConnIdleTime.Name) {
+					pgConfig.MaxConnIdleTime = time.Duration(ctx.Duration(utils.StateDiffDBMaxConnIdleTime.Name).Seconds())
+				}
+				if ctx.IsSet(utils.StateDiffDBConnTimeout.Name) {
+					pgConfig.ConnTimeout = time.Duration(ctx.Duration(utils.StateDiffDBConnTimeout.Name).Seconds())
+				}
+				indexerConfig = pgConfig
+			case shared.DUMP:
+				dumpTypeStr := ctx.String(utils.StateDiffDBDumpDst.Name)
+				dumpType, err := dumpdb.ResolveDumpType(dumpTypeStr)
+				if err != nil {
+					utils.Fatalf("%v", err)
+				}
+				switch dumpType {
+				case dumpdb.STDERR:
+					indexerConfig = dumpdb.Config{Dump: os.Stdout}
+				case dumpdb.STDOUT:
+					indexerConfig = dumpdb.Config{Dump: os.Stderr}
+				case dumpdb.DISCARD:
+					indexerConfig = dumpdb.Config{Dump: dumpdb.NewDiscardWriterCloser()}
+				default:
+					utils.Fatalf("unrecognized dump destination: %s", dumpType)
+				}
+			default:
+				utils.Fatalf("unrecognized database type: %s", dbType)
+			}
+		}
+		p := statediff.Config{
+			IndexerConfig:     indexerConfig,
+			KnownGapsFilePath: ctx.String(utils.StateDiffKnownGapsFilePath.Name),
+			ID:                nodeID,
+			ClientName:        clientName,
+			Context:           context.Background(),
+			EnableWriteLoop:   ctx.Bool(utils.StateDiffWritingFlag.Name),
+			NumWorkers:        ctx.Uint(utils.StateDiffWorkersFlag.Name),
+			WaitForSync:       ctx.Bool(utils.StateDiffWaitForSync.Name),
+		}
+		utils.RegisterStateDiffService(stack, eth, &cfg.Eth, p, backend)
 	}
 
 	// Configure GraphQL if requested
