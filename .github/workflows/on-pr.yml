@@ -1,7 +1,0 @@
-name: Build and test
-
-on: [pull_request]
-
-jobs:
-  run-tests:
-    uses: ./.github/workflows/tests.yml
