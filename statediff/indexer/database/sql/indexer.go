@@ -267,27 +267,43 @@ func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, he
 // processUncles publishes and indexes uncle IPLDs in Postgres
 func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNumber *big.Int, uncleNodes []*ipld2.EthHeader) error {
 	// publish and index uncles
+	if len(uncleNodes) <= 0 {
+		return nil
+	}
+
+	// RLP encode the array
+	uncleNodesRlp, err := rlp.EncodeToBytes(uncleNodes)
+	if err != nil {
+		return err
+	}
+
+	// Calculate total block rewards
+	var uncleReward *big.Int = big.NewInt(0)
 	for _, uncleNode := range uncleNodes {
 		tx.cacheIPLD(uncleNode)
-		var uncleReward *big.Int
 		// in PoA networks uncle reward is 0
-		if sdi.chainConfig.Clique != nil {
-			uncleReward = big.NewInt(0)
-		} else {
-			uncleReward = shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64())
+		if sdi.chainConfig.Clique == nil {
+			uncleReward = uncleReward.Add(shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64()), uncleReward)
 		}
-		uncle := models.UncleModel{
-			BlockNumber: blockNumber.String(),
-			HeaderID:    headerID,
-			CID:         uncleNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(uncleNode.Cid()),
-			ParentHash:  uncleNode.ParentHash.String(),
-			BlockHash:   uncleNode.Hash().String(),
-			Reward:      uncleReward.String(),
-		}
-		if err := sdi.dbWriter.upsertUncleCID(tx.dbtx, uncle); err != nil {
-			return err
-		}
+	}
+
+	// Create a CID and write the uncle list.
+	uncleCid, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleNodesRlp, multihash.KECCAK_256)
+	if err != nil {
+		return err
+	}
+
+	uncle := models.UncleModel{
+		BlockNumber: blockNumber.String(),
+		HeaderID:    headerID,
+		CID:         uncleCid.String(),
+		MhKey:       shared.MultihashKeyFromCID(uncleCid),
+		ParentHash:  uncleNodes[0].ParentHash.String(),
+		BlockHash:   uncleNodes[0].Hash().String(),
+		Reward:      uncleReward.String(),
+	}
+	if err := sdi.dbWriter.upsertUncleCID(tx.dbtx, uncle); err != nil {
+		return err
 	}
 	return nil
 }
