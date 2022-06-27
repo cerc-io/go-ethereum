@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -51,23 +52,25 @@ var (
 		BaseFee:     big.NewInt(params.InitialBaseFee),
 		Coinbase:    common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476777"),
 	}
-	MockTransactions, MockReceipts, SenderAddr        = createTransactionsAndReceipts(TestConfig, BlockNumber)
-	MockBlock                                         = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, new(trie.Trie))
-	MockHeaderRlp, _                                  = rlp.EncodeToBytes(MockBlock.Header())
-	Address                                           = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
-	AnotherAddress                                    = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
-	ContractAddress                                   = crypto.CreateAddress(SenderAddr, MockTransactions[2].Nonce())
-	ContractAddress2                                  = crypto.CreateAddress(SenderAddr, MockTransactions[3].Nonce())
-	MockContractByteCode                              = []byte{0, 1, 2, 3, 4, 5}
-	mockTopic11                                       = common.HexToHash("0x04")
-	mockTopic12                                       = common.HexToHash("0x06")
-	mockTopic21                                       = common.HexToHash("0x05")
-	mockTopic22                                       = common.HexToHash("0x07")
-	ExpectedPostStatus                         uint64 = 1
-	ExpectedPostState1                                = common.Bytes2Hex(common.HexToHash("0x1").Bytes())
-	ExpectedPostState2                                = common.Bytes2Hex(common.HexToHash("0x2").Bytes())
-	ExpectedPostState3                                = common.Bytes2Hex(common.HexToHash("0x3").Bytes())
-	MockLog1                                          = &types.Log{
+	MockTransactions, MockReceipts, SenderAddr = createTransactionsAndReceipts(TestConfig, BlockNumber)
+	// Create uncles and add them here.
+	MockUncles                  = createUncles(BlockNumber, 3)
+	MockBlock                   = types.NewBlock(&MockHeader, MockTransactions, MockUncles, MockReceipts, new(trie.Trie))
+	MockHeaderRlp, _            = rlp.EncodeToBytes(MockBlock.Header())
+	Address                     = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
+	AnotherAddress              = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
+	ContractAddress             = crypto.CreateAddress(SenderAddr, MockTransactions[2].Nonce())
+	ContractAddress2            = crypto.CreateAddress(SenderAddr, MockTransactions[3].Nonce())
+	MockContractByteCode        = []byte{0, 1, 2, 3, 4, 5}
+	mockTopic11                 = common.HexToHash("0x04")
+	mockTopic12                 = common.HexToHash("0x06")
+	mockTopic21                 = common.HexToHash("0x05")
+	mockTopic22                 = common.HexToHash("0x07")
+	ExpectedPostStatus   uint64 = 1
+	ExpectedPostState1          = common.Bytes2Hex(common.HexToHash("0x1").Bytes())
+	ExpectedPostState2          = common.Bytes2Hex(common.HexToHash("0x2").Bytes())
+	ExpectedPostState3          = common.Bytes2Hex(common.HexToHash("0x3").Bytes())
+	MockLog1                    = &types.Log{
 		Address: Address,
 		Topics:  []common.Hash{mockTopic11, mockTopic12},
 		Data:    []byte{},
@@ -439,4 +442,18 @@ func createTransactionsAndReceipts(config *params.ChainConfig, blockNumber *big.
 	}
 
 	return types.Transactions{signedTrx1, signedTrx2, signedTrx3, signedTrx4, signedTrx5}, types.Receipts{mockReceipt1, mockReceipt2, mockReceipt3, mockReceipt4, mockReceipt5}, senderAddr
+}
+
+// This functions will create uncles
+func createUncles(blockNumber *big.Int, totalUncles int) []*types.Header {
+	var uncles = make([]*types.Header, totalUncles+1)
+	for i := 0; i <= totalUncles; i++ {
+		uncles[i] = &types.Header{
+			Difficulty: math.BigPow(11, 11),
+			Number:     blockNumber,
+			Time:       0,
+			Extra:      []byte("test uncle"),
+		}
+	}
+	return uncles
 }

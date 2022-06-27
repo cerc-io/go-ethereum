@@ -238,25 +238,42 @@ func (sdi *StateDiffIndexer) processHeader(header *types.Header, headerNode node
 // processUncles writes uncle IPLD insert SQL stmts to a file
 func (sdi *StateDiffIndexer) processUncles(headerID string, blockNumber *big.Int, uncleNodes []*ipld2.EthHeader) {
 	// publish and index uncles
-	for _, uncleNode := range uncleNodes {
-		sdi.fileWriter.upsertIPLDNode(blockNumber.String(), uncleNode)
-		var uncleReward *big.Int
-		// in PoA networks uncle reward is 0
-		if sdi.chainConfig.Clique != nil {
-			uncleReward = big.NewInt(0)
-		} else {
-			uncleReward = shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64())
-		}
-		sdi.fileWriter.upsertUncleCID(models.UncleModel{
-			BlockNumber: blockNumber.String(),
-			HeaderID:    headerID,
-			CID:         uncleNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(uncleNode.Cid()),
-			ParentHash:  uncleNode.ParentHash.String(),
-			BlockHash:   uncleNode.Hash().String(),
-			Reward:      uncleReward.String(),
-		})
+	if len(uncleNodes) <= 0 {
+		return
 	}
+
+	// RLP encode the array
+	uncleNodesRlp, err := rlp.EncodeToBytes(uncleNodes)
+	if err != nil {
+		return
+	}
+
+	// Calculate total block rewards
+	var uncleReward *big.Int = big.NewInt(0)
+	for _, uncleNode := range uncleNodes {
+		// in PoA networks uncle reward is 0
+		if sdi.chainConfig.Clique == nil {
+			uncleReward = uncleReward.Add(shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64()), uncleReward)
+		}
+	}
+
+	// Create a CID and write the uncle list.
+	uncleCid, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleNodesRlp, multihash.KECCAK_256)
+	if err != nil {
+		return
+	}
+
+	uncle := models.UncleModel{
+		BlockNumber: blockNumber.String(),
+		HeaderID:    headerID,
+		CID:         uncleCid.String(),
+		MhKey:       shared.MultihashKeyFromCID(uncleCid),
+		ParentHash:  uncleNodes[0].ParentHash.String(),
+		// I don't think we want this field anymore, since we no longer have a single BlockHash.
+		BlockHash: uncleNodes[0].Hash().String(), // How do we calculate the blockHash since we are no longer using a single header? rlpHash?
+		Reward:    uncleReward.String(),
+	}
+	sdi.fileWriter.upsertUncleCID(uncle)
 }
 
 // processArgs bundles arguments to processReceiptsAndTxs

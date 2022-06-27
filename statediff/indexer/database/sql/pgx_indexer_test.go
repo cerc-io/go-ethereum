@@ -24,6 +24,7 @@ import (
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
+	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
+	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
@@ -99,7 +101,10 @@ func TestPGXIndexer(t *testing.T) {
 		}
 		require.Equal(t, headerCID.String(), header.CID)
 		require.Equal(t, mocks.MockBlock.Difficulty().String(), header.TD)
-		require.Equal(t, "2000000000000021250", header.Reward)
+		// Add uncle rewards to this amount
+		uncRewards := shared.CalcEthUncleInclusionRewards(&mocks.MockHeader, mocks.MockUncles)
+		totalRewards := big.NewInt(0).Add(uncRewards, big.NewInt(2000000000000021250))
+		require.Equal(t, totalRewards.String(), header.Reward)
 		require.Equal(t, mocks.MockHeader.Coinbase.String(), header.Coinbase)
 		dc, err := cid.Decode(header.CID)
 		if err != nil {
@@ -114,6 +119,32 @@ func TestPGXIndexer(t *testing.T) {
 		}
 		require.Equal(t, mocks.MockHeaderRlp, data)
 	})
+
+	t.Run("Publish and index uncle IPLDs in a single tx", func(t *testing.T) {
+		setupPGX(t)
+		//defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+		pgStr := `SELECT cid FROM eth.uncle_cids WHERE block_number = $1`
+		var actualUncleCid string
+		err = db.QueryRow(context.Background(), pgStr, mocks.BlockNumber.Uint64()).Scan(&actualUncleCid)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		uncles := mocks.MockBlock.Uncles()
+		uncleNodesRlp, err := rlp.EncodeToBytes(uncles)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedUncleCid, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleNodesRlp, multihash.KECCAK_256)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if actualUncleCid != expectedUncleCid.String() {
+			t.Fatalf("Got the wrong CID, got %s, wanted %s", actualUncleCid, expectedUncleCid.String())
+		}
+	})
+	return
 
 	t.Run("Publish and index transaction IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)

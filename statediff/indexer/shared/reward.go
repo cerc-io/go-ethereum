@@ -25,7 +25,7 @@ import (
 func CalcEthBlockReward(header *types.Header, uncles []*types.Header, txs types.Transactions, receipts types.Receipts) *big.Int {
 	staticBlockReward := staticRewardByBlockNumber(header.Number.Uint64())
 	transactionFees := calcEthTransactionFees(txs, receipts)
-	uncleInclusionRewards := calcEthUncleInclusionRewards(header, uncles)
+	uncleInclusionRewards := CalcEthUncleInclusionRewards(header, uncles)
 	tmp := transactionFees.Add(transactionFees, uncleInclusionRewards)
 	return tmp.Add(tmp, staticBlockReward)
 }
@@ -65,7 +65,7 @@ func calcEthTransactionFees(txs types.Transactions, receipts types.Receipts) *bi
 	return transactionFees
 }
 
-func calcEthUncleInclusionRewards(header *types.Header, uncles []*types.Header) *big.Int {
+func CalcEthUncleInclusionRewards(header *types.Header, uncles []*types.Header) *big.Int {
 	uncleInclusionRewards := new(big.Int)
 	for range uncles {
 		staticBlockReward := staticRewardByBlockNumber(header.Number.Uint64())

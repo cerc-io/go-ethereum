@@ -280,7 +280,7 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 	// Calculate total block rewards
 	var uncleReward *big.Int = big.NewInt(0)
 	for _, uncleNode := range uncleNodes {
-		tx.cacheIPLD(uncleNode)
+		tx.cacheIPLD(uncleNode) // Not sure if this is needed....
 		// in PoA networks uncle reward is 0
 		if sdi.chainConfig.Clique == nil {
 			uncleReward = uncleReward.Add(shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64()), uncleReward)
@@ -299,8 +299,9 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 		CID:         uncleCid.String(),
 		MhKey:       shared.MultihashKeyFromCID(uncleCid),
 		ParentHash:  uncleNodes[0].ParentHash.String(),
-		BlockHash:   uncleNodes[0].Hash().String(),
-		Reward:      uncleReward.String(),
+		// I don't think we want this field anymore, since we no longer have a single BlockHash.
+		BlockHash: uncleNodes[0].Hash().String(), // How do we calculate the blockHash since we are no longer using a single header? rlpHash?
+		Reward:    uncleReward.String(),
 	}
 	if err := sdi.dbWriter.upsertUncleCID(tx.dbtx, uncle); err != nil {
 		return err
