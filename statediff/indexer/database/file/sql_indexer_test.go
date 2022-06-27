@@ -45,6 +45,7 @@ import (
 
 func setupIndexer(t *testing.T) {
 	file.TestConfig.Mode = file.SQL
+	file.TestConfig.WatchedAddressesFilePath = "./statediffing_watched_addresses_test_file.sql"
 
 	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
 		err := os.Remove(file.TestConfig.FilePath)
@@ -621,7 +622,7 @@ func TestSQLFileIndexer(t *testing.T) {
 	})
 }
 
-func TestFileWatchAddressMethods(t *testing.T) {
+func TestSQLFileWatchAddressMethods(t *testing.T) {
 	setupIndexer(t)
 	defer tearDown(t)
 

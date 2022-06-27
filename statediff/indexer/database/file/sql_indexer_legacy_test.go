@@ -81,6 +81,16 @@ func dumpFileData(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func resetAndDumpWatchedAddressesFileData(t *testing.T) {
+	resetDB(t)
+
+	sqlFileBytes, err := os.ReadFile(file.TestConfig.WatchedAddressesFilePath)
+	require.NoError(t, err)
+
+	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	require.NoError(t, err)
+}
+
 func tearDown(t *testing.T) {
 	file.TearDownDB(t, sqlxdb)
 

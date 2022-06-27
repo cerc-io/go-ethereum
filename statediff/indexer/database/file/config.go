@@ -64,7 +64,7 @@ var TestConfig = Config{
 	Mode:                     CSV,
 	OutputDir:                "./statediffing_test",
 	FilePath:                 "./statediffing_test_file.sql",
-	WatchedAddressesFilePath: "./statediffing_watched_addresses_test_file.sql",
+	WatchedAddressesFilePath: "./statediffing_watched_addresses_test_file.csv",
 	NodeInfo: node.Info{
 		GenesisBlock: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
 		NetworkID:    "1",

@@ -17,10 +17,14 @@
 package file
 
 import (
+	"math/big"
+
 	node "github.com/ipfs/go-ipld-format"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
+	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
 // Writer interface required by the file indexer
@@ -47,4 +51,10 @@ type FileWriter interface {
 	upsertIPLDDirect(blockNumber, key string, value []byte)
 	upsertIPLDNode(blockNumber string, i node.Node)
 	upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error)
+
+	// Methods to read and write watched addresses
+	loadWatchedAddresses() ([]common.Address, error)
+	insertWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error
+	removeWatchedAddresses(args []types.WatchAddressArg) error
+	setWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error
 }

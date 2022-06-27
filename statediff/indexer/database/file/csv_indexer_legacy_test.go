@@ -33,9 +33,11 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
 const dbDirectory = "/file"
+const pgCopyStatement = `COPY %s FROM '%s' CSV`
 
 func setupCSVLegacy(t *testing.T) {
 	mockLegacyBlock = legacyData.MockBlock
@@ -81,7 +83,6 @@ func setupCSVLegacy(t *testing.T) {
 }
 
 func dumpCSVFileData(t *testing.T) {
-	pgCopyStatement := `COPY %s FROM '%s' CSV`
 	outputDir := filepath.Join(dbDirectory, file.TestConfig.OutputDir)
 
 	for _, tbl := range file.Tables {
@@ -100,6 +101,14 @@ func dumpCSVFileData(t *testing.T) {
 		_, err = sqlxdb.Exec(stm)
 		require.NoError(t, err)
 	}
+}
+
+func dumpWatchedAddressesCSVFileData(t *testing.T) {
+	outputFilePath := filepath.Join(dbDirectory, file.TestConfig.WatchedAddressesFilePath)
+	stm := fmt.Sprintf(pgCopyStatement, types.TableWatchedAddresses.Name, outputFilePath)
+
+	_, err = sqlxdb.Exec(stm)
+	require.NoError(t, err)
 }
 
 func tearDownCSV(t *testing.T) {

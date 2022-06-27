@@ -172,3 +172,13 @@ var TableStateAccount = Table{
 		{name: "storage_root", typ: varchar},
 	},
 }
+
+var TableWatchedAddresses = Table{
+	"eth_meta.watched_addresses",
+	[]column{
+		{name: "address", typ: varchar},
+		{name: "created_at", typ: bigint},
+		{name: "watched_at", typ: bigint},
+		{name: "last_filled_at", typ: bigint},
+	},
+}

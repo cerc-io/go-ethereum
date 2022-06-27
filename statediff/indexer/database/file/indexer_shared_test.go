@@ -25,7 +25,6 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/jmoiron/sqlx"
 	"github.com/multiformats/go-multihash"
-	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -189,14 +188,4 @@ func resetDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
 	}
-}
-
-func resetAndDumpWatchedAddressesFileData(t *testing.T) {
-	resetDB(t)
-
-	sqlFileBytes, err := os.ReadFile(file.TestConfig.WatchedAddressesFilePath)
-	require.NoError(t, err)
-
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
-	require.NoError(t, err)
 }

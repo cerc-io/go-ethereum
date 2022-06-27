@@ -17,17 +17,24 @@
 package file
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"math/big"
+	"os"
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	node "github.com/ipfs/go-ipld-format"
+	pg_query "github.com/pganalyze/pg_query_go/v2"
+	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
+	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
 var (
@@ -47,18 +54,21 @@ type SQLWriter struct {
 	flushFinished chan struct{}
 	quitChan      chan struct{}
 	doneChan      chan struct{}
+
+	watchedAddressesFilePath string
 }
 
 // NewSQLWriter creates a new pointer to a Writer
-func NewSQLWriter(wc io.WriteCloser) *SQLWriter {
+func NewSQLWriter(wc io.WriteCloser, watchedAddressesFilePath string) *SQLWriter {
 	return &SQLWriter{
-		wc:            wc,
-		stmts:         make(chan []byte),
-		collatedStmt:  make([]byte, writeBufferSize),
-		flushChan:     make(chan struct{}),
-		flushFinished: make(chan struct{}),
-		quitChan:      make(chan struct{}),
-		doneChan:      make(chan struct{}),
+		wc:                       wc,
+		stmts:                    make(chan []byte),
+		collatedStmt:             make([]byte, writeBufferSize),
+		flushChan:                make(chan struct{}),
+		flushFinished:            make(chan struct{}),
+		quitChan:                 make(chan struct{}),
+		doneChan:                 make(chan struct{}),
+		watchedAddressesFilePath: watchedAddressesFilePath,
 	}
 }
 
@@ -256,4 +266,161 @@ func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 	}
 	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
 		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey))
+}
+
+// LoadWatchedAddresses loads watched addresses from a file
+func (sqw *SQLWriter) loadWatchedAddresses() ([]common.Address, error) {
+	// load sql statements from watched addresses file
+	stmts, err := loadWatchedAddressesStatements(sqw.watchedAddressesFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// extract addresses from the sql statements
+	watchedAddresses := []common.Address{}
+	for _, stmt := range stmts {
+		addressString, err := parseWatchedAddressStatement(stmt)
+		if err != nil {
+			return nil, err
+		}
+		watchedAddresses = append(watchedAddresses, common.HexToAddress(addressString))
+	}
+
+	return watchedAddresses, nil
+}
+
+// InsertWatchedAddresses inserts the given addresses in a file
+func (sqw *SQLWriter) insertWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error {
+	// load sql statements from watched addresses file
+	stmts, err := loadWatchedAddressesStatements(sqw.watchedAddressesFilePath)
+	if err != nil {
+		return err
+	}
+
+	// get already watched addresses
+	var watchedAddresses []string
+	for _, stmt := range stmts {
+		addressString, err := parseWatchedAddressStatement(stmt)
+		if err != nil {
+			return err
+		}
+
+		watchedAddresses = append(watchedAddresses, addressString)
+	}
+
+	// append statements for new addresses to existing statements
+	for _, arg := range args {
+		// ignore if already watched
+		if funk.Contains(watchedAddresses, arg.Address) {
+			continue
+		}
+
+		stmt := fmt.Sprintf(watchedAddressesInsert, arg.Address, arg.CreatedAt, currentBlockNumber.Uint64())
+		stmts = append(stmts, stmt)
+	}
+
+	return dumpWatchedAddressesStatements(sqw.watchedAddressesFilePath, stmts)
+}
+
+// RemoveWatchedAddresses removes the given watched addresses from a file
+func (sqw *SQLWriter) removeWatchedAddresses(args []types.WatchAddressArg) error {
+	// load sql statements from watched addresses file
+	stmts, err := loadWatchedAddressesStatements(sqw.watchedAddressesFilePath)
+	if err != nil {
+		return err
+	}
+
+	// get rid of statements having addresses to be removed
+	var filteredStmts []string
+	for _, stmt := range stmts {
+		addressString, err := parseWatchedAddressStatement(stmt)
+		if err != nil {
+			return err
+		}
+
+		toRemove := funk.Contains(args, func(arg types.WatchAddressArg) bool {
+			return arg.Address == addressString
+		})
+
+		if !toRemove {
+			filteredStmts = append(filteredStmts, stmt)
+		}
+	}
+
+	return dumpWatchedAddressesStatements(sqw.watchedAddressesFilePath, filteredStmts)
+}
+
+// SetWatchedAddresses clears and inserts the given addresses in a file
+func (sqw *SQLWriter) setWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error {
+	var stmts []string
+	for _, arg := range args {
+		stmt := fmt.Sprintf(watchedAddressesInsert, arg.Address, arg.CreatedAt, currentBlockNumber.Uint64())
+		stmts = append(stmts, stmt)
+	}
+
+	return dumpWatchedAddressesStatements(sqw.watchedAddressesFilePath, stmts)
+}
+
+// loadWatchedAddressesStatements loads sql statements from the given file in a string slice
+func loadWatchedAddressesStatements(filePath string) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []string{}, nil
+		}
+
+		return nil, fmt.Errorf("error opening watched addresses file: %v", err)
+	}
+	defer file.Close()
+
+	stmts := []string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		stmts = append(stmts, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error loading watched addresses: %v", err)
+	}
+
+	return stmts, nil
+}
+
+// dumpWatchedAddressesStatements dumps sql statements to the given file
+func dumpWatchedAddressesStatements(filePath string, stmts []string) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("error creating watched addresses file: %v", err)
+	}
+	defer file.Close()
+
+	for _, stmt := range stmts {
+		_, err := file.Write([]byte(stmt + "\n"))
+		if err != nil {
+			return fmt.Errorf("error inserting watched_addresses entry: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// parseWatchedAddressStatement parses given sql insert statement to extract the address argument
+func parseWatchedAddressStatement(stmt string) (string, error) {
+	parseResult, err := pg_query.Parse(stmt)
+	if err != nil {
+		return "", fmt.Errorf("error parsing sql stmt: %v", err)
+	}
+
+	// extract address argument from parse output for a SQL statement of form
+	// "INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at)
+	// VALUES ('0xabc', '123', '130') ON CONFLICT (address) DO NOTHING;"
+	addressString := parseResult.Stmts[0].Stmt.GetInsertStmt().
+		SelectStmt.GetSelectStmt().
+		ValuesLists[0].GetList().
+		Items[0].GetAConst().
+		GetVal().
+		GetString_().
+		Str
+
+	return addressString, nil
 }
