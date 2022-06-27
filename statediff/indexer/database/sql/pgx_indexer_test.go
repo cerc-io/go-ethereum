@@ -122,7 +122,7 @@ func TestPGXIndexer(t *testing.T) {
 
 	t.Run("Publish and index uncle IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
-		//defer tearDown(t)
+		defer tearDown(t)
 		defer checkTxClosure(t, 1, 0, 1)
 		pgStr := `SELECT cid FROM eth.uncle_cids WHERE block_number = $1`
 		var actualUncleCid string
@@ -144,7 +144,6 @@ func TestPGXIndexer(t *testing.T) {
 			t.Fatalf("Got the wrong CID, got %s, wanted %s", actualUncleCid, expectedUncleCid.String())
 		}
 	})
-	return
 
 	t.Run("Publish and index transaction IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
