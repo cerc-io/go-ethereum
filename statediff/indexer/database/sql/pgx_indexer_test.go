@@ -20,6 +20,7 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -76,6 +77,7 @@ func setupPGX(t *testing.T) {
 func TestPGXIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
+		time.Sleep(100 * time.Millisecond)
 		defer tearDown(t)
 		defer checkTxClosure(t, 1, 0, 1)
 		pgStr := `SELECT cid, cast(td AS TEXT), cast(reward AS TEXT), block_hash, coinbase
@@ -122,6 +124,7 @@ func TestPGXIndexer(t *testing.T) {
 
 	t.Run("Publish and index uncle IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
+		time.Sleep(100 * time.Millisecond)
 		defer tearDown(t)
 		defer checkTxClosure(t, 1, 0, 1)
 		pgStr := `SELECT cid FROM eth.uncle_cids WHERE cid = $1`
