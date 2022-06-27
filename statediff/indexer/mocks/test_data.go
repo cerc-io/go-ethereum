@@ -21,6 +21,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -54,7 +55,8 @@ var (
 	}
 	MockTransactions, MockReceipts, SenderAddr = createTransactionsAndReceipts(TestConfig, BlockNumber)
 	// Create uncles and add them here.
-	MockUncles                  = createUncles(BlockNumber, 3)
+	MockTotalUncles      int    = 3
+	MockUncles                  = createUncles(BlockNumber, MockTotalUncles)
 	MockBlock                   = types.NewBlock(&MockHeader, MockTransactions, MockUncles, MockReceipts, new(trie.Trie))
 	MockHeaderRlp, _            = rlp.EncodeToBytes(MockBlock.Header())
 	Address                     = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
@@ -446,13 +448,13 @@ func createTransactionsAndReceipts(config *params.ChainConfig, blockNumber *big.
 
 // This functions will create uncles
 func createUncles(blockNumber *big.Int, totalUncles int) []*types.Header {
-	var uncles = make([]*types.Header, totalUncles+1)
-	for i := 0; i <= totalUncles; i++ {
+	var uncles = make([]*types.Header, totalUncles)
+	for i := 0; i < totalUncles; i++ {
 		uncles[i] = &types.Header{
 			Difficulty: math.BigPow(11, 11),
 			Number:     blockNumber,
 			Time:       0,
-			Extra:      []byte("test uncle"),
+			Extra:      []byte("test uncle" + strconv.Itoa(i)),
 		}
 	}
 	return uncles

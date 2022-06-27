@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
+	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	node "github.com/ipfs/go-ipld-format"
@@ -79,6 +80,14 @@ func (tx *BatchTx) cacheIPLD(i node.Node) {
 		BlockNumber: tx.BlockNumber,
 		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
 		Data:        i.RawData(),
+	}
+}
+
+func (tx *BatchTx) cacheCid(c cid.Cid, data []byte) {
+	tx.iplds <- models.IPLDModel{
+		BlockNumber: tx.BlockNumber,
+		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String(),
+		Data:        data,
 	}
 }
 

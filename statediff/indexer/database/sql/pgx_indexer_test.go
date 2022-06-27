@@ -124,13 +124,7 @@ func TestPGXIndexer(t *testing.T) {
 		setupPGX(t)
 		defer tearDown(t)
 		defer checkTxClosure(t, 1, 0, 1)
-		pgStr := `SELECT cid FROM eth.uncle_cids WHERE block_number = $1`
-		var actualUncleCid string
-		err = db.QueryRow(context.Background(), pgStr, mocks.BlockNumber.Uint64()).Scan(&actualUncleCid)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		pgStr := `SELECT cid FROM eth.uncle_cids WHERE cid = $1`
 		uncles := mocks.MockBlock.Uncles()
 		uncleNodesRlp, err := rlp.EncodeToBytes(uncles)
 		if err != nil {
@@ -140,8 +134,17 @@ func TestPGXIndexer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if actualUncleCid != expectedUncleCid.String() {
-			t.Fatalf("Got the wrong CID, got %s, wanted %s", actualUncleCid, expectedUncleCid.String())
+
+		rows, err := db.Exec(context.Background(), pgStr, expectedUncleCid.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := rows.RowsAffected()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res != int64(mocks.MockTotalUncles) {
+			t.Fatalf("Incorrect number of uncles for cid %s, got %d, wanted %d", expectedUncleCid, res, mocks.MockTotalUncles)
 		}
 	})
 

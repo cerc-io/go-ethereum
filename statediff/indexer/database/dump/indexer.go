@@ -218,34 +218,34 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 		return err
 	}
 
-	// Calculate total block rewards
-	var uncleReward *big.Int = big.NewInt(0)
-	for _, uncleNode := range uncleNodes {
-		tx.cacheIPLD(uncleNode) // Not sure if this is needed....
-		// in PoA networks uncle reward is 0
-		if sdi.chainConfig.Clique == nil {
-			uncleReward = uncleReward.Add(shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64()), uncleReward)
-		}
-	}
-
 	// Create a CID and write the uncle list.
 	uncleCid, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleNodesRlp, multihash.KECCAK_256)
 	if err != nil {
 		return err
 	}
 
-	uncle := models.UncleModel{
-		BlockNumber: blockNumber.String(),
-		HeaderID:    headerID,
-		CID:         uncleCid.String(),
-		MhKey:       shared.MultihashKeyFromCID(uncleCid),
-		ParentHash:  uncleNodes[0].ParentHash.String(),
-		// I don't think we want this field anymore, since we no longer have a single BlockHash.
-		BlockHash: uncleNodes[0].Hash().String(), // How do we calculate the blockHash since we are no longer using a single header? rlpHash?
-		Reward:    uncleReward.String(),
-	}
-	if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", uncle); err != nil {
-		return err
+	tx.cacheCid(uncleCid, uncleNodesRlp)
+	// Calculate total block rewards
+	for _, uncleNode := range uncleNodes {
+		var uncleReward *big.Int
+		// in PoA networks uncle reward is 0
+		if sdi.chainConfig.Clique != nil {
+			uncleReward = big.NewInt(0)
+		} else {
+			uncleReward = shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64())
+		}
+		uncle := models.UncleModel{
+			BlockNumber: blockNumber.String(),
+			HeaderID:    headerID,
+			CID:         uncleCid.String(),
+			MhKey:       shared.MultihashKeyFromCID(uncleCid),
+			ParentHash:  uncleNode.ParentHash.String(),
+			BlockHash:   uncleNode.Hash().String(),
+			Reward:      uncleReward.String(),
+		}
+		if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", uncle); err != nil {
+			return err
+		}
 	}
 	return nil
 }

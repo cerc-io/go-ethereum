@@ -5,7 +5,7 @@ on:
 
 env:
   stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || '382aca8e42bc5e33f301f77cdd2e09cc80602fc3'}}
-  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || '67c32e9d4d12b786eb4135d82392cb708f96b1c9' }}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'e0586229b95125b2c0c80459c5062858b22a64cf' }}
   GOPATH: /tmp/go
 
 jobs:
