@@ -30,27 +30,26 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/file/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
-	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
-const dbDirectory = "/file"
+const dbDirectory = "/file_indexer"
 const pgCopyStatement = `COPY %s FROM '%s' CSV`
 
 func setupCSVLegacy(t *testing.T) {
 	mockLegacyBlock = legacyData.MockBlock
 	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-	file.TestConfig.Mode = file.CSV
-	file.TestConfig.OutputDir = "./statediffing_legacy_test"
+	file.CSVTestConfig.OutputDir = "./statediffing_legacy_test"
 
-	if _, err := os.Stat(file.TestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
-		err := os.RemoveAll(file.TestConfig.OutputDir)
+	if _, err := os.Stat(file.CSVTestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
+		err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 		require.NoError(t, err)
 	}
 
-	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.TestConfig)
+	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.CSVTestConfig)
 	require.NoError(t, err)
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -67,6 +66,7 @@ func setupCSVLegacy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+
 	for _, node := range legacyData.StateDiffs {
 		err = ind.PushStateNode(tx, node, legacyData.MockBlock.Hash().String())
 		require.NoError(t, err)
@@ -75,7 +75,6 @@ func setupCSVLegacy(t *testing.T) {
 	require.Equal(t, legacyData.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
 
 	connStr := postgres.DefaultConfig.DbConnectionString()
-
 	sqlxdb, err = sqlx.Connect("postgres", connStr)
 	if err != nil {
 		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
@@ -83,41 +82,42 @@ func setupCSVLegacy(t *testing.T) {
 }
 
 func dumpCSVFileData(t *testing.T) {
-	outputDir := filepath.Join(dbDirectory, file.TestConfig.OutputDir)
+	outputDir := filepath.Join(dbDirectory, file.CSVTestConfig.OutputDir)
 
 	for _, tbl := range file.Tables {
-		stm := fmt.Sprintf(pgCopyStatement, tbl.Name, file.TableFile(outputDir, tbl.Name))
-
+		var stmt string
 		varcharColumns := tbl.VarcharColumns()
 		if len(varcharColumns) > 0 {
-			stm = fmt.Sprintf(
+			stmt = fmt.Sprintf(
 				pgCopyStatement+" FORCE NOT NULL %s",
 				tbl.Name,
-				file.TableFile(outputDir, tbl.Name),
+				file.TableFilePath(outputDir, tbl.Name),
 				strings.Join(varcharColumns, ", "),
 			)
+		} else {
+			stmt = fmt.Sprintf(pgCopyStatement, tbl.Name, file.TableFilePath(outputDir, tbl.Name))
 		}
 
-		_, err = sqlxdb.Exec(stm)
+		_, err = sqlxdb.Exec(stmt)
 		require.NoError(t, err)
 	}
 }
 
 func dumpWatchedAddressesCSVFileData(t *testing.T) {
-	outputFilePath := filepath.Join(dbDirectory, file.TestConfig.WatchedAddressesFilePath)
-	stm := fmt.Sprintf(pgCopyStatement, types.TableWatchedAddresses.Name, outputFilePath)
+	outputFilePath := filepath.Join(dbDirectory, file.CSVTestConfig.WatchedAddressesFilePath)
+	stmt := fmt.Sprintf(pgCopyStatement, types.TableWatchedAddresses.Name, outputFilePath)
 
-	_, err = sqlxdb.Exec(stm)
+	_, err = sqlxdb.Exec(stmt)
 	require.NoError(t, err)
 }
 
 func tearDownCSV(t *testing.T) {
 	file.TearDownDB(t, sqlxdb)
 
-	err := os.RemoveAll(file.TestConfig.OutputDir)
+	err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 	require.NoError(t, err)
 
-	if err := os.Remove(file.TestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(file.CSVTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
 

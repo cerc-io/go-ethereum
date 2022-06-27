@@ -44,21 +44,19 @@ import (
 )
 
 func setupCSVIndexer(t *testing.T) {
-	file.TestConfig.Mode = file.CSV
-	file.TestConfig.OutputDir = "./statediffing_test"
-	file.TestConfig.WatchedAddressesFilePath = "./statediffing_watched_addresses_test_file.csv"
+	file.CSVTestConfig.OutputDir = "./statediffing_test"
 
-	if _, err := os.Stat(file.TestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
-		err := os.RemoveAll(file.TestConfig.OutputDir)
+	if _, err := os.Stat(file.CSVTestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
+		err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 		require.NoError(t, err)
 	}
 
-	if _, err := os.Stat(file.TestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.WatchedAddressesFilePath)
+	if _, err := os.Stat(file.CSVTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.CSVTestConfig.WatchedAddressesFilePath)
 		require.NoError(t, err)
 	}
 
-	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.TestConfig)
+	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.CSVTestConfig)
 	require.NoError(t, err)
 
 	connStr := postgres.DefaultConfig.DbConnectionString()

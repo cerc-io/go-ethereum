@@ -35,13 +35,12 @@ import (
 func setupLegacy(t *testing.T) {
 	mockLegacyBlock = legacyData.MockBlock
 	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-	file.TestConfig.Mode = file.SQL
 
-	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.FilePath)
+	if _, err := os.Stat(file.SQLTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.SQLTestConfig.FilePath)
 		require.NoError(t, err)
 	}
-	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.TestConfig)
+	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.SQLTestConfig)
 	require.NoError(t, err)
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -58,6 +57,7 @@ func setupLegacy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+
 	for _, node := range legacyData.StateDiffs {
 		err = ind.PushStateNode(tx, node, legacyData.MockBlock.Hash().String())
 		require.NoError(t, err)
@@ -66,7 +66,6 @@ func setupLegacy(t *testing.T) {
 	require.Equal(t, legacyData.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
 
 	connStr := postgres.DefaultConfig.DbConnectionString()
-
 	sqlxdb, err = sqlx.Connect("postgres", connStr)
 	if err != nil {
 		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
@@ -74,7 +73,7 @@ func setupLegacy(t *testing.T) {
 }
 
 func dumpFileData(t *testing.T) {
-	sqlFileBytes, err := os.ReadFile(file.TestConfig.FilePath)
+	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
 
 	_, err = sqlxdb.Exec(string(sqlFileBytes))
@@ -84,7 +83,7 @@ func dumpFileData(t *testing.T) {
 func resetAndDumpWatchedAddressesFileData(t *testing.T) {
 	resetDB(t)
 
-	sqlFileBytes, err := os.ReadFile(file.TestConfig.WatchedAddressesFilePath)
+	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.WatchedAddressesFilePath)
 	require.NoError(t, err)
 
 	_, err = sqlxdb.Exec(string(sqlFileBytes))
@@ -94,10 +93,10 @@ func resetAndDumpWatchedAddressesFileData(t *testing.T) {
 func tearDown(t *testing.T) {
 	file.TearDownDB(t, sqlxdb)
 
-	err := os.Remove(file.TestConfig.FilePath)
+	err := os.Remove(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
 
-	if err := os.Remove(file.TestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(file.SQLTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
 

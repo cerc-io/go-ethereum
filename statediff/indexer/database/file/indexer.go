@@ -44,9 +44,10 @@ import (
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
-const defaultOutputDir = "./statediff_output"
-const defaultFilePath = "./statediff.sql"
-const defaultWatchedAddressesFilePath = "./statediff-watched-addresses.csv"
+const defaultCSVOutputDir = "./statediff_output"
+const defaultSQLFilePath = "./statediff.sql"
+const defaultWatchedAddressesCSVFilePath = "./statediff-watched-addresses.csv"
+const defaultWatchedAddressesSQLFilePath = "./statediff-watched-addresses.sql"
 
 const watchedAddressesInsert = "INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ('%s', '%d', '%d') ON CONFLICT (address) DO NOTHING;"
 
@@ -71,23 +72,23 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, c
 	var writer FileWriter
 
 	watchedAddressesFilePath := config.WatchedAddressesFilePath
-	if watchedAddressesFilePath == "" {
-		watchedAddressesFilePath = defaultWatchedAddressesFilePath
-	}
-	log.Info("Writing watched addresses to file", "file", watchedAddressesFilePath)
 
 	switch config.Mode {
 	case CSV:
 		outputDir := config.OutputDir
 		if outputDir == "" {
-			outputDir = defaultOutputDir
+			outputDir = defaultCSVOutputDir
 		}
 
 		if _, err := os.Stat(outputDir); !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("cannot create output directory, directory (%s) already exists", outputDir)
 		}
-
 		log.Info("Writing statediff CSV files to directory", "file", outputDir)
+
+		if watchedAddressesFilePath == "" {
+			watchedAddressesFilePath = defaultWatchedAddressesCSVFilePath
+		}
+		log.Info("Writing watched addresses to file", "file", watchedAddressesFilePath)
 
 		writer, err = NewCSVWriter(outputDir, watchedAddressesFilePath)
 		if err != nil {
@@ -96,7 +97,7 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, c
 	case SQL:
 		filePath := config.FilePath
 		if filePath == "" {
-			filePath = defaultFilePath
+			filePath = defaultSQLFilePath
 		}
 		if _, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("cannot create file, file (%s) already exists", filePath)
@@ -106,6 +107,11 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, c
 			return nil, fmt.Errorf("unable to create file (%s), err: %v", filePath, err)
 		}
 		log.Info("Writing statediff SQL statements to file", "file", filePath)
+
+		if watchedAddressesFilePath == "" {
+			watchedAddressesFilePath = defaultWatchedAddressesSQLFilePath
+		}
+		log.Info("Writing watched addresses to file", "file", watchedAddressesFilePath)
 
 		writer = NewSQLWriter(file, watchedAddressesFilePath)
 	default:

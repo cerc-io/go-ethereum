@@ -44,20 +44,17 @@ import (
 )
 
 func setupIndexer(t *testing.T) {
-	file.TestConfig.Mode = file.SQL
-	file.TestConfig.WatchedAddressesFilePath = "./statediffing_watched_addresses_test_file.sql"
-
-	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.FilePath)
+	if _, err := os.Stat(file.SQLTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.SQLTestConfig.FilePath)
 		require.NoError(t, err)
 	}
 
-	if _, err := os.Stat(file.TestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.WatchedAddressesFilePath)
+	if _, err := os.Stat(file.SQLTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.SQLTestConfig.WatchedAddressesFilePath)
 		require.NoError(t, err)
 	}
 
-	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.TestConfig)
+	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.SQLTestConfig)
 	require.NoError(t, err)
 
 	connStr := postgres.DefaultConfig.DbConnectionString()

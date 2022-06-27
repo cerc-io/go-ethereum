@@ -37,7 +37,7 @@ const (
 
 type column struct {
 	name    string
-	typ     colType
+	dbType  colType
 	isArray bool
 }
 type Table struct {
@@ -48,10 +48,10 @@ type Table struct {
 func (tbl *Table) ToCsvRow(args ...interface{}) []string {
 	var row []string
 	for i, col := range tbl.Columns {
-		value := col.typ.formatter()(args[i])
+		value := col.dbType.formatter()(args[i])
 
 		if col.isArray {
-			valueList := funk.Map(args[i], col.typ.formatter()).([]string)
+			valueList := funk.Map(args[i], col.dbType.formatter()).([]string)
 			value = fmt.Sprintf("{%s}", strings.Join(valueList, ","))
 		}
 
@@ -62,7 +62,7 @@ func (tbl *Table) ToCsvRow(args ...interface{}) []string {
 
 func (tbl *Table) VarcharColumns() []string {
 	columns := funk.Filter(tbl.Columns, func(col column) bool {
-		return col.typ == varchar
+		return col.dbType == varchar
 	}).([]column)
 
 	columnNames := funk.Map(columns, func(col column) string {

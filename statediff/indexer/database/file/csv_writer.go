@@ -31,10 +31,11 @@ import (
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/file/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
-	"github.com/ethereum/go-ethereum/statediff/types"
+	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
 var (
@@ -100,7 +101,7 @@ func makeFileWriters(dir string, tables []*types.Table) (fileWriters, error) {
 	}
 	writers := fileWriters{}
 	for _, tbl := range tables {
-		w, err := newFileWriter(TableFile(dir, tbl.Name))
+		w, err := newFileWriter(TableFilePath(dir, tbl.Name))
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +194,7 @@ func (csw *CSVWriter) Flush() {
 	<-csw.flushFinished
 }
 
-func TableFile(dir, name string) string { return filepath.Join(dir, name+".csv") }
+func TableFilePath(dir, name string) string { return filepath.Join(dir, name+".csv") }
 
 // Close satisfies io.Closer
 func (csw *CSVWriter) Close() error {
@@ -345,7 +346,7 @@ func (csw *CSVWriter) loadWatchedAddresses() ([]common.Address, error) {
 }
 
 // InsertWatchedAddresses inserts the given addresses in a file
-func (csw *CSVWriter) insertWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error {
+func (csw *CSVWriter) insertWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
 	// load csv rows from watched addresses file
 	watchedAddresses, err := csw.loadWatchedAddresses()
 	if err != nil {
@@ -370,7 +371,7 @@ func (csw *CSVWriter) insertWatchedAddresses(args []types.WatchAddressArg, curre
 		}
 	}
 
-	// watched addresses need to be flushed immediately as they also need to be read from the file
+	// watched addresses need to be flushed immediately to the file to keep them in sync with in-memory watched addresses
 	csw.watchedAddressesWriter.Flush()
 	err = csw.watchedAddressesWriter.Error()
 	if err != nil {
@@ -381,7 +382,7 @@ func (csw *CSVWriter) insertWatchedAddresses(args []types.WatchAddressArg, curre
 }
 
 // RemoveWatchedAddresses removes the given watched addresses from a file
-func (csw *CSVWriter) removeWatchedAddresses(args []types.WatchAddressArg) error {
+func (csw *CSVWriter) removeWatchedAddresses(args []sdtypes.WatchAddressArg) error {
 	// load csv rows from watched addresses file
 	watchedAddressesFilePath := csw.watchedAddressesWriter.file.Name()
 	rows, err := loadWatchedAddressesRows(watchedAddressesFilePath)
@@ -391,7 +392,7 @@ func (csw *CSVWriter) removeWatchedAddresses(args []types.WatchAddressArg) error
 
 	// get rid of rows having addresses to be removed
 	filteredRows := funk.Filter(rows, func(row []string) bool {
-		return !funk.Contains(args, func(arg types.WatchAddressArg) bool {
+		return !funk.Contains(args, func(arg sdtypes.WatchAddressArg) bool {
 			// Compare first column in table for address
 			return arg.Address == row[0]
 		})
@@ -401,7 +402,7 @@ func (csw *CSVWriter) removeWatchedAddresses(args []types.WatchAddressArg) error
 }
 
 // SetWatchedAddresses clears and inserts the given addresses in a file
-func (csw *CSVWriter) setWatchedAddresses(args []types.WatchAddressArg, currentBlockNumber *big.Int) error {
+func (csw *CSVWriter) setWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
 	var rows [][]string
 	for _, arg := range args {
 		row := types.TableWatchedAddresses.ToCsvRow(arg.Address, strconv.FormatUint(arg.CreatedAt, 10), currentBlockNumber.String(), "0")

@@ -81,11 +81,11 @@ func testPushBlockAndState(t *testing.T, block *types.Block, receipts types.Rece
 }
 
 func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) {
-	if _, err := os.Stat(file.TestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
-		err := os.Remove(file.TestConfig.FilePath)
+	if _, err := os.Stat(file.CSVTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
+		err := os.Remove(file.CSVTestConfig.FilePath)
 		require.NoError(t, err)
 	}
-	ind, err := file.NewStateDiffIndexer(context.Background(), chainConf, file.TestConfig)
+	ind, err := file.NewStateDiffIndexer(context.Background(), chainConf, file.CSVTestConfig)
 	require.NoError(t, err)
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -118,7 +118,7 @@ func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) {
 }
 
 func dumpData(t *testing.T) {
-	sqlFileBytes, err := os.ReadFile(file.TestConfig.FilePath)
+	sqlFileBytes, err := os.ReadFile(file.CSVTestConfig.FilePath)
 	require.NoError(t, err)
 
 	_, err = sqlxdb.Exec(string(sqlFileBytes))
@@ -127,7 +127,7 @@ func dumpData(t *testing.T) {
 
 func tearDown(t *testing.T) {
 	file.TearDownDB(t, sqlxdb)
-	err := os.Remove(file.TestConfig.FilePath)
+	err := os.Remove(file.CSVTestConfig.FilePath)
 	require.NoError(t, err)
 	err = sqlxdb.Close()
 	require.NoError(t, err)

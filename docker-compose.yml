@@ -24,4 +24,4 @@ services:
     ports:
       - "127.0.0.1:8077:5432"
     volumes:
-      - ./statediff/indexer/database/file:/file
+      - ./statediff/indexer/database/file:/file_indexer

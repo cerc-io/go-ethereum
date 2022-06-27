@@ -59,17 +59,26 @@ func (c Config) Type() shared.DBType {
 	return shared.FILE
 }
 
-// TestConfig config for unit tests
-var TestConfig = Config{
+var nodeInfo = node.Info{
+	GenesisBlock: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
+	NetworkID:    "1",
+	ChainID:      1,
+	ID:           "mockNodeID",
+	ClientName:   "go-ethereum",
+}
+
+// CSVTestConfig config for unit tests
+var CSVTestConfig = Config{
 	Mode:                     CSV,
 	OutputDir:                "./statediffing_test",
-	FilePath:                 "./statediffing_test_file.sql",
 	WatchedAddressesFilePath: "./statediffing_watched_addresses_test_file.csv",
-	NodeInfo: node.Info{
-		GenesisBlock: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3",
-		NetworkID:    "1",
-		ChainID:      1,
-		ID:           "mockNodeID",
-		ClientName:   "go-ethereum",
-	},
+	NodeInfo:                 nodeInfo,
+}
+
+// SQLTestConfig config for unit tests
+var SQLTestConfig = Config{
+	Mode:                     SQL,
+	FilePath:                 "./statediffing_test_file.sql",
+	WatchedAddressesFilePath: "./statediffing_watched_addresses_test_file.sql",
+	NodeInfo:                 nodeInfo,
 }
