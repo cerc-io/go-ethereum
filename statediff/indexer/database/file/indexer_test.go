@@ -27,6 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
@@ -253,7 +254,10 @@ func TestFileIndexer(t *testing.T) {
 
 		require.Equal(t, headerCID.String(), header.CID)
 		require.Equal(t, mocks.MockBlock.Difficulty().String(), header.TD)
-		require.Equal(t, "2000000000000021250", header.Reward)
+
+		uncRewards := shared.CalcEthUncleInclusionRewards(&mocks.MockHeader, mocks.MockUncles)
+		totalRewards := big.NewInt(0).Add(uncRewards, big.NewInt(2000000000000021250))
+		require.Equal(t, totalRewards.String(), header.Reward)
 		require.Equal(t, mocks.MockHeader.Coinbase.String(), header.Coinbase)
 		dc, err := cid.Decode(header.CID)
 		if err != nil {
@@ -267,6 +271,30 @@ func TestFileIndexer(t *testing.T) {
 			t.Fatal(err)
 		}
 		require.Equal(t, mocks.MockHeaderRlp, data)
+	})
+	t.Run("Publish and index uncle IPLDs in a single tx", func(t *testing.T) {
+		setup(t)
+		dumpFileData(t)
+		defer tearDown(t)
+		pgStr := `SELECT cid FROM eth.uncle_cids WHERE block_number = $1`
+		var actualUncleCid string
+		err = sqlxdb.QueryRow(pgStr, mocks.BlockNumber.Uint64()).Scan(&actualUncleCid)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		uncles := mocks.MockBlock.Uncles()
+		uncleNodesRlp, err := rlp.EncodeToBytes(uncles)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedUncleCid, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleNodesRlp, multihash.KECCAK_256)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if actualUncleCid != expectedUncleCid.String() {
+			t.Fatalf("Got the wrong CID, got %s, wanted %s", actualUncleCid, expectedUncleCid.String())
+		}
 	})
 	t.Run("Publish and index transaction IPLDs in a single tx", func(t *testing.T) {
 		setup(t)
