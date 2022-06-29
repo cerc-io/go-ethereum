@@ -109,25 +109,6 @@ func TestSQLFileIndexerLegacy(t *testing.T) {
 		setupLegacy(t)
 		dumpFileData(t)
 		defer tearDown(t)
-		pgStr := `SELECT cid, td, reward, block_hash, coinbase
-				FROM eth.header_cids
-				WHERE block_number = $1`
-		// check header was properly indexed
-		type res struct {
-			CID       string
-			TD        string
-			Reward    string
-			BlockHash string `db:"block_hash"`
-			Coinbase  string `db:"coinbase"`
-		}
-		header := new(res)
-		err = sqlxdb.QueryRowx(pgStr, legacyData.BlockNumber.Uint64()).StructScan(header)
-		require.NoError(t, err)
-
-		require.Equal(t, legacyHeaderCID.String(), header.CID)
-		require.Equal(t, legacyData.MockBlock.Difficulty().String(), header.TD)
-		require.Equal(t, "5000000000000011250", header.Reward)
-		require.Equal(t, legacyData.MockBlock.Coinbase().String(), header.Coinbase)
-		require.Nil(t, legacyData.MockHeader.BaseFee)
+		testLegacyPublishAndIndexHeaderIPLDs(t)
 	})
 }

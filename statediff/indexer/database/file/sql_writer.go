@@ -116,6 +116,9 @@ func (sqw *SQLWriter) Loop() {
 func (sqw *SQLWriter) Close() error {
 	close(sqw.quitChan)
 	<-sqw.doneChan
+	close(sqw.stmts)
+	close(sqw.flushChan)
+	close(sqw.flushFinished)
 	return sqw.wc.Close()
 }
 

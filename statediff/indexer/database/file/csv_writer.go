@@ -200,6 +200,9 @@ func TableFilePath(dir, name string) string { return filepath.Join(dir, name+".c
 func (csw *CSVWriter) Close() error {
 	close(csw.quitChan)
 	<-csw.doneChan
+	close(csw.rows)
+	close(csw.flushChan)
+	close(csw.flushFinished)
 	return csw.writers.close()
 }
 

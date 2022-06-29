@@ -34,7 +34,7 @@ type FileWriter interface {
 	Close() error
 	Flush()
 
-	// Methods to write out data to tables
+	// Methods to upsert ethereum data model objects
 	upsertNode(node nodeinfo.Info)
 	upsertHeaderCID(header models.HeaderModel)
 	upsertUncleCID(uncle models.UncleModel)
