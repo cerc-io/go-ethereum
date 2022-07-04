@@ -24,15 +24,15 @@ var (
 	ind       interfaces.StateDiffIndexer
 	ipfsPgGet = `SELECT data FROM public.blocks
 					WHERE key = $1 AND block_number = $2`
-	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
-	mockBlock                                                                      *types.Block
-	headerCID, trx1CID, trx2CID, trx3CID, trx4CID, trx5CID                         cid.Cid
-	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                                    cid.Cid
-	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5                               []byte
-	state1CID, state2CID, storageCID                                               cid.Cid
-	contract1Address, contract2Address, contract3Address, contract4Address         string
-	contract1CreatedAt, contract2CreatedAt, contract3CreatedAt, contract4CreatedAt uint64
-	lastFilledAt, watchedAt1, watchedAt2, watchedAt3                               uint64
+	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                             []byte
+	mockBlock, mockNonCanonicalBlock                                                  *types.Block
+	headerCID, mockNonCanonicalHeaderCID, trx1CID, trx2CID, trx3CID, trx4CID, trx5CID cid.Cid
+	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                                       cid.Cid
+	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5                                  []byte
+	state1CID, state2CID, storageCID                                                  cid.Cid
+	contract1Address, contract2Address, contract3Address, contract4Address            string
+	contract1CreatedAt, contract2CreatedAt, contract3CreatedAt, contract4CreatedAt    uint64
+	lastFilledAt, watchedAt1, watchedAt2, watchedAt3                                  uint64
 )
 
 func init() {
@@ -43,6 +43,8 @@ func init() {
 
 	mockBlock = mocks.MockBlock
 	txs, rcts := mocks.MockBlock.Transactions(), mocks.MockReceipts
+
+	mockNonCanonicalBlock = mocks.MockNonCanonicalBlock
 
 	buf := new(bytes.Buffer)
 	txs.EncodeIndex(0, buf)
@@ -96,6 +98,7 @@ func init() {
 	buf.Reset()
 
 	headerCID, _ = ipld.RawdataToCid(ipld.MEthHeader, mocks.MockHeaderRlp, multihash.KECCAK_256)
+	mockNonCanonicalHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, mocks.MockNonCanonicalHeaderRlp, multihash.KECCAK_256)
 	trx1CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx1, multihash.KECCAK_256)
 	trx2CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx2, multihash.KECCAK_256)
 	trx3CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx3, multihash.KECCAK_256)

@@ -19,6 +19,7 @@ package sql_test
 import (
 	"context"
 	"math/big"
+	"sort"
 	"testing"
 
 	"github.com/ipfs/go-cid"
@@ -69,6 +70,44 @@ func setupPGX(t *testing.T) {
 	}
 
 	require.Equal(t, mocks.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
+}
+
+func setupPGXNonCanonical(t *testing.T) {
+	setupPGXIndexer(t)
+	var tx1 interfaces.Batch
+
+	tx1, err = ind.PushBlock(
+		mockBlock,
+		mocks.MockReceipts,
+		mocks.MockBlock.Difficulty())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range mocks.StateDiffs {
+		err = ind.PushStateNode(tx1, node, mockBlock.Hash().String())
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, mocks.BlockNumber.String(), tx1.(*sql.BatchTx).BlockNumber)
+	if err := tx1.Submit(err); err != nil {
+		t.Fatal(err)
+	}
+
+	var tx2 interfaces.Batch
+	tx2, err = ind.PushBlock(
+		mocks.MockNonCanonicalBlock,
+		mocks.MockNonCanonicalBlockReceipts,
+		mocks.MockNonCanonicalBlock.Difficulty())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	require.Equal(t, mocks.BlockNumber.String(), tx2.(*sql.BatchTx).BlockNumber)
+	if err := tx2.Submit(err); err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO index state & storage nodes for second block
 }
 
 func TestPGXIndexer(t *testing.T) {
@@ -258,7 +297,7 @@ func TestPGXIndexer(t *testing.T) {
 				AND header_cids.block_number = $1
 				ORDER BY transaction_cids.index`
 		logsPgStr := `SELECT log_cids.index, log_cids.address, log_cids.topic0, log_cids.topic1, data FROM eth.log_cids
-    				INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
+					INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
 					INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
 					WHERE receipt_cids.leaf_cid = $1 ORDER BY eth.log_cids.index ASC`
 		err = db.Select(context.Background(), &rcts, rctsPgStr, mocks.BlockNumber.Uint64())
@@ -601,6 +640,215 @@ func TestPGXIndexer(t *testing.T) {
 				t.Fatal(err)
 			}
 			require.Equal(t, []byte{}, data)
+		}
+	})
+}
+
+func XTestPGXIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		// check indexed headers
+		pgStr := `SELECT block_hash, cid, cast(td AS TEXT), cast(reward AS TEXT),
+		tx_root, receipt_root, uncle_root, coinbase
+		FROM eth.header_cids
+		WHERE block_number = $1`
+		headerRes := make([]models.HeaderModel, 0)
+		err = db.Select(context.Background(), &headerRes, pgStr, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedRes := []models.HeaderModel{
+			{
+				BlockHash:       mockBlock.Hash().String(),
+				CID:             headerCID.String(),
+				TotalDifficulty: mockBlock.Difficulty().String(),
+				TxRoot:          mockBlock.TxHash().String(),
+				RctRoot:         mockBlock.ReceiptHash().String(),
+				UncleRoot:       mockBlock.UncleHash().String(),
+				Coinbase:        mocks.MockHeader.Coinbase.String(),
+			},
+			{
+				BlockHash:       mockNonCanonicalBlock.Hash().String(),
+				CID:             mockNonCanonicalHeaderCID.String(),
+				TotalDifficulty: mockNonCanonicalBlock.Difficulty().String(),
+				TxRoot:          mockNonCanonicalBlock.TxHash().String(),
+				RctRoot:         mockNonCanonicalBlock.ReceiptHash().String(),
+				UncleRoot:       mockNonCanonicalBlock.UncleHash().String(),
+				Coinbase:        mocks.MockNonCanonicalHeader.Coinbase.String(),
+			},
+		}
+		expectedRes[0].Reward = shared.CalcEthBlockReward(mockBlock.Header(), mockBlock.Uncles(), mockBlock.Transactions(), mocks.MockReceipts).String()
+		expectedRes[1].Reward = shared.CalcEthBlockReward(mockNonCanonicalBlock.Header(), mockNonCanonicalBlock.Uncles(), mockNonCanonicalBlock.Transactions(), mocks.MockNonCanonicalBlockReceipts).String()
+
+		require.Equal(t, len(expectedRes), len(headerRes))
+		require.ElementsMatch(t,
+			[]string{mockBlock.Hash().String(), mocks.MockNonCanonicalBlock.Hash().String()},
+			[]string{headerRes[0].BlockHash, headerRes[1].BlockHash},
+		)
+
+		if headerRes[0].BlockHash == mockBlock.Hash().String() {
+			require.Equal(t, expectedRes[0], headerRes[0])
+			require.Equal(t, expectedRes[1], headerRes[1])
+		} else {
+			require.Equal(t, expectedRes[1], headerRes[0])
+			require.Equal(t, expectedRes[0], headerRes[1])
+		}
+
+		// check indexed IPLD blocks
+		var data []byte
+		var prefixedKey string
+
+		prefixedKey = shared.MultihashKeyFromCID(headerCID)
+		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+		require.Equal(t, mocks.MockHeaderRlp, data)
+
+		prefixedKey = shared.MultihashKeyFromCID(mockNonCanonicalHeaderCID)
+		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+		require.Equal(t, mocks.MockNonCanonicalHeaderRlp, data)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		// check indexed transactions
+		pgStr := `SELECT header_id, tx_hash, cid, dst, src, index,
+		tx_data, tx_type, CAST(value as TEXT)
+		FROM eth.transaction_cids
+		WHERE block_number = $1`
+		txRes := make([]models.TxModel, 0)
+		err = db.Select(context.Background(), &txRes, pgStr, mocks.BlockNumber.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		mockBlockTxs := mocks.MockBlock.Transactions()
+		expectedBlockTxs := []models.TxModel{
+			{
+				HeaderID: mockBlock.Hash().String(),
+				TxHash:   mockBlockTxs[0].Hash().String(),
+				CID:      trx1CID.String(),
+				Dst:      shared.HandleZeroAddrPointer(mockBlockTxs[0].To()),
+				Src:      mocks.SenderAddr.String(),
+				Index:    0,
+				Data:     mockBlockTxs[0].Data(),
+				Type:     mockBlockTxs[0].Type(),
+				Value:    mockBlockTxs[0].Value().String(),
+			},
+			{
+				HeaderID: mockBlock.Hash().String(),
+				TxHash:   mockBlockTxs[1].Hash().String(),
+				CID:      trx2CID.String(),
+				Dst:      shared.HandleZeroAddrPointer(mockBlockTxs[1].To()),
+				Src:      mocks.SenderAddr.String(),
+				Index:    1,
+				Data:     mockBlockTxs[1].Data(),
+				Type:     mockBlockTxs[1].Type(),
+				Value:    mockBlockTxs[1].Value().String(),
+			},
+			{
+				HeaderID: mockBlock.Hash().String(),
+				TxHash:   mockBlockTxs[2].Hash().String(),
+				CID:      trx3CID.String(),
+				Dst:      shared.HandleZeroAddrPointer(mockBlockTxs[2].To()),
+				Src:      mocks.SenderAddr.String(),
+				Index:    2,
+				Data:     mockBlockTxs[2].Data(),
+				Type:     mockBlockTxs[2].Type(),
+				Value:    mockBlockTxs[2].Value().String(),
+			},
+			{
+				HeaderID: mockBlock.Hash().String(),
+				TxHash:   mockBlockTxs[3].Hash().String(),
+				CID:      trx4CID.String(),
+				Dst:      shared.HandleZeroAddrPointer(mockBlockTxs[3].To()),
+				Src:      mocks.SenderAddr.String(),
+				Index:    3,
+				Data:     mockBlockTxs[3].Data(),
+				Type:     mockBlockTxs[3].Type(),
+				Value:    mockBlockTxs[3].Value().String(),
+			},
+			{
+				HeaderID: mockBlock.Hash().String(),
+				TxHash:   mockBlockTxs[4].Hash().String(),
+				CID:      trx5CID.String(),
+				Dst:      shared.HandleZeroAddrPointer(mockBlockTxs[4].To()),
+				Src:      mocks.SenderAddr.String(),
+				Index:    4,
+				Data:     mockBlockTxs[4].Data(),
+				Type:     mockBlockTxs[4].Type(),
+				Value:    mockBlockTxs[4].Value().String(),
+			},
+		}
+
+		mockNonCanonicalBlockTxs := mocks.MockNonCanonicalBlock.Transactions()
+		expectedNonCanonicalBlockTxs := []models.TxModel{
+			{
+				HeaderID: mockNonCanonicalBlock.Hash().String(),
+				TxHash:   mockNonCanonicalBlockTxs[0].Hash().String(),
+				CID:      trx2CID.String(),
+				Dst:      mockNonCanonicalBlockTxs[0].To().String(),
+				Src:      mocks.SenderAddr.String(),
+				Index:    0,
+				Data:     mockNonCanonicalBlockTxs[0].Data(),
+				Type:     mockNonCanonicalBlockTxs[0].Type(),
+				Value:    mockNonCanonicalBlockTxs[0].Value().String(),
+			},
+			{
+				HeaderID: mockNonCanonicalBlock.Hash().String(),
+				TxHash:   mockNonCanonicalBlockTxs[1].Hash().String(),
+				CID:      trx5CID.String(),
+				Dst:      mockNonCanonicalBlockTxs[1].To().String(),
+				Src:      mocks.SenderAddr.String(),
+				Index:    1,
+				Data:     mockNonCanonicalBlockTxs[1].Data(),
+				Type:     mockNonCanonicalBlockTxs[1].Type(),
+				Value:    mockNonCanonicalBlockTxs[1].Value().String(),
+			},
+		}
+
+		require.Equal(t, len(expectedBlockTxs)+len(expectedNonCanonicalBlockTxs), len(txRes))
+		sort.Slice(txRes, func(i, j int) bool {
+			if txRes[i].HeaderID == txRes[j].HeaderID {
+				return txRes[i].Index < txRes[j].Index
+			} else if txRes[i].HeaderID == mockBlock.Hash().String() {
+				return true
+			} else {
+				return false
+			}
+		})
+
+		for i, expectedTx := range expectedBlockTxs {
+			require.Equal(t, expectedTx, txRes[i])
+		}
+		for i, expectedTx := range expectedNonCanonicalBlockTxs {
+			require.Equal(t, expectedTx, txRes[len(expectedBlockTxs)+i])
+		}
+
+		// check indexed IPLD blocks
+		var data []byte
+		var prefixedKey string
+
+		txCIDs := []cid.Cid{trx1CID, trx2CID, trx3CID, trx4CID, trx5CID}
+		txRLPs := [][]byte{tx1, tx2, tx3, tx4, tx5}
+		for i, txCID := range txCIDs {
+			prefixedKey = shared.MultihashKeyFromCID(txCID)
+			err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+			if err != nil {
+				t.Fatal(err)
+			}
+			require.Equal(t, txRLPs[i], data)
 		}
 	})
 }
