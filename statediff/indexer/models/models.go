@@ -83,6 +83,7 @@ type AccessListElementModel struct {
 // ReceiptModel is the db model for eth.receipt_cids
 type ReceiptModel struct {
 	BlockNumber  string `db:"block_number"`
+	HeaderID     string `db:"header_id"`
 	TxID         string `db:"tx_id"`
 	LeafCID      string `db:"leaf_cid"`
 	LeafMhKey    string `db:"leaf_mh_key"`
@@ -146,6 +147,7 @@ type StateAccountModel struct {
 // LogsModel is the db model for eth.logs
 type LogsModel struct {
 	BlockNumber string `db:"block_number"`
+	HeaderID    string `db:"header_id"`
 	ReceiptID   string `db:"rct_id"`
 	LeafCID     string `db:"leaf_cid"`
 	LeafMhKey   string `db:"leaf_mh_key"`

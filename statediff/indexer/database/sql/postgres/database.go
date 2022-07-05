@@ -52,7 +52,7 @@ func (db *DB) InsertUncleStm() string {
 // InsertTxStm satisfies the sql.Statements interface
 func (db *DB) InsertTxStm() string {
 	return `INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, mh_key, tx_data, tx_type, value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-			ON CONFLICT (tx_hash, block_number) DO NOTHING`
+			ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING`
 }
 
 // InsertAccessListElementStm satisfies the sql.Statements interface
@@ -63,14 +63,14 @@ func (db *DB) InsertAccessListElementStm() string {
 
 // InsertRctStm satisfies the sql.Statements interface
 func (db *DB) InsertRctStm() string {
-	return `INSERT INTO eth.receipt_cids (block_number, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			ON CONFLICT (tx_id, block_number) DO NOTHING`
+	return `INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			ON CONFLICT (tx_id, header_id, block_number) DO NOTHING`
 }
 
 // InsertLogStm satisfies the sql.Statements interface
 func (db *DB) InsertLogStm() string {
-	return `INSERT INTO eth.log_cids (block_number, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, topic3, log_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-			ON CONFLICT (rct_id, index, block_number) DO NOTHING`
+	return `INSERT INTO eth.log_cids (block_number, header_id, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, topic3, log_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			ON CONFLICT (rct_id, index, header_id, block_number) DO NOTHING`
 }
 
 // InsertStateStm satisfies the sql.Statements interface

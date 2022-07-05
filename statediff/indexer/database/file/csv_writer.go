@@ -281,7 +281,7 @@ func (csw *CSVWriter) upsertAccessListElement(accessListElement models.AccessLis
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	var values []interface{}
-	values = append(values, rct.BlockNumber, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
+	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
 		rct.PostState, rct.PostStatus, rct.LogRoot)
 	csw.rows <- tableRow{types.TableReceipt, values}
 	indexerMetrics.receipts.Inc(1)
@@ -290,7 +290,7 @@ func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
 		var values []interface{}
-		values = append(values, l.BlockNumber, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
+		values = append(values, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3, l.Data)
 		csw.rows <- tableRow{types.TableLog, values}
 		indexerMetrics.logs.Inc(1)

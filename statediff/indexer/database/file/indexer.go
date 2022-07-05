@@ -371,6 +371,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 
 		rctModel := &models.ReceiptModel{
 			BlockNumber:  args.blockNumber.String(),
+			HeaderID:     args.headerID,
 			TxID:         txID,
 			Contract:     contract,
 			ContractHash: contractHash,
@@ -399,6 +400,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 
 			logDataSet[idx] = &models.LogsModel{
 				BlockNumber: args.blockNumber.String(),
+				HeaderID:    args.headerID,
 				ReceiptID:   txID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),

@@ -132,6 +132,7 @@ var TableReceipt = Table{
 	"eth.receipt_cids",
 	[]column{
 		{name: "block_number", dbType: bigint},
+		{name: "header_id", dbType: varchar},
 		{name: "tx_id", dbType: varchar},
 		{name: "leaf_cid", dbType: text},
 		{name: "contract", dbType: varchar},
@@ -147,6 +148,7 @@ var TableLog = Table{
 	"eth.log_cids",
 	[]column{
 		{name: "block_number", dbType: bigint},
+		{name: "header_id", dbType: varchar},
 		{name: "leaf_cid", dbType: text},
 		{name: "leaf_mh_key", dbType: text},
 		{name: "rct_id", dbType: varchar},

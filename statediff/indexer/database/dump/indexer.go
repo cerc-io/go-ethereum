@@ -323,6 +323,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 
 		rctModel := &models.ReceiptModel{
 			BlockNumber:  args.blockNumber.String(),
+			HeaderID:     args.headerID,
 			TxID:         trxID,
 			Contract:     contract,
 			ContractHash: contractHash,
@@ -353,6 +354,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 
 			logDataSet[idx] = &models.LogsModel{
 				BlockNumber: args.blockNumber.String(),
+				HeaderID:    args.headerID,
 				ReceiptID:   trxID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),

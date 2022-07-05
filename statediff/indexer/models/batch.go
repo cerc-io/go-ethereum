@@ -39,7 +39,7 @@ type UncleBatch struct {
 // TxBatch holds the arguments for a batch insert of tx data
 type TxBatch struct {
 	BlockNumbers []string
-	HeaderID     string
+	HeaderIDs    []string
 	Indexes      []int64
 	TxHashes     []string
 	CIDs         []string
@@ -62,6 +62,7 @@ type AccessListBatch struct {
 // ReceiptBatch holds the arguments for a batch insert of receipt data
 type ReceiptBatch struct {
 	BlockNumbers   []string
+	HeaderIDs      []string
 	TxIDs          []string
 	LeafCIDs       []string
 	LeafMhKeys     []string
@@ -75,6 +76,7 @@ type ReceiptBatch struct {
 // LogBatch holds the arguments for a batch insert of log data
 type LogBatch struct {
 	BlockNumbers []string
+	HeaderIDs    []string
 	LeafCIDs     []string
 	LeafMhKeys   []string
 	ReceiptIDs   []string
@@ -90,7 +92,7 @@ type LogBatch struct {
 // StateBatch holds the arguments for a batch insert of state data
 type StateBatch struct {
 	BlockNumbers []string
-	HeaderID     string
+	HeaderIDs    []string
 	Paths        [][]byte
 	StateKeys    []string
 	NodeTypes    []int
@@ -102,7 +104,7 @@ type StateBatch struct {
 // AccountBatch holds the arguments for a batch insert of account data
 type AccountBatch struct {
 	BlockNumbers []string
-	HeaderID     string
+	HeaderIDs    []string
 	StatePaths   [][]byte
 	Balances     []string
 	Nonces       []uint64
@@ -113,7 +115,7 @@ type AccountBatch struct {
 // StorageBatch holds the arguments for a batch insert of storage data
 type StorageBatch struct {
 	BlockNumbers []string
-	HeaderID     string
+	HeaderIDs    []string
 	StatePaths   [][]string
 	Paths        [][]byte
 	StorageKeys  []string
