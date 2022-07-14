@@ -628,7 +628,7 @@ func (sds *Service) Unsubscribe(id rpc.ID) error {
 // This function will check the status of geth syncing.
 // It will return false if geth has finished syncing.
 // It will return a true Geth is still syncing.
-func (sds *Service) GetSyncStatus(pubEthAPI *ethapi.PublicEthereumAPI) (bool, error) {
+func (sds *Service) GetSyncStatus(pubEthAPI *ethapi.EthereumAPI) (bool, error) {
 	syncStatus, err := pubEthAPI.Syncing()
 	if err != nil {
 		return true, err
@@ -648,7 +648,7 @@ func (sds *Service) WaitingForSync() error {
 
 	// Has the geth node synced to head?
 	Synced := false
-	pubEthAPI := ethapi.NewPublicEthereumAPI(sds.BackendAPI)
+	pubEthAPI := ethapi.NewEthereumAPI(sds.BackendAPI)
 	for !Synced {
 		syncStatus, err := sds.GetSyncStatus(pubEthAPI)
 		if err != nil {
