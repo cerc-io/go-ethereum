@@ -78,9 +78,10 @@ var (
 	event3 = core.ChainEvent{Block: testBlock3}
 
 	defaultParams = statediff.Params{
-		IncludeBlock:    true,
-		IncludeReceipts: true,
-		IncludeTD:       true,
+		IncludeBlock:     true,
+		IncludeReceipts:  true,
+		IncludeTD:        true,
+		WatchedAddresses: []common.Address{},
 	}
 )
 

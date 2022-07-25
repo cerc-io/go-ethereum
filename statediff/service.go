@@ -477,6 +477,13 @@ func (sds *Service) StateDiffAt(blockNumber uint64, params Params) (*Payload, er
 	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
 	log.Info("sending state diff", "block height", blockNumber)
 
+	// use watched addresses from statediffing write loop if not provided
+	if params.WatchedAddresses == nil {
+		writeLoopParams.RLock()
+		params.WatchedAddresses = make([]common.Address, len(writeLoopParams.WatchedAddresses))
+		copy(params.WatchedAddresses, writeLoopParams.WatchedAddresses)
+		writeLoopParams.RUnlock()
+	}
 	// compute leaf paths of watched addresses in the params
 	params.ComputeWatchedAddressesLeafPaths()
 
@@ -493,6 +500,13 @@ func (sds *Service) StateDiffFor(blockHash common.Hash, params Params) (*Payload
 	currentBlock := sds.BlockChain.GetBlockByHash(blockHash)
 	log.Info("sending state diff", "block hash", blockHash)
 
+	// use watched addresses from statediffing write loop if not provided
+	if params.WatchedAddresses == nil {
+		writeLoopParams.RLock()
+		params.WatchedAddresses = make([]common.Address, len(writeLoopParams.WatchedAddresses))
+		copy(params.WatchedAddresses, writeLoopParams.WatchedAddresses)
+		writeLoopParams.RUnlock()
+	}
 	// compute leaf paths of watched addresses in the params
 	params.ComputeWatchedAddressesLeafPaths()
 
@@ -777,6 +791,15 @@ func (sds *Service) StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- typ
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
 func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) error {
+	log.Info("writing state diff at", "block height", blockNumber)
+
+	// use watched addresses from statediffing write loop if not provided
+	if params.WatchedAddresses == nil {
+		writeLoopParams.RLock()
+		params.WatchedAddresses = make([]common.Address, len(writeLoopParams.WatchedAddresses))
+		copy(params.WatchedAddresses, writeLoopParams.WatchedAddresses)
+		writeLoopParams.RUnlock()
+	}
 	// compute leaf paths of watched addresses in the params
 	params.ComputeWatchedAddressesLeafPaths()
 
@@ -793,6 +816,15 @@ func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) error {
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
 func (sds *Service) WriteStateDiffFor(blockHash common.Hash, params Params) error {
+	log.Info("writing state diff for", "block hash", blockHash)
+
+	// use watched addresses from statediffing write loop if not provided
+	if params.WatchedAddresses == nil {
+		writeLoopParams.RLock()
+		params.WatchedAddresses = make([]common.Address, len(writeLoopParams.WatchedAddresses))
+		copy(params.WatchedAddresses, writeLoopParams.WatchedAddresses)
+		writeLoopParams.RUnlock()
+	}
 	// compute leaf paths of watched addresses in the params
 	params.ComputeWatchedAddressesLeafPaths()
 
