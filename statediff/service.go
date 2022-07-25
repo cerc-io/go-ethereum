@@ -170,7 +170,8 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	var db sql.Database
 	var err error
 	quitCh := make(chan bool)
-	if params.IndexerConfig != nil {
+	indexerConfigAvailable := params.IndexerConfig != nil
+	if indexerConfigAvailable {
 		info := nodeinfo.Info{
 			GenesisBlock: blockChain.Genesis().Hash().Hex(),
 			NetworkID:    strconv.FormatUint(cfg.NetworkId, 10),
@@ -201,11 +202,13 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		statediffMetrics:       statediffMetrics,
 		sqlFileWaitingForWrite: false,
 	}
-	if params.IndexerConfig.Type() == shared.POSTGRES {
-		knownGaps.checkForGaps = true
-	} else {
-		log.Info("We are not going to check for gaps on start up since we are not connected to Postgres!")
-		knownGaps.checkForGaps = false
+	if indexerConfigAvailable {
+		if params.IndexerConfig.Type() == shared.POSTGRES {
+			knownGaps.checkForGaps = true
+		} else {
+			log.Info("We are not going to check for gaps on start up since we are not connected to Postgres!")
+			knownGaps.checkForGaps = false
+		}
 	}
 	sds := &Service{
 		Mutex:             sync.Mutex{},
@@ -226,9 +229,11 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	stack.RegisterLifecycle(sds)
 	stack.RegisterAPIs(sds.APIs())
 
-	err = loadWatchedAddresses(indexer)
-	if err != nil {
-		return err
+	if indexerConfigAvailable {
+		err = loadWatchedAddresses(indexer)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -927,9 +932,11 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		}
 
 		// update the db
-		err = sds.indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
-		if err != nil {
-			return err
+		if sds.indexer != nil {
+			err = sds.indexer.InsertWatchedAddresses(filteredArgs, currentBlockNumber)
+			if err != nil {
+				return err
+			}
 		}
 
 		// update in-memory params
@@ -949,9 +956,11 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		}
 
 		// update the db
-		err = sds.indexer.RemoveWatchedAddresses(args)
-		if err != nil {
-			return err
+		if sds.indexer != nil {
+			err = sds.indexer.RemoveWatchedAddresses(args)
+			if err != nil {
+				return err
+			}
 		}
 
 		// update in-memory params
@@ -965,9 +974,11 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		}
 
 		// update the db
-		err = sds.indexer.SetWatchedAddresses(args, currentBlockNumber)
-		if err != nil {
-			return err
+		if sds.indexer != nil {
+			err = sds.indexer.SetWatchedAddresses(args, currentBlockNumber)
+			if err != nil {
+				return err
+			}
 		}
 
 		// update in-memory params
@@ -975,9 +986,11 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 		writeLoopParams.ComputeWatchedAddressesLeafPaths()
 	case types2.Clear:
 		// update the db
-		err := sds.indexer.ClearWatchedAddresses()
-		if err != nil {
-			return err
+		if sds.indexer != nil {
+			err := sds.indexer.ClearWatchedAddresses()
+			if err != nil {
+				return err
+			}
 		}
 
 		// update in-memory params
