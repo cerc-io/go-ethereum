@@ -1345,7 +1345,7 @@ func setWS(ctx *cli.Context, cfg *node.Config) {
 		cfg.WSPathPrefix = ctx.String(WSPathPrefixFlag.Name)
 	}
 
-	if ctx.GlobalBool(StateDiffFlag.Name) {
+	if ctx.Bool(StateDiffFlag.Name) {
 		cfg.WSModules = append(cfg.WSModules, "statediff")
 	}
 }

@@ -156,7 +156,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		cfg.Ethstats.URL = ctx.String(utils.EthStatsURLFlag.Name)
 	}
 	applyMetricConfig(ctx, &cfg)
-	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
+	if ctx.Bool(utils.StateDiffFlag.Name) {
 		cfg.Eth.Diffing = true
 	}
 
@@ -192,25 +192,25 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		}
 	}
 
-	if ctx.GlobalBool(utils.StateDiffFlag.Name) {
+	if ctx.Bool(utils.StateDiffFlag.Name) {
 		var indexerConfig interfaces.Config
 		var clientName, nodeID string
-		if ctx.GlobalIsSet(utils.StateDiffWritingFlag.Name) {
-			clientName = ctx.GlobalString(utils.StateDiffDBClientNameFlag.Name)
-			if ctx.GlobalIsSet(utils.StateDiffDBNodeIDFlag.Name) {
-				nodeID = ctx.GlobalString(utils.StateDiffDBNodeIDFlag.Name)
+		if ctx.IsSet(utils.StateDiffWritingFlag.Name) {
+			clientName = ctx.String(utils.StateDiffDBClientNameFlag.Name)
+			if ctx.IsSet(utils.StateDiffDBNodeIDFlag.Name) {
+				nodeID = ctx.String(utils.StateDiffDBNodeIDFlag.Name)
 			} else {
 				utils.Fatalf("Must specify node ID for statediff DB output")
 			}
 
-			dbTypeStr := ctx.GlobalString(utils.StateDiffDBTypeFlag.Name)
+			dbTypeStr := ctx.String(utils.StateDiffDBTypeFlag.Name)
 			dbType, err := shared.ResolveDBType(dbTypeStr)
 			if err != nil {
 				utils.Fatalf("%v", err)
 			}
 			switch dbType {
 			case shared.FILE:
-				fileModeStr := ctx.GlobalString(utils.StateDiffFileMode.Name)
+				fileModeStr := ctx.String(utils.StateDiffFileMode.Name)
 				fileMode, err := file.ResolveFileMode(fileModeStr)
 				if err != nil {
 					utils.Fatalf("%v", err)
@@ -218,47 +218,47 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 				indexerConfig = file.Config{
 					Mode:                     fileMode,
-					OutputDir:                ctx.GlobalString(utils.StateDiffFileCsvDir.Name),
-					FilePath:                 ctx.GlobalString(utils.StateDiffFilePath.Name),
-					WatchedAddressesFilePath: ctx.GlobalString(utils.StateDiffWatchedAddressesFilePath.Name),
+					OutputDir:                ctx.String(utils.StateDiffFileCsvDir.Name),
+					FilePath:                 ctx.String(utils.StateDiffFilePath.Name),
+					WatchedAddressesFilePath: ctx.String(utils.StateDiffWatchedAddressesFilePath.Name),
 				}
 			case shared.POSTGRES:
-				driverTypeStr := ctx.GlobalString(utils.StateDiffDBDriverTypeFlag.Name)
+				driverTypeStr := ctx.String(utils.StateDiffDBDriverTypeFlag.Name)
 				driverType, err := postgres.ResolveDriverType(driverTypeStr)
 				if err != nil {
 					utils.Fatalf("%v", err)
 				}
 				pgConfig := postgres.Config{
-					Hostname:     ctx.GlobalString(utils.StateDiffDBHostFlag.Name),
-					Port:         ctx.GlobalInt(utils.StateDiffDBPortFlag.Name),
-					DatabaseName: ctx.GlobalString(utils.StateDiffDBNameFlag.Name),
-					Username:     ctx.GlobalString(utils.StateDiffDBUserFlag.Name),
-					Password:     ctx.GlobalString(utils.StateDiffDBPasswordFlag.Name),
+					Hostname:     ctx.String(utils.StateDiffDBHostFlag.Name),
+					Port:         ctx.Int(utils.StateDiffDBPortFlag.Name),
+					DatabaseName: ctx.String(utils.StateDiffDBNameFlag.Name),
+					Username:     ctx.String(utils.StateDiffDBUserFlag.Name),
+					Password:     ctx.String(utils.StateDiffDBPasswordFlag.Name),
 					ID:           nodeID,
 					ClientName:   clientName,
 					Driver:       driverType,
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBMinConns.Name) {
-					pgConfig.MinConns = ctx.GlobalInt(utils.StateDiffDBMinConns.Name)
+				if ctx.IsSet(utils.StateDiffDBMinConns.Name) {
+					pgConfig.MinConns = ctx.Int(utils.StateDiffDBMinConns.Name)
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBMaxConns.Name) {
-					pgConfig.MaxConns = ctx.GlobalInt(utils.StateDiffDBMaxConns.Name)
+				if ctx.IsSet(utils.StateDiffDBMaxConns.Name) {
+					pgConfig.MaxConns = ctx.Int(utils.StateDiffDBMaxConns.Name)
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBMaxIdleConns.Name) {
-					pgConfig.MaxIdle = ctx.GlobalInt(utils.StateDiffDBMaxIdleConns.Name)
+				if ctx.IsSet(utils.StateDiffDBMaxIdleConns.Name) {
+					pgConfig.MaxIdle = ctx.Int(utils.StateDiffDBMaxIdleConns.Name)
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBMaxConnLifetime.Name) {
-					pgConfig.MaxConnLifetime = time.Duration(ctx.GlobalDuration(utils.StateDiffDBMaxConnLifetime.Name).Seconds())
+				if ctx.IsSet(utils.StateDiffDBMaxConnLifetime.Name) {
+					pgConfig.MaxConnLifetime = time.Duration(ctx.Duration(utils.StateDiffDBMaxConnLifetime.Name).Seconds())
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBMaxConnIdleTime.Name) {
-					pgConfig.MaxConnIdleTime = time.Duration(ctx.GlobalDuration(utils.StateDiffDBMaxConnIdleTime.Name).Seconds())
+				if ctx.IsSet(utils.StateDiffDBMaxConnIdleTime.Name) {
+					pgConfig.MaxConnIdleTime = time.Duration(ctx.Duration(utils.StateDiffDBMaxConnIdleTime.Name).Seconds())
 				}
-				if ctx.GlobalIsSet(utils.StateDiffDBConnTimeout.Name) {
-					pgConfig.ConnTimeout = time.Duration(ctx.GlobalDuration(utils.StateDiffDBConnTimeout.Name).Seconds())
+				if ctx.IsSet(utils.StateDiffDBConnTimeout.Name) {
+					pgConfig.ConnTimeout = time.Duration(ctx.Duration(utils.StateDiffDBConnTimeout.Name).Seconds())
 				}
 				indexerConfig = pgConfig
 			case shared.DUMP:
-				dumpTypeStr := ctx.GlobalString(utils.StateDiffDBDumpDst.Name)
+				dumpTypeStr := ctx.String(utils.StateDiffDBDumpDst.Name)
 				dumpType, err := dumpdb.ResolveDumpType(dumpTypeStr)
 				if err != nil {
 					utils.Fatalf("%v", err)
@@ -279,13 +279,13 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		}
 		p := statediff.Config{
 			IndexerConfig:     indexerConfig,
-			KnownGapsFilePath: ctx.GlobalString(utils.StateDiffKnownGapsFilePath.Name),
+			KnownGapsFilePath: ctx.String(utils.StateDiffKnownGapsFilePath.Name),
 			ID:                nodeID,
 			ClientName:        clientName,
 			Context:           context.Background(),
-			EnableWriteLoop:   ctx.GlobalBool(utils.StateDiffWritingFlag.Name),
-			NumWorkers:        ctx.GlobalUint(utils.StateDiffWorkersFlag.Name),
-			WaitForSync:       ctx.GlobalBool(utils.StateDiffWaitForSync.Name),
+			EnableWriteLoop:   ctx.Bool(utils.StateDiffWritingFlag.Name),
+			NumWorkers:        ctx.Uint(utils.StateDiffWorkersFlag.Name),
+			WaitForSync:       ctx.Bool(utils.StateDiffWaitForSync.Name),
 		}
 		utils.RegisterStateDiffService(stack, eth, &cfg.Eth, p, backend)
 	}
