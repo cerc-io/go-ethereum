@@ -65,9 +65,7 @@ type KnownGapsState struct {
 }
 
 // Create a new KnownGapsState struct, currently unused.
-func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifference *big.Int,
-	errorState bool, writeFilePath string, db sql.Database, statediffMetrics statediffMetricsHandles) *KnownGapsState {
-
+func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifference *big.Int, errorState bool, writeFilePath string, db sql.Database, statediffMetrics statediffMetricsHandles) *KnownGapsState {
 	return &KnownGapsState{
 		checkForGaps:       checkForGaps,
 		processingKey:      processingKey,
@@ -77,7 +75,6 @@ func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifferenc
 		db:                 db,
 		statediffMetrics:   statediffMetrics,
 	}
-
 }
 
 func minMax(array []*big.Int) (*big.Int, *big.Int) {
@@ -142,7 +139,6 @@ func (kg *KnownGapsState) captureErrorBlocks(knownErrorBlocks []*big.Int) {
 	log.Warn("The following Gaps were found", "knownErrorBlocks", knownErrorBlocks)
 	log.Warn("Updating known Gaps table", "startErrorBlock", startErrorBlock, "endErrorBlock", endErrorBlock, "processingKey", kg.processingKey)
 	kg.pushKnownGaps(startErrorBlock, endErrorBlock, false, kg.processingKey)
-
 }
 
 // Users provide the latestBlockInDb and the latestBlockOnChain
@@ -156,7 +152,6 @@ func isGap(latestBlockInDb *big.Int, latestBlockOnChain *big.Int, expectedDiffer
 		return true
 	}
 	return false
-
 }
 
 // This function will check for Gaps and update the DB if gaps are found.

@@ -128,7 +128,6 @@ func TestAccountSnapshotResolve(t *testing.T) {
 			t.Fatalf("error should be nil %v", gc)
 		}
 	}
-
 }
 
 func TestAccountSnapshotTree(t *testing.T) {

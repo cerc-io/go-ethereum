@@ -28,7 +28,6 @@ type gapValues struct {
 // Test for failures when they are expected, when we go from smaller block to larger block
 // We should no longer see the smaller block in DB
 func TestKnownGaps(t *testing.T) {
-
 	tests := []gapValues{
 		// Known Gaps
 		{knownErrorBlocksStart: 115, knownErrorBlocksEnd: 120, expectedDif: 1, processingKey: 1},
@@ -77,7 +76,6 @@ func testWriteToDb(t *testing.T, tests []gapValues, wipeDbBeforeStart bool) {
 		validateUpsert(t, service, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
 	}
 	tearDown(t, db)
-
 }
 
 // test writing blocks to file and then inserting them to DB
@@ -167,7 +165,6 @@ func testFindAndUpdateGaps(t *testing.T, wipeDbBeforeStart bool) {
 	startBlock.Add(latestBlockInDb, expectedDifference)
 	endBlock.Sub(latestBlockOnChain, expectedDifference)
 	validateUpsert(t, service, startBlock.Int64(), endBlock.Int64())
-
 }
 
 // test capturing missed blocks

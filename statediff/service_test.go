@@ -396,7 +396,7 @@ func testGetSyncStatus(t *testing.T) {
 		// Update the backend current block value
 		t.Log("Updating Current Block to: ", table.currentBlock)
 		backend.CurrBlock = table.currentBlock
-		pubEthAPI := ethapi.NewPublicEthereumAPI(service.BackendAPI)
+		pubEthAPI := ethapi.NewEthereumAPI(service.BackendAPI)
 		syncStatus, err := service.GetSyncStatus(pubEthAPI)
 
 		if err != nil {

@@ -187,7 +187,6 @@ func TestEthTxResolve(t *testing.T) {
 			t.Fatalf("error should be nil %v", gc)
 		}
 	}
-
 }
 
 func TestEthTxTree(t *testing.T) {
