@@ -290,7 +290,6 @@ func TestEthBlockResolveNonLinkFieldsExtraPathElements(t *testing.T) {
 		if err.Error() != "unexpected path elements past "+field {
 			t.Fatalf("Wrong error\r\nexpected %s\r\ngot %s", "unexpected path elements past "+field, err.Error())
 		}
-
 	}
 }
 

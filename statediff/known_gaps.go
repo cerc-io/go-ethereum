@@ -65,9 +65,7 @@ type KnownGapsState struct {
 }
 
 // Create a new KnownGapsState struct, currently unused.
-func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifference *big.Int,
-	errorState bool, writeFilePath string, db sql.Database, statediffMetrics statediffMetricsHandles) *KnownGapsState {
-
+func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifference *big.Int, errorState bool, writeFilePath string, db sql.Database, statediffMetrics statediffMetricsHandles) *KnownGapsState {
 	return &KnownGapsState{
 		checkForGaps:       checkForGaps,
 		processingKey:      processingKey,
@@ -77,7 +75,6 @@ func NewKnownGapsState(checkForGaps bool, processingKey int64, expectedDifferenc
 		db:                 db,
 		statediffMetrics:   statediffMetrics,
 	}
-
 }
 
 func minMax(array []*big.Int) (*big.Int, *big.Int) {

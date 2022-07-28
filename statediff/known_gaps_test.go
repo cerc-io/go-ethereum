@@ -28,7 +28,6 @@ type gapValues struct {
 // Test for failures when they are expected, when we go from smaller block to larger block
 // We should no longer see the smaller block in DB
 func TestKnownGaps(t *testing.T) {
-
 	tests := []gapValues{
 		// Known Gaps
 		{knownErrorBlocksStart: 115, knownErrorBlocksEnd: 120, expectedDif: 1, processingKey: 1},

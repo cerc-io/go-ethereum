@@ -120,5 +120,4 @@ func FindIntersection(a, b []string) []string {
 			}
 		}
 	}
-
 }
