@@ -21,6 +21,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"os"
+	"reflect"
+	"time"
+	"unicode"
+
+	"github.com/urfave/cli/v2"
+
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
@@ -41,12 +49,6 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 	"github.com/naoina/toml"
-	"github.com/urfave/cli/v2"
-	"math/big"
-	"os"
-	"reflect"
-	"time"
-	"unicode"
 )
 
 var (

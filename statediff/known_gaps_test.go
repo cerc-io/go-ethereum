@@ -76,7 +76,6 @@ func testWriteToDb(t *testing.T, tests []gapValues, wipeDbBeforeStart bool) {
 		validateUpsert(t, service, tc.knownErrorBlocksStart, tc.knownErrorBlocksEnd)
 	}
 	tearDown(t, db)
-
 }
 
 // test writing blocks to file and then inserting them to DB
@@ -166,7 +165,6 @@ func testFindAndUpdateGaps(t *testing.T, wipeDbBeforeStart bool) {
 	startBlock.Add(latestBlockInDb, expectedDifference)
 	endBlock.Sub(latestBlockOnChain, expectedDifference)
 	validateUpsert(t, service, startBlock.Int64(), endBlock.Int64())
-
 }
 
 // test capturing missed blocks
