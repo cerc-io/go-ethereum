@@ -218,11 +218,6 @@ func tearDown(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TODO Refactor rest of the tests to avoid duplication
-// func testPublishAndIndexHeaderIPLDs() (t *testing.T) {
-
-// }
-
 func setupTestData(t *testing.T) {
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -273,13 +268,15 @@ func setupTestDataNonCanonical(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, node := range mocks.StateDiffs {
+		err = ind.PushStateNode(tx2, node, mocks.MockNonCanonicalBlock.Hash().String())
+		require.NoError(t, err)
+	}
 
 	require.Equal(t, mocks.BlockNumber.String(), tx2.(*sql.BatchTx).BlockNumber)
 	if err := tx2.Submit(err); err != nil {
 		t.Fatal(err)
 	}
-
-	// TODO index state & storage nodes for second block
 }
 
 func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
@@ -671,5 +668,120 @@ func testPublishAndIndexLogsNonCanonical(t *testing.T) {
 				require.Equal(t, logRes[i].IPLDData, logRaw)
 			}
 		}
+	}
+}
+
+func testPublishAndIndexStateNonCanonical(t *testing.T) {
+	// check indexed state nodes
+	pgStr := `SELECT state_path, state_leaf_key, node_type, cid, mh_key, diff
+					FROM eth.state_cids
+					WHERE block_number = $1
+					AND header_id = $2
+					ORDER BY state_path`
+
+	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStateCID)
+	stateNodeCIDs := []cid.Cid{state1CID, state2CID, removedNodeCID, removedNodeCID}
+
+	expectedStateNodes := make([]models.StateNodeModel, 0)
+	for i, stateDiff := range mocks.StateDiffs {
+		expectedStateNodes = append(expectedStateNodes, models.StateNodeModel{
+			Path:     stateDiff.Path,
+			StateKey: common.BytesToHash(stateDiff.LeafKey).Hex(),
+			NodeType: stateDiff.NodeType.Int(),
+			CID:      stateNodeCIDs[i].String(),
+			MhKey:    shared.MultihashKeyFromCID(stateNodeCIDs[i]),
+			Diff:     true,
+		})
+	}
+	sort.Slice(expectedStateNodes, func(i, j int) bool {
+		if bytes.Compare(expectedStateNodes[i].Path, expectedStateNodes[j].Path) < 0 {
+			return true
+		} else {
+			return false
+		}
+	})
+
+	// check state nodes for canonical block
+	stateNodes := make([]models.StateNodeModel, 0)
+	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64(), mockBlock.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Equal(t, len(expectedStateNodes), len(stateNodes))
+
+	for i, expectedStateNode := range expectedStateNodes {
+		require.Equal(t, expectedStateNode, stateNodes[i])
+	}
+
+	// check state nodes for non-canonical block
+	stateNodes = make([]models.StateNodeModel, 0)
+	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64(), mockNonCanonicalBlock.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Equal(t, len(expectedStateNodes), len(stateNodes))
+
+	for i, expectedStateNode := range expectedStateNodes {
+		require.Equal(t, expectedStateNode, stateNodes[i])
+	}
+}
+
+func testPublishAndIndexStorageNonCanonical(t *testing.T) {
+	// check indexed storage nodes
+	pgStr := `SELECT state_path, storage_path, storage_leaf_key, node_type, cid, mh_key, diff
+					FROM eth.storage_cids
+					WHERE block_number = $1
+					AND header_id = $2
+					ORDER BY state_path, storage_path`
+
+	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStorageCID)
+	storageNodeCIDs := []cid.Cid{storageCID, removedNodeCID, removedNodeCID, removedNodeCID}
+
+	expectedStorageNodes := make([]models.StorageNodeModel, 0)
+	storageNodeIndex := 0
+	for _, stateDiff := range mocks.StateDiffs {
+		for _, storageNode := range stateDiff.StorageNodes {
+			expectedStorageNodes = append(expectedStorageNodes, models.StorageNodeModel{
+				StatePath:  stateDiff.Path,
+				Path:       storageNode.Path,
+				StorageKey: common.BytesToHash(storageNode.LeafKey).Hex(),
+				NodeType:   storageNode.NodeType.Int(),
+				CID:        storageNodeCIDs[storageNodeIndex].String(),
+				MhKey:      shared.MultihashKeyFromCID(storageNodeCIDs[storageNodeIndex]),
+				Diff:       true,
+			})
+			storageNodeIndex++
+		}
+	}
+	sort.Slice(expectedStorageNodes, func(i, j int) bool {
+		if bytes.Compare(expectedStorageNodes[i].Path, expectedStorageNodes[j].Path) < 0 {
+			return true
+		} else {
+			return false
+		}
+	})
+
+	// check storage nodes for canonical block
+	storageNodes := make([]models.StorageNodeModel, 0)
+	err = db.Select(context.Background(), &storageNodes, pgStr, mocks.BlockNumber.Uint64(), mockBlock.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
+
+	for i, expectedStorageNode := range expectedStorageNodes {
+		require.Equal(t, expectedStorageNode, storageNodes[i])
+	}
+
+	// check storage nodes for non-canonical block
+	storageNodes = make([]models.StorageNodeModel, 0)
+	err = db.Select(context.Background(), &storageNodes, pgStr, mocks.BlockNumber.Uint64(), mockNonCanonicalBlock.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
+
+	for i, expectedStorageNode := range expectedStorageNodes {
+		require.Equal(t, expectedStorageNode, storageNodes[i])
 	}
 }

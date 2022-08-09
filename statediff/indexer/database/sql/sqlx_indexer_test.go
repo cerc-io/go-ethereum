@@ -616,6 +616,22 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 
 		testPublishAndIndexLogsNonCanonical(t)
 	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupSQLXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStateNonCanonical(t)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupSQLXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStorageNonCanonical(t)
+	})
 }
 
 func TestSQLXWatchAddressMethods(t *testing.T) {

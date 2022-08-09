@@ -623,6 +623,22 @@ func TestPGXIndexerNonCanonical(t *testing.T) {
 
 		testPublishAndIndexLogsNonCanonical(t)
 	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStateNonCanonical(t)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStorageNonCanonical(t)
+	})
 }
 
 func TestPGXWatchAddressMethods(t *testing.T) {
