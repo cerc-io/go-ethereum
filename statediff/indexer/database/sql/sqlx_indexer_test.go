@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
@@ -51,25 +50,12 @@ func setupSQLXIndexer(t *testing.T) {
 
 func setupSQLX(t *testing.T) {
 	setupSQLXIndexer(t)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockBlock,
-		mocks.MockReceipts,
-		mocks.MockBlock.Difficulty())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, mockBlock.Hash().String())
-		require.NoError(t, err)
-	}
+	setupTestData(t)
+}
 
-	require.Equal(t, mocks.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
+func setupSQLXNonCanonical(t *testing.T) {
+	setupPGXIndexer(t)
+	setupTestDataNonCanonical(t)
 }
 
 func TestSQLXIndexer(t *testing.T) {
@@ -331,7 +317,7 @@ func TestSQLXIndexer(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Decode the log leaf node.
+			// Decode the receipt leaf node.
 			var nodeElements []interface{}
 			err = rlp.DecodeBytes(result[0].Data, &nodeElements)
 			require.NoError(t, err)
@@ -595,6 +581,32 @@ func TestSQLXIndexer(t *testing.T) {
 			}
 			require.Equal(t, []byte{}, data)
 		}
+	})
+}
+
+func TestSQLXIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupSQLXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexHeaderNonCanonical(t)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupSQLXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexTransactionsNonCanonical(t)
+	})
+
+	t.Run("Publish and index receipts", func(t *testing.T) {
+		setupSQLXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexReceiptsNonCanonical(t)
 	})
 }
 
