@@ -615,6 +615,14 @@ func TestPGXIndexerNonCanonical(t *testing.T) {
 
 		testPublishAndIndexReceiptsNonCanonical(t)
 	})
+
+	t.Run("Publish and index logs", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexLogsNonCanonical(t)
+	})
 }
 
 func TestPGXWatchAddressMethods(t *testing.T) {

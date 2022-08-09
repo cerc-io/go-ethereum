@@ -599,3 +599,77 @@ func testPublishAndIndexReceiptsNonCanonical(t *testing.T) {
 		require.Equal(t, nonCanonicalrctRLPs[i], data)
 	}
 }
+
+func testPublishAndIndexLogsNonCanonical(t *testing.T) {
+	// check indexed logs
+	pgStr := `SELECT address, log_data, topic0, topic1, topic2, topic3, data
+		FROM eth.log_cids
+		INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
+		WHERE log_cids.block_number = $1 AND header_id = $2 AND rct_id = $3
+		ORDER BY log_cids.index ASC`
+
+	type rctWithBlockHash struct {
+		rct       *types.Receipt
+		blockHash string
+	}
+	mockRcts := make([]rctWithBlockHash, 0)
+
+	for _, mockBlockRct := range mocks.MockReceipts {
+		mockRcts = append(mockRcts, rctWithBlockHash{
+			mockBlockRct,
+			mockBlock.Hash().String(),
+		})
+	}
+
+	for _, mockBlockRct := range mocks.MockNonCanonicalBlockReceipts {
+		mockRcts = append(mockRcts, rctWithBlockHash{
+			mockBlockRct,
+			mockNonCanonicalBlock.Hash().String(),
+		})
+	}
+
+	for _, mockRct := range mockRcts {
+		type logWithIPLD struct {
+			models.LogsModel
+			IPLDData []byte `db:"data"`
+		}
+		logRes := make([]logWithIPLD, 0)
+		err = db.Select(context.Background(), &logRes, pgStr, mocks.BlockNumber.Uint64(), mockRct.blockHash, mockRct.rct.TxHash.String())
+		require.NoError(t, err)
+		require.Equal(t, len(mockRct.rct.Logs), len(logRes))
+
+		for i, log := range mockRct.rct.Logs {
+			topicSet := make([]string, 4)
+			for ti, topic := range log.Topics {
+				topicSet[ti] = topic.Hex()
+			}
+
+			expectedLog := models.LogsModel{
+				Address: log.Address.String(),
+				Data:    log.Data,
+				Topic0:  topicSet[0],
+				Topic1:  topicSet[1],
+				Topic2:  topicSet[2],
+				Topic3:  topicSet[3],
+			}
+			require.Equal(t, expectedLog, logRes[i].LogsModel)
+
+			// check indexed log IPLD block
+			var nodeElements []interface{}
+			err = rlp.DecodeBytes(logRes[i].IPLDData, &nodeElements)
+			require.NoError(t, err)
+
+			if len(nodeElements) == 2 {
+				logRaw, err := rlp.EncodeToBytes(&log)
+				require.NoError(t, err)
+				// 2nd element of the leaf node contains the encoded log data.
+				require.Equal(t, nodeElements[1].([]byte), logRaw)
+			} else {
+				logRaw, err := rlp.EncodeToBytes(&log)
+				require.NoError(t, err)
+				// raw log was IPLDized
+				require.Equal(t, logRes[i].IPLDData, logRaw)
+			}
+		}
+	}
+}
