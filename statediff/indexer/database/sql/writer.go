@@ -45,14 +45,14 @@ func (w *Writer) Close() error {
 }
 
 /*
-INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase)
+INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-ON CONFLICT (block_hash, block_number) DO UPDATE SET (block_number, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase) = ($1, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, eth.header_cids.times_validated + 1, $16)
+ON CONFLICT (block_hash, block_number) DO UPDATE SET (block_number, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase) = ($1, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, eth.header_cids.times_validated + 1, $16)
 */
 func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertHeaderStm(),
 		header.BlockNumber, header.BlockHash, header.ParentHash, header.CID, header.TotalDifficulty, w.db.NodeID(),
-		header.Reward, header.StateRoot, header.TxRoot, header.RctRoot, header.UncleRoot, header.Bloom,
+		header.Reward, header.StateRoot, header.TxRoot, header.RctRoot, header.UnclesHash, header.Bloom,
 		header.Timestamp, header.MhKey, 1, header.Coinbase)
 	if err != nil {
 		return insertError{"eth.header_cids", err, w.db.InsertHeaderStm(), header}
@@ -62,12 +62,12 @@ func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 }
 
 /*
-INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key, index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (block_hash, block_number) DO NOTHING
 */
 func (w *Writer) upsertUncleCID(tx Tx, uncle models.UncleModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertUncleStm(),
-		uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID, uncle.Reward, uncle.MhKey)
+		uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID, uncle.Reward, uncle.MhKey, uncle.Index)
 	if err != nil {
 		return insertError{"eth.uncle_cids", err, w.db.InsertUncleStm(), uncle}
 	}
