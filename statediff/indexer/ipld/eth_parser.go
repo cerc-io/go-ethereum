@@ -125,35 +125,25 @@ func FromBlockJSON(r io.Reader) (*EthHeader, []*EthTx, []*EthTxTrie, error) {
 
 // FromBlockAndReceipts takes a block and processes it
 // to return it a set of IPLD nodes for further processing.
-func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthHeader, []*EthTx, []*EthTxTrie, []*EthReceipt, []*EthRctTrie, [][]node.Node, [][]cid.Cid, []cid.Cid, error) {
+func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHeader, []*EthTx, []*EthTxTrie, []*EthReceipt, []*EthRctTrie, [][]node.Node, [][]cid.Cid, []cid.Cid, error) {
 	// Process the header
 	headerNode, err := NewEthHeader(block.Header())
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
-	}
-
-	// Process the uncles
-	uncleNodes := make([]*EthHeader, len(block.Uncles()))
-	for i, uncle := range block.Uncles() {
-		uncleNode, err := NewEthHeader(uncle)
-		if err != nil {
-			return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
-		}
-		uncleNodes[i] = uncleNode
+		return nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 
 	// Process the txs
 	txNodes, txTrieNodes, err := processTransactions(block.Transactions(),
 		block.Header().TxHash[:])
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, nil, nil, err
 	}
 
 	// Process the receipts and logs
 	rctNodes, tctTrieNodes, logTrieAndLogNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := processReceiptsAndLogs(receipts,
 		block.Header().ReceiptHash[:])
 
-	return headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, tctTrieNodes, logTrieAndLogNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err
+	return headerNode, txNodes, txTrieNodes, rctNodes, tctTrieNodes, logTrieAndLogNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err
 }
 
 // processTransactions will take the found transactions in a parsed block body

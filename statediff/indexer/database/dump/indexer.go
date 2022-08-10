@@ -17,10 +17,14 @@
 package dump
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math/big"
 	"time"
+
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	dshelp "github.com/ipfs/go-ipfs-ds-help"
 
 	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
@@ -79,7 +83,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 
 	// Generate the block iplds
-	headerNode, uncleNodes, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld2.FromBlockAndReceipts(block, receipts)
+	headerNode, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld2.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
@@ -146,7 +150,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	traceMsg += fmt.Sprintf("header processing time: %s\r\n", tDiff.String())
 	t = time.Now()
 	// Publish and index uncles
-	err = sdi.processUncles(blockTx, headerID, block.Number(), uncleNodes)
+	err = sdi.processUncles(blockTx, headerID, block.Number(), block.UncleHash(), block.Uncles())
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +201,7 @@ func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, he
 		StateRoot:       header.Root.String(),
 		RctRoot:         header.ReceiptHash.String(),
 		TxRoot:          header.TxHash.String(),
-		UncleRoot:       header.UncleHash.String(),
+		UnclesHash:      header.UncleHash.String(),
 		Timestamp:       header.Time,
 		Coinbase:        header.Coinbase.String(),
 	}
@@ -206,25 +210,39 @@ func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, he
 }
 
 // processUncles publishes and indexes uncle IPLDs in Postgres
-func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNumber *big.Int, uncleNodes []*ipld2.EthHeader) error {
+func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNumber *big.Int, unclesHash common.Hash, uncles []*types.Header) error {
 	// publish and index uncles
-	for _, uncleNode := range uncleNodes {
-		tx.cacheIPLD(uncleNode)
+	uncleEncoding, err := rlp.EncodeToBytes(uncles)
+	if err != nil {
+		return err
+	}
+	preparedHash := crypto.Keccak256Hash(uncleEncoding)
+	if !bytes.Equal(preparedHash.Bytes(), unclesHash.Bytes()) {
+		return fmt.Errorf("derived uncles hash (%s) does not match the hash in the header (%s)", preparedHash.Hex(), unclesHash.Hex())
+	}
+	unclesCID, err := ipld2.RawdataToCid(ipld2.MEthHeaderList, uncleEncoding, multihash.KECCAK_256)
+	if err != nil {
+		return err
+	}
+	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(unclesCID.Hash()).String()
+	tx.cacheDirect(prefixedKey, uncleEncoding)
+	for i, uncle := range uncles {
 		var uncleReward *big.Int
 		// in PoA networks uncle reward is 0
 		if sdi.chainConfig.Clique != nil {
 			uncleReward = big.NewInt(0)
 		} else {
-			uncleReward = shared.CalcUncleMinerReward(blockNumber.Uint64(), uncleNode.Number.Uint64())
+			uncleReward = shared.CalcUncleMinerReward(blockNumber.Uint64(), uncle.Number.Uint64())
 		}
 		uncle := models.UncleModel{
 			BlockNumber: blockNumber.String(),
 			HeaderID:    headerID,
-			CID:         uncleNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(uncleNode.Cid()),
-			ParentHash:  uncleNode.ParentHash.String(),
-			BlockHash:   uncleNode.Hash().String(),
+			CID:         unclesCID.String(),
+			MhKey:       shared.MultihashKeyFromCID(unclesCID),
+			ParentHash:  uncle.ParentHash.String(),
+			BlockHash:   uncle.Hash().String(),
 			Reward:      uncleReward.String(),
+			Index:       int64(i),
 		}
 		if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", uncle); err != nil {
 			return err
