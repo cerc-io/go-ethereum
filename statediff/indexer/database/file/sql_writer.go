@@ -143,11 +143,11 @@ const (
 	ipldInsert = "INSERT INTO public.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
 
 	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, " +
-		"state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase) VALUES " +
+		"state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase) VALUES " +
 		"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '\\x%x', %d, '%s', %d, '%s');\n"
 
-	uncleInsert = "INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key) VALUES " +
-		"('%s', '%s', '%s', '%s', '%s', '%s', '%s');\n"
+	uncleInsert = "INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key, index) VALUES " +
+		"('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
 
 	txInsert = "INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, mh_key, tx_data, tx_type, " +
 		"value) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', '\\x%x', %d, '%s');\n"
@@ -212,14 +212,14 @@ func (sqw *SQLWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []
 func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 	stmt := fmt.Sprintf(headerInsert, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
 		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UncleRoot, header.Bloom, header.Timestamp, header.MhKey, 1, header.Coinbase)
+		header.RctRoot, header.UnclesHash, header.Bloom, header.Timestamp, header.MhKey, 1, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
 	indexerMetrics.blocks.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(uncleInsert, uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID,
-		uncle.Reward, uncle.MhKey))
+		uncle.Reward, uncle.MhKey, uncle.Index))
 }
 
 func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
