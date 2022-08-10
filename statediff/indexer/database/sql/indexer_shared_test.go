@@ -751,12 +751,12 @@ func testPublishAndIndexLogsNonCanonical(t *testing.T) {
 			require.NoError(t, err)
 
 			if len(nodeElements) == 2 {
-				logRaw, err := rlp.EncodeToBytes(&log)
+				logRaw, err := rlp.EncodeToBytes(log)
 				require.NoError(t, err)
 				// 2nd element of the leaf node contains the encoded log data.
 				require.Equal(t, nodeElements[1].([]byte), logRaw)
 			} else {
-				logRaw, err := rlp.EncodeToBytes(&log)
+				logRaw, err := rlp.EncodeToBytes(log)
 				require.NoError(t, err)
 				// raw log was IPLDized
 				require.Equal(t, logRes[i].IPLDData, logRaw)
