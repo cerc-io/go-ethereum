@@ -252,7 +252,7 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
 		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UncleRoot, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.MhKey, 1, header.Coinbase)
+		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.MhKey, 1, header.Coinbase)
 	csw.rows <- tableRow{types.TableHeader, values}
 	indexerMetrics.blocks.Inc(1)
 }
@@ -260,7 +260,7 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 func (csw *CSVWriter) upsertUncleCID(uncle models.UncleModel) {
 	var values []interface{}
 	values = append(values, uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID,
-		uncle.Reward, uncle.MhKey)
+		uncle.Reward, uncle.MhKey, uncle.Index)
 	csw.rows <- tableRow{types.TableUncle, values}
 }
 

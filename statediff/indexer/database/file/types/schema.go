@@ -49,7 +49,7 @@ var TableHeader = Table{
 		{name: "state_root", dbType: varchar},
 		{name: "tx_root", dbType: varchar},
 		{name: "receipt_root", dbType: varchar},
-		{name: "uncle_root", dbType: varchar},
+		{name: "uncles_hash", dbType: varchar},
 		{name: "bloom", dbType: bytea},
 		{name: "timestamp", dbType: numeric},
 		{name: "mh_key", dbType: text},
@@ -97,6 +97,7 @@ var TableUncle = Table{
 		{name: "cid", dbType: text},
 		{name: "reward", dbType: numeric},
 		{name: "mh_key", dbType: text},
+		{name: "index", dbType: integer},
 	},
 }
 
@@ -170,7 +171,7 @@ var TableStateAccount = Table{
 		{name: "state_path", dbType: bytea},
 		{name: "balance", dbType: numeric},
 		{name: "nonce", dbType: bigint},
-		{name: "code_hash", dbType: bytea},
+		{name: "code_hash", dbType: varchar},
 		{name: "storage_root", dbType: varchar},
 	},
 }
