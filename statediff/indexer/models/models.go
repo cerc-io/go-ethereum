@@ -36,7 +36,7 @@ type HeaderModel struct {
 	NodeID          string `db:"node_id"`
 	Reward          string `db:"reward"`
 	StateRoot       string `db:"state_root"`
-	UncleRoot       string `db:"uncle_root"`
+	UnclesHash      string `db:"uncles_hash"`
 	TxRoot          string `db:"tx_root"`
 	RctRoot         string `db:"receipt_root"`
 	Bloom           []byte `db:"bloom"`
@@ -54,6 +54,7 @@ type UncleModel struct {
 	CID         string `db:"cid"`
 	MhKey       string `db:"mh_key"`
 	Reward      string `db:"reward"`
+	Index       int64  `db:"index"`
 }
 
 // TxModel is the db model for eth.transaction_cids
