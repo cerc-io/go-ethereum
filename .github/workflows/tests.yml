@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: ">=1.18.0"
+          go-version: "1.18"
           check-latest: true
 
       - name: Checkout code
@@ -47,7 +47,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: ">=1.18.0"
+          go-version: "1.18"
           check-latest: true
 
       - name: Checkout code
@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: ">=1.18.0"
+          go-version: "1.18"
           check-latest: true
 
       - name: Checkout code
@@ -120,7 +120,8 @@ jobs:
         run: |
           COUNT=0
           ATTEMPTS=15
-          until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
+          docker ps
+          until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
           [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
           cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
           sleep 15;
@@ -128,13 +129,13 @@ jobs:
       - name: Create a new transaction.
         shell: bash
         run: |
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
           echo $?
 
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
-          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
           [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
           echo $rows
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
