@@ -22,55 +22,32 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
-func setupLegacy(t *testing.T) {
-	mockLegacyBlock = legacyData.MockBlock
-	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-
+func setupLegacySQLIndexer(t *testing.T) {
 	if _, err := os.Stat(file.SQLTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
 		err := os.Remove(file.SQLTestConfig.FilePath)
 		require.NoError(t, err)
 	}
-	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.SQLTestConfig)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockLegacyBlock,
-		legacyData.MockReceipts,
-		legacyData.MockBlock.Difficulty())
+
+	ind, err = file.NewStateDiffIndexer(context.Background(), test.LegacyConfig, file.SQLTestConfig)
 	require.NoError(t, err)
 
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-		if err := ind.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	for _, node := range legacyData.StateDiffs {
-		err = ind.PushStateNode(tx, node, legacyData.MockBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, legacyData.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
-
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
+}
+
+func setupLegacySQL(t *testing.T) {
+	setupLegacySQLIndexer(t)
+	test.SetupLegacyTestData(t, ind)
 }
 
 func dumpFileData(t *testing.T) {
@@ -108,9 +85,10 @@ func tearDown(t *testing.T) {
 
 func TestLegacySQLFileIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
-		setupLegacy(t)
+		setupLegacySQL(t)
 		dumpFileData(t)
 		defer tearDown(t)
-		testLegacyPublishAndIndexHeaderIPLDs(t)
+
+		test.TestLegacyIndexer(t, db)
 	})
 }

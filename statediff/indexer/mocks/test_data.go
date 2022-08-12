@@ -284,8 +284,7 @@ type LegacyData struct {
 	StateDiffs           []sdtypes.StateNode
 }
 
-func NewLegacyData() *LegacyData {
-	config := params.MainnetChainConfig
+func NewLegacyData(config *params.ChainConfig) *LegacyData {
 	// Block number before london fork.
 	blockNumber := config.EIP155Block
 

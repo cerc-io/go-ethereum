@@ -19,24 +19,17 @@ package file_test
 import (
 	"testing"
 
-	"github.com/ipfs/go-cid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 var (
-	legacyData      = mocks.NewLegacyData()
-	mockLegacyBlock *types.Block
-	legacyHeaderCID cid.Cid
-
 	db     sql.Database
 	sqlxdb *sqlx.DB
 	err    error
@@ -57,29 +50,6 @@ func resetDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
 	}
-}
-
-func testLegacyPublishAndIndexHeaderIPLDs(t *testing.T) {
-	pgStr := `SELECT cid, td, reward, block_hash, coinbase
-				FROM eth.header_cids
-				WHERE block_number = $1`
-	// check header was properly indexed
-	type res struct {
-		CID       string
-		TD        string
-		Reward    string
-		BlockHash string `db:"block_hash"`
-		Coinbase  string `db:"coinbase"`
-	}
-	header := new(res)
-	err = sqlxdb.QueryRowx(pgStr, legacyData.BlockNumber.Uint64()).StructScan(header)
-	require.NoError(t, err)
-
-	require.Equal(t, legacyHeaderCID.String(), header.CID)
-	require.Equal(t, legacyData.MockBlock.Difficulty().String(), header.TD)
-	require.Equal(t, "5000000000000011250", header.Reward)
-	require.Equal(t, legacyData.MockBlock.Coinbase().String(), header.Coinbase)
-	require.Nil(t, legacyData.MockHeader.BaseFee)
 }
 
 func testLoadEmptyWatchedAddresses(t *testing.T) {

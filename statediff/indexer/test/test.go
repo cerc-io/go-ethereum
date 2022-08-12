@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
@@ -1484,4 +1485,67 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	for i, expectedStorageNode := range expectedNonCanonicalBlock2StorageNodes {
 		require.Equal(t, expectedStorageNode, storageNodes[i])
 	}
+}
+
+var (
+	LegacyConfig    = params.MainnetChainConfig
+	legacyData      = mocks.NewLegacyData(LegacyConfig)
+	mockLegacyBlock *types.Block
+	legacyHeaderCID cid.Cid
+)
+
+func SetupLegacyTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
+	mockLegacyBlock = legacyData.MockBlock
+	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
+
+	var tx interfaces.Batch
+	tx, err = ind.PushBlock(
+		mockLegacyBlock,
+		legacyData.MockReceipts,
+		legacyData.MockBlock.Difficulty())
+	require.NoError(t, err)
+
+	defer func() {
+		if err := tx.Submit(err); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, node := range legacyData.StateDiffs {
+		err = ind.PushStateNode(tx, node, mockLegacyBlock.Hash().String())
+		require.NoError(t, err)
+	}
+
+	if batchTx, ok := tx.(*sql.BatchTx); ok {
+		require.Equal(t, legacyData.BlockNumber.String(), batchTx.BlockNumber)
+	} else if batchTx, ok := tx.(*file.BatchTx); ok {
+		require.Equal(t, legacyData.BlockNumber.String(), batchTx.BlockNumber)
+	}
+}
+
+func TestLegacyIndexer(t *testing.T, db sql.Database) {
+	pgStr := `SELECT cid, td, reward, block_hash, coinbase
+	FROM eth.header_cids
+	WHERE block_number = $1`
+	// check header was properly indexed
+	type res struct {
+		CID       string
+		TD        string
+		Reward    string
+		BlockHash string `db:"block_hash"`
+		Coinbase  string `db:"coinbase"`
+	}
+	header := new(res)
+	err = db.QueryRow(context.Background(), pgStr, legacyData.BlockNumber.Uint64()).Scan(
+		&header.CID,
+		&header.TD,
+		&header.Reward,
+		&header.BlockHash,
+		&header.Coinbase)
+	require.NoError(t, err)
+
+	require.Equal(t, legacyHeaderCID.String(), header.CID)
+	require.Equal(t, legacyData.MockBlock.Difficulty().String(), header.TD)
+	require.Equal(t, "5000000000000011250", header.Reward)
+	require.Equal(t, legacyData.MockHeader.Coinbase.String(), header.Coinbase)
+	require.Nil(t, legacyData.MockHeader.BaseFee)
 }

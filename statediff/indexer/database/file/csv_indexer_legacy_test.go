@@ -25,61 +25,36 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 const dbDirectory = "/file_indexer"
 const pgCopyStatement = `COPY %s FROM '%s' CSV`
 
-func setupCSVLegacy(t *testing.T) {
-	mockLegacyBlock = legacyData.MockBlock
-	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-	file.CSVTestConfig.OutputDir = "./statediffing_legacy_test"
-
+func setupLegacyCSVIndexer(t *testing.T) {
 	if _, err := os.Stat(file.CSVTestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
 		err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 		require.NoError(t, err)
 	}
 
-	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.CSVTestConfig)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockLegacyBlock,
-		legacyData.MockReceipts,
-		legacyData.MockBlock.Difficulty())
+	ind, err = file.NewStateDiffIndexer(context.Background(), test.LegacyConfig, file.CSVTestConfig)
 	require.NoError(t, err)
 
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-		if err := ind.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	for _, node := range legacyData.StateDiffs {
-		err = ind.PushStateNode(tx, node, legacyData.MockBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, legacyData.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
-
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
+}
+
+func setupLegacyCSV(t *testing.T) {
+	setupLegacyCSVIndexer(t)
+	test.SetupLegacyTestData(t, ind)
 }
 
 func dumpCSVFileData(t *testing.T) {
@@ -133,9 +108,10 @@ func tearDownCSV(t *testing.T) {
 
 func TestLegacyCSVFileIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
-		setupCSVLegacy(t)
+		setupLegacyCSV(t)
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
-		testLegacyPublishAndIndexHeaderIPLDs(t)
+
+		test.TestLegacyIndexer(t, db)
 	})
 }
