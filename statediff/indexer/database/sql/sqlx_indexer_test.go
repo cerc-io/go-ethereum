@@ -43,7 +43,7 @@ func setupSQLX(t *testing.T) {
 }
 
 func setupSQLXNonCanonical(t *testing.T) {
-	setupPGXIndexer(t)
+	setupSQLXIndexer(t)
 	test.SetupTestDataNonCanonical(t, ind)
 }
 
@@ -52,7 +52,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexHeaderIPLDs(t, db)
 	})
@@ -60,7 +60,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index transaction IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexTransactionIPLDs(t, db)
 	})
@@ -68,7 +68,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index log IPLDs for multiple receipt of a specific block", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexLogIPLDs(t, db)
 	})
@@ -76,7 +76,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index receipt IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexReceiptIPLDs(t, db)
 	})
@@ -84,7 +84,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index state IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexStateIPLDs(t, db)
 	})
@@ -92,7 +92,7 @@ func TestSQLXIndexer(t *testing.T) {
 	t.Run("Publish and index storage IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexStorageIPLDs(t, db)
 	})
@@ -103,7 +103,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index header", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexHeaderNonCanonical(t, db)
 	})
@@ -111,7 +111,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index transactions", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexTransactionsNonCanonical(t, db)
 	})
@@ -119,7 +119,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index receipts", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexReceiptsNonCanonical(t, db)
 	})
@@ -127,7 +127,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index logs", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexLogsNonCanonical(t, db)
 	})
@@ -135,7 +135,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index state nodes", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexStateNonCanonical(t, db)
 	})
@@ -143,7 +143,7 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index storage nodes", func(t *testing.T) {
 		setupSQLXNonCanonical(t)
 		defer tearDown(t)
-		defer checkTxClosure(t, 1, 0, 1)
+		defer checkTxClosure(t, 0, 0, 0)
 
 		test.TestPublishAndIndexStorageNonCanonical(t, db)
 	})
