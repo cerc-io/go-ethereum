@@ -40,7 +40,10 @@ var (
 	// TODO: Update this to `MainnetChainConfig` when `LondonBlock` is added
 	TestConfig  = params.RopstenChainConfig
 	BlockNumber = TestConfig.LondonBlock
-	MockHeader  = types.Header{
+
+	// canonical block at London height
+	// includes 5 transactions: 3 Legacy + 1 EIP-2930 + 1 EIP-1559
+	MockHeader = types.Header{
 		Time:        0,
 		Number:      new(big.Int).Set(BlockNumber),
 		Root:        common.HexToHash("0x0"),
@@ -51,23 +54,51 @@ var (
 		BaseFee:     big.NewInt(params.InitialBaseFee),
 		Coinbase:    common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476777"),
 	}
-	MockTransactions, MockReceipts, SenderAddr        = createTransactionsAndReceipts(TestConfig, BlockNumber)
-	MockBlock                                         = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, new(trie.Trie))
-	MockHeaderRlp, _                                  = rlp.EncodeToBytes(MockBlock.Header())
-	Address                                           = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
-	AnotherAddress                                    = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
-	ContractAddress                                   = crypto.CreateAddress(SenderAddr, MockTransactions[2].Nonce())
-	ContractAddress2                                  = crypto.CreateAddress(SenderAddr, MockTransactions[3].Nonce())
-	MockContractByteCode                              = []byte{0, 1, 2, 3, 4, 5}
-	mockTopic11                                       = common.HexToHash("0x04")
-	mockTopic12                                       = common.HexToHash("0x06")
-	mockTopic21                                       = common.HexToHash("0x05")
-	mockTopic22                                       = common.HexToHash("0x07")
-	ExpectedPostStatus                         uint64 = 1
-	ExpectedPostState1                                = common.Bytes2Hex(common.HexToHash("0x1").Bytes())
-	ExpectedPostState2                                = common.Bytes2Hex(common.HexToHash("0x2").Bytes())
-	ExpectedPostState3                                = common.Bytes2Hex(common.HexToHash("0x3").Bytes())
-	MockLog1                                          = &types.Log{
+	MockTransactions, MockReceipts, SenderAddr = createTransactionsAndReceipts(TestConfig, BlockNumber)
+	MockBlock                                  = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, new(trie.Trie))
+	MockHeaderRlp, _                           = rlp.EncodeToBytes(MockBlock.Header())
+
+	// non-canonical block at London height
+	// includes 2nd and 5th transactions from the canonical block
+	MockNonCanonicalHeader            = MockHeader
+	MockNonCanonicalBlockTransactions = types.Transactions{MockTransactions[1], MockTransactions[4]}
+	MockNonCanonicalBlockReceipts     = createNonCanonicalBlockReceipts(TestConfig, BlockNumber, MockNonCanonicalBlockTransactions)
+	MockNonCanonicalBlock             = types.NewBlock(&MockNonCanonicalHeader, MockNonCanonicalBlockTransactions, nil, MockNonCanonicalBlockReceipts, new(trie.Trie))
+	MockNonCanonicalHeaderRlp, _      = rlp.EncodeToBytes(MockNonCanonicalBlock.Header())
+
+	// non-canonical block at London height + 1
+	// includes 3rd and 5th transactions from the canonical block
+	Block2Number            = big.NewInt(BlockNumber.Int64() + 1)
+	MockNonCanonicalHeader2 = types.Header{
+		Time:        0,
+		Number:      new(big.Int).Set(Block2Number),
+		Root:        common.HexToHash("0x0"),
+		TxHash:      common.HexToHash("0x0"),
+		ReceiptHash: common.HexToHash("0x0"),
+		Difficulty:  big.NewInt(6000000),
+		Extra:       []byte{},
+		BaseFee:     big.NewInt(params.InitialBaseFee),
+		Coinbase:    common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476777"),
+	}
+	MockNonCanonicalBlock2Transactions = types.Transactions{MockTransactions[2], MockTransactions[4]}
+	MockNonCanonicalBlock2Receipts     = createNonCanonicalBlockReceipts(TestConfig, Block2Number, MockNonCanonicalBlock2Transactions)
+	MockNonCanonicalBlock2             = types.NewBlock(&MockNonCanonicalHeader2, MockNonCanonicalBlock2Transactions, nil, MockNonCanonicalBlock2Receipts, new(trie.Trie))
+	MockNonCanonicalHeader2Rlp, _      = rlp.EncodeToBytes(MockNonCanonicalBlock2.Header())
+
+	Address                     = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
+	AnotherAddress              = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
+	ContractAddress             = crypto.CreateAddress(SenderAddr, MockTransactions[2].Nonce())
+	ContractAddress2            = crypto.CreateAddress(SenderAddr, MockTransactions[3].Nonce())
+	MockContractByteCode        = []byte{0, 1, 2, 3, 4, 5}
+	mockTopic11                 = common.HexToHash("0x04")
+	mockTopic12                 = common.HexToHash("0x06")
+	mockTopic21                 = common.HexToHash("0x05")
+	mockTopic22                 = common.HexToHash("0x07")
+	ExpectedPostStatus   uint64 = 1
+	ExpectedPostState1          = common.Bytes2Hex(common.HexToHash("0x1").Bytes())
+	ExpectedPostState2          = common.Bytes2Hex(common.HexToHash("0x2").Bytes())
+	ExpectedPostState3          = common.Bytes2Hex(common.HexToHash("0x3").Bytes())
+	MockLog1                    = &types.Log{
 		Address: Address,
 		Topics:  []common.Hash{mockTopic11, mockTopic12},
 		Data:    []byte{},
@@ -439,4 +470,39 @@ func createTransactionsAndReceipts(config *params.ChainConfig, blockNumber *big.
 	}
 
 	return types.Transactions{signedTrx1, signedTrx2, signedTrx3, signedTrx4, signedTrx5}, types.Receipts{mockReceipt1, mockReceipt2, mockReceipt3, mockReceipt4, mockReceipt5}, senderAddr
+}
+
+// createNonCanonicalBlockReceipts is a helper function to generate mock receipts with mock logs for non-canonical blocks
+func createNonCanonicalBlockReceipts(config *params.ChainConfig, blockNumber *big.Int, transactions types.Transactions) types.Receipts {
+	transactionSigner := types.MakeSigner(config, blockNumber)
+	mockCurve := elliptic.P256()
+	mockPrvKey, err := ecdsa.GenerateKey(mockCurve, rand.Reader)
+	if err != nil {
+		log.Crit(err.Error())
+	}
+
+	signedTrx0, err := types.SignTx(transactions[0], transactionSigner, mockPrvKey)
+	if err != nil {
+		log.Crit(err.Error())
+	}
+
+	signedTrx1, err := types.SignTx(transactions[1], transactionSigner, mockPrvKey)
+	if err != nil {
+		log.Crit(err.Error())
+	}
+
+	mockReceipt0 := types.NewReceipt(common.HexToHash("0x3").Bytes(), false, 300)
+	mockReceipt0.Logs = []*types.Log{MockLog1, ShortLog1}
+	mockReceipt0.TxHash = signedTrx0.Hash()
+
+	mockReceipt1 := &types.Receipt{
+		Type:              types.DynamicFeeTxType,
+		PostState:         common.HexToHash("0x4").Bytes(),
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 300,
+		Logs:              []*types.Log{},
+		TxHash:            signedTrx1.Hash(),
+	}
+
+	return types.Receipts{mockReceipt0, mockReceipt1}
 }

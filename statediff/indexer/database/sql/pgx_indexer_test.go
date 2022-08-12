@@ -31,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
@@ -50,27 +49,15 @@ func setupPGXIndexer(t *testing.T) {
 
 func setupPGX(t *testing.T) {
 	setupPGXIndexer(t)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockBlock,
-		mocks.MockReceipts,
-		mocks.MockBlock.Difficulty())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, mockBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, mocks.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
+	setupTestData(t)
 }
 
+func setupPGXNonCanonical(t *testing.T) {
+	setupPGXIndexer(t)
+	setupTestDataNonCanonical(t)
+}
+
+// Test indexer for a canonical block
 func TestPGXIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
@@ -258,7 +245,7 @@ func TestPGXIndexer(t *testing.T) {
 				AND header_cids.block_number = $1
 				ORDER BY transaction_cids.index`
 		logsPgStr := `SELECT log_cids.index, log_cids.address, log_cids.topic0, log_cids.topic1, data FROM eth.log_cids
-    				INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
+					INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
 					INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
 					WHERE receipt_cids.leaf_cid = $1 ORDER BY eth.log_cids.index ASC`
 		err = db.Select(context.Background(), &rcts, rctsPgStr, mocks.BlockNumber.Uint64())
@@ -337,7 +324,7 @@ func TestPGXIndexer(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Decode the log leaf node.
+			// Decode the receipt leaf node.
 			var nodeElements []interface{}
 			err = rlp.DecodeBytes(result[0].Data, &nodeElements)
 			require.NoError(t, err)
@@ -602,6 +589,57 @@ func TestPGXIndexer(t *testing.T) {
 			}
 			require.Equal(t, []byte{}, data)
 		}
+	})
+}
+
+// Test indexer for a canonical + a non-canonical block at London height + a non-canonical block at London height + 1
+func TestPGXIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexHeaderNonCanonical(t)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexTransactionsNonCanonical(t)
+	})
+
+	t.Run("Publish and index receipts", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexReceiptsNonCanonical(t)
+	})
+
+	t.Run("Publish and index logs", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexLogsNonCanonical(t)
+	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStateNonCanonical(t)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupPGXNonCanonical(t)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		testPublishAndIndexStorageNonCanonical(t)
 	})
 }
 
