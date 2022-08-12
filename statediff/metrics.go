@@ -50,14 +50,6 @@ type statediffMetricsHandles struct {
 	// Current length of chainEvent channels
 	serviceLoopChannelLen metrics.Gauge
 	writeLoopChannelLen   metrics.Gauge
-	// The start block of the known gap
-	knownGapStart metrics.Gauge
-	// The end block of the known gap
-	knownGapEnd metrics.Gauge
-	// A known gaps start block which had an error being written to the DB
-	knownGapErrorStart metrics.Gauge
-	// A known gaps end block which had an error being written to the DB
-	knownGapErrorEnd metrics.Gauge
 }
 
 func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
@@ -67,10 +59,6 @@ func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
 		lastStatediffHeight:   metrics.NewGauge(),
 		serviceLoopChannelLen: metrics.NewGauge(),
 		writeLoopChannelLen:   metrics.NewGauge(),
-		knownGapStart:         metrics.NewGauge(),
-		knownGapEnd:           metrics.NewGauge(),
-		knownGapErrorStart:    metrics.NewGauge(),
-		knownGapErrorEnd:      metrics.NewGauge(),
 	}
 	subsys := "service"
 	reg.Register(metricName(subsys, "last_sync_height"), ctx.lastSyncHeight)
@@ -78,9 +66,5 @@ func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
 	reg.Register(metricName(subsys, "last_statediff_height"), ctx.lastStatediffHeight)
 	reg.Register(metricName(subsys, "service_loop_channel_len"), ctx.serviceLoopChannelLen)
 	reg.Register(metricName(subsys, "write_loop_channel_len"), ctx.writeLoopChannelLen)
-	reg.Register(metricName(subsys, "known_gaps_start"), ctx.knownGapStart)
-	reg.Register(metricName(subsys, "known_gaps_end"), ctx.knownGapEnd)
-	reg.Register(metricName(subsys, "known_gaps_error_start"), ctx.knownGapErrorStart)
-	reg.Register(metricName(subsys, "known_gaps_error_end"), ctx.knownGapErrorEnd)
 	return ctx
 }

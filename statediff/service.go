@@ -42,10 +42,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	ind "github.com/ethereum/go-ethereum/statediff/indexer"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
-	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 	types2 "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/thoas/go-funk"
@@ -134,8 +132,6 @@ type Service struct {
 	BackendAPI ethapi.Backend
 	// Should the statediff service wait for geth to sync to head?
 	WaitForSync bool
-	// Used to signal if we should check for KnownGaps
-	KnownGaps KnownGapsState
 	// Whether or not we have any subscribers; only if we do, do we processes state diffs
 	subscribers int32
 	// Interface for publishing statediffs as PG-IPLD objects
@@ -167,7 +163,6 @@ func NewBlockCache(max uint) BlockCache {
 func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params Config, backend ethapi.Backend) error {
 	blockChain := ethServ.BlockChain()
 	var indexer interfaces.StateDiffIndexer
-	var db sql.Database
 	var err error
 	quitCh := make(chan bool)
 	indexerConfigAvailable := params.IndexerConfig != nil
@@ -179,8 +174,7 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 			ID:           params.ID,
 			ClientName:   params.ClientName,
 		}
-		var err error
-		db, indexer, err = ind.NewStateDiffIndexer(params.Context, blockChain.Config(), info, params.IndexerConfig)
+		indexer, err = ind.NewStateDiffIndexer(params.Context, blockChain.Config(), info, params.IndexerConfig)
 		if err != nil {
 			return err
 		}
@@ -190,25 +184,6 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	workers := params.NumWorkers
 	if workers == 0 {
 		workers = 1
-	}
-	// If we ever have multiple processingKeys we can update them here
-	// along with the expectedDifference
-	knownGaps := &KnownGapsState{
-		processingKey:          0,
-		expectedDifference:     big.NewInt(1),
-		errorState:             false,
-		writeFilePath:          params.KnownGapsFilePath,
-		db:                     db,
-		statediffMetrics:       statediffMetrics,
-		sqlFileWaitingForWrite: false,
-	}
-	if indexerConfigAvailable {
-		if params.IndexerConfig.Type() == shared.POSTGRES {
-			knownGaps.checkForGaps = true
-		} else {
-			log.Info("We are not going to check for gaps on start up since we are not connected to Postgres!")
-			knownGaps.checkForGaps = false
-		}
 	}
 	sds := &Service{
 		Mutex:             sync.Mutex{},
@@ -220,7 +195,6 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		BlockCache:        NewBlockCache(workers),
 		BackendAPI:        backend,
 		WaitForSync:       params.WaitForSync,
-		KnownGaps:         *knownGaps,
 		indexer:           indexer,
 		enableWriteLoop:   params.EnableWriteLoop,
 		numWorkers:        workers,
@@ -355,45 +329,17 @@ func (sds *Service) writeLoopWorker(params workerParams) {
 				sds.writeGenesisStateDiff(parentBlock, params.id)
 			}
 
-			// If for any reason we need to check for gaps,
-			// Check and update the gaps table.
-			if sds.KnownGaps.checkForGaps && !sds.KnownGaps.errorState {
-				log.Info("Checking for Gaps at", "current block", currentBlock.Number())
-				go sds.KnownGaps.findAndUpdateGaps(currentBlock.Number(), sds.KnownGaps.expectedDifference, sds.KnownGaps.processingKey)
-				sds.KnownGaps.checkForGaps = false
-			}
-
 			log.Info("Writing state diff", "block height", currentBlock.Number().Uint64(), "worker", params.id)
 			writeLoopParams.RLock()
 			err := sds.writeStateDiffWithRetry(currentBlock, parentBlock.Root(), writeLoopParams.Params)
 			writeLoopParams.RUnlock()
+			// if processing failed with retries, not in the logs and continue to the next block
 			if err != nil {
 				log.Error("statediff.Service.WriteLoop: processing error", "block height", currentBlock.Number().Uint64(), "error", err.Error(), "worker", params.id)
-				sds.KnownGaps.errorState = true
-				log.Warn("Updating the following block to knownErrorBlocks to be inserted into knownGaps table", "blockNumber", currentBlock.Number())
-				sds.KnownGaps.knownErrorBlocks = append(sds.KnownGaps.knownErrorBlocks, currentBlock.Number())
-				// Write object to startdiff
 				continue
 			}
-			sds.KnownGaps.errorState = false
-			if sds.KnownGaps.knownErrorBlocks != nil {
-				// We must pass in parameters by VALUE not reference.
-				// If we pass them in my reference, the references can change before the computation is complete!
-				staticKnownErrorBlocks := make([]*big.Int, len(sds.KnownGaps.knownErrorBlocks))
-				copy(staticKnownErrorBlocks, sds.KnownGaps.knownErrorBlocks)
-				sds.KnownGaps.knownErrorBlocks = nil
-				go sds.KnownGaps.captureErrorBlocks(staticKnownErrorBlocks)
-			}
 
-			if sds.KnownGaps.sqlFileWaitingForWrite {
-				log.Info("There are entries in the SQL file for knownGaps that should be written")
-				err := sds.KnownGaps.writeSqlFileStmtToDb()
-				if err != nil {
-					log.Error("Unable to write KnownGap sql file to DB")
-				}
-			}
-
-			// TODO: how to handle with concurrent workers
+			// Note: when using multiple workers the blocks may not be processed in chronological order
 			statediffMetrics.lastStatediffHeight.Update(int64(currentBlock.Number().Uint64()))
 		case <-sds.QuitChan:
 			log.Info("Quitting the statediff writing process", "worker", params.id)
@@ -884,7 +830,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	return nil
 }
 
-// Wrapper function on writeStateDiff to retry when the deadlock is detected.
+// writeStateDiffWithRetry is a wrapper around writeStateDiff to retry when the deadlock is detected.
 func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot common.Hash, params Params) error {
 	var err error
 	for i := uint(0); i < sds.maxRetry; i++ {
@@ -896,12 +842,12 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 			}
 			continue
 		}
-		break
+		return err
 	}
-	return err
+	return fmt.Errorf("error writing statediff at block %s due to deadlock error, unable to write after %d tries: %s", block.Number().String(), sds.maxRetry, err.Error())
 }
 
-// Performs one of following operations on the watched addresses in writeLoopParams and the db:
+// WatchAddress performs one of following operations on the watched addresses in writeLoopParams and the db:
 // add | remove | set | clear
 func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.WatchAddressArg) error {
 	// lock writeLoopParams for a write
