@@ -356,7 +356,7 @@ func setupTestDataNonCanonical(t *testing.T) {
 func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
 	// check indexed headers
 	pgStr := `SELECT CAST(block_number as TEXT), block_hash, cid, cast(td AS TEXT), cast(reward AS TEXT),
-			tx_root, receipt_root, uncle_root, coinbase
+			tx_root, receipt_root, uncles_hash, coinbase
 			FROM eth.header_cids
 			ORDER BY block_number`
 	headerRes := make([]models.HeaderModel, 0)
@@ -376,7 +376,7 @@ func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
 			TotalDifficulty: mockBlock.Difficulty().String(),
 			TxRoot:          mockBlock.TxHash().String(),
 			RctRoot:         mockBlock.ReceiptHash().String(),
-			UncleRoot:       mockBlock.UncleHash().String(),
+			UnclesHash:      mockBlock.UncleHash().String(),
 			Coinbase:        mocks.MockHeader.Coinbase.String(),
 		},
 		{
@@ -386,7 +386,7 @@ func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
 			TotalDifficulty: mockNonCanonicalBlock.Difficulty().String(),
 			TxRoot:          mockNonCanonicalBlock.TxHash().String(),
 			RctRoot:         mockNonCanonicalBlock.ReceiptHash().String(),
-			UncleRoot:       mockNonCanonicalBlock.UncleHash().String(),
+			UnclesHash:      mockNonCanonicalBlock.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader.Coinbase.String(),
 		},
 		{
@@ -396,7 +396,7 @@ func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
 			TotalDifficulty: mockNonCanonicalBlock2.Difficulty().String(),
 			TxRoot:          mockNonCanonicalBlock2.TxHash().String(),
 			RctRoot:         mockNonCanonicalBlock2.ReceiptHash().String(),
-			UncleRoot:       mockNonCanonicalBlock2.UncleHash().String(),
+			UnclesHash:      mockNonCanonicalBlock2.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader2.Coinbase.String(),
 		},
 	}
