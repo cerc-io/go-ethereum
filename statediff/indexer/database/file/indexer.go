@@ -35,6 +35,7 @@ import (
 	"github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -504,7 +505,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			StatePath:   stateNode.Path,
 			Balance:     account.Balance.String(),
 			Nonce:       account.Nonce,
-			CodeHash:    account.CodeHash,
+			CodeHash:    hexutil.Encode(account.CodeHash),
 			StorageRoot: account.Root.String(),
 		}
 		sdi.fileWriter.upsertStateAccount(accountModel)

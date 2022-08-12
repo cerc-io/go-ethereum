@@ -23,6 +23,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 
@@ -460,7 +462,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			StatePath:   stateNode.Path,
 			Balance:     account.Balance.String(),
 			Nonce:       account.Nonce,
-			CodeHash:    account.CodeHash,
+			CodeHash:    hexutil.Encode(account.CodeHash),
 			StorageRoot: account.Root.String(),
 		}
 		if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", accountModel); err != nil {

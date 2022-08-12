@@ -577,7 +577,7 @@ func testPublishAndIndexStateIPLDs(t *testing.T) {
 				HeaderID:    account.HeaderID,
 				StatePath:   stateNode.Path,
 				Balance:     "0",
-				CodeHash:    mocks.ContractCodeHash.Bytes(),
+				CodeHash:    mocks.ContractCodeHash.Hex(),
 				StorageRoot: mocks.ContractRoot,
 				Nonce:       1,
 			}, account)
@@ -592,7 +592,7 @@ func testPublishAndIndexStateIPLDs(t *testing.T) {
 				HeaderID:    account.HeaderID,
 				StatePath:   stateNode.Path,
 				Balance:     "1000",
-				CodeHash:    mocks.AccountCodeHash.Bytes(),
+				CodeHash:    mocks.AccountCodeHash.Hex(),
 				StorageRoot: mocks.AccountRoot,
 				Nonce:       0,
 			}, account)
@@ -687,8 +687,12 @@ func testPublishAndIndexStorageIPLDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	require.Equal(t, 3, len(storageNodes))
-	expectedStorageNodes := []models.StorageNodeWithStateKeyModel{
-		{
+	gotStorageNodes := make(map[string]models.StorageNodeWithStateKeyModel, 3)
+	for _, model := range storageNodes {
+		gotStorageNodes[model.StorageKey] = model
+	}
+	expectedStorageNodes := map[string]models.StorageNodeWithStateKeyModel{
+		common.BytesToHash(mocks.RemovedLeafKey).Hex(): {
 			BlockNumber: mocks.BlockNumber.String(),
 			CID:         shared.RemovedNodeStorageCID,
 			NodeType:    3,
@@ -696,7 +700,7 @@ func testPublishAndIndexStorageIPLDs(t *testing.T) {
 			StateKey:    common.BytesToHash(mocks.ContractLeafKey).Hex(),
 			Path:        []byte{'\x03'},
 		},
-		{
+		common.BytesToHash(mocks.Storage2LeafKey).Hex(): {
 			BlockNumber: mocks.BlockNumber.String(),
 			CID:         shared.RemovedNodeStorageCID,
 			NodeType:    3,
@@ -704,7 +708,7 @@ func testPublishAndIndexStorageIPLDs(t *testing.T) {
 			StateKey:    common.BytesToHash(mocks.Contract2LeafKey).Hex(),
 			Path:        []byte{'\x0e'},
 		},
-		{
+		common.BytesToHash(mocks.Storage3LeafKey).Hex(): {
 			BlockNumber: mocks.BlockNumber.String(),
 			CID:         shared.RemovedNodeStorageCID,
 			NodeType:    3,
@@ -713,15 +717,15 @@ func testPublishAndIndexStorageIPLDs(t *testing.T) {
 			Path:        []byte{'\x0f'},
 		},
 	}
-	for idx, storageNode := range storageNodes {
-		require.Equal(t, expectedStorageNodes[idx], storageNode)
+	for storageKey, storageNode := range gotStorageNodes {
+		require.Equal(t, expectedStorageNodes[storageKey], storageNode)
 		dc, err = cid.Decode(storageNode.CID)
 		if err != nil {
 			t.Fatal(err)
 		}
 		mhKey = dshelp.MultihashToDsKey(dc.Hash())
 		prefixedKey = blockstore.BlockPrefix.String() + mhKey.String()
-		require.Equal(t, shared.RemovedNodeMhKey, prefixedKey, mocks.BlockNumber.Uint64())
+		require.Equal(t, shared.RemovedNodeMhKey, prefixedKey)
 		err = sqlxdb.Get(&data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)

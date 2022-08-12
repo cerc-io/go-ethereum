@@ -34,6 +34,7 @@ type UncleBatch struct {
 	CIDs         []string
 	MhKeys       []string
 	Rewards      []string
+	Indexes      []int64
 }
 
 // TxBatch holds the arguments for a batch insert of tx data
@@ -108,7 +109,7 @@ type AccountBatch struct {
 	StatePaths   [][]byte
 	Balances     []string
 	Nonces       []uint64
-	CodeHashes   [][]byte
+	CodeHashes   []string
 	StorageRoots []string
 }
 

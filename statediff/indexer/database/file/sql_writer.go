@@ -165,7 +165,7 @@ const (
 		"VALUES ('%s', '%s', '%s', '%s', '\\x%x', %d, %t, '%s');\n"
 
 	accountInsert = "INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, nonce, code_hash, storage_root) " +
-		"VALUES ('%s', '%s', '\\x%x', '%s', %d, '\\x%x', '%s');\n"
+		"VALUES ('%s', '%s', '\\x%x', '%s', %d, '%s', '%s');\n"
 
 	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, " +
 		"node_type, diff, mh_key) VALUES ('%s', '%s', '\\x%x', '%s', '%s', '\\x%x', %d, %t, '%s');\n"

@@ -141,7 +141,7 @@ type StateAccountModel struct {
 	StatePath   []byte `db:"state_path"`
 	Balance     string `db:"balance"`
 	Nonce       uint64 `db:"nonce"`
-	CodeHash    []byte `db:"code_hash"`
+	CodeHash    string `db:"code_hash"`
 	StorageRoot string `db:"storage_root"`
 }
 
@@ -159,12 +159,4 @@ type LogsModel struct {
 	Topic1      string `db:"topic1"`
 	Topic2      string `db:"topic2"`
 	Topic3      string `db:"topic3"`
-}
-
-// KnownGaps is the data structure for eth_meta.known_gaps
-type KnownGapsModel struct {
-	StartingBlockNumber string `db:"starting_block_number"`
-	EndingBlockNumber   string `db:"ending_block_number"`
-	CheckedOut          bool   `db:"checked_out"`
-	ProcessingKey       int64  `db:"processing_key"`
 }
