@@ -57,6 +57,7 @@ func setupPGXNonCanonical(t *testing.T) {
 	setupTestDataNonCanonical(t)
 }
 
+// Test indexer for a canonical block
 func TestPGXIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs in a single tx", func(t *testing.T) {
 		setupPGX(t)
@@ -591,6 +592,7 @@ func TestPGXIndexer(t *testing.T) {
 	})
 }
 
+// Test indexer for a canonical + a non-canonical block at London height + a non-canonical block at London height + 1
 func TestPGXIndexerNonCanonical(t *testing.T) {
 	t.Run("Publish and index header", func(t *testing.T) {
 		setupPGXNonCanonical(t)

@@ -54,15 +54,19 @@ func init() {
 		os.Exit(0)
 	}
 
+	// canonical block at LondonBlock height
 	mockBlock = mocks.MockBlock
 	txs, rcts := mocks.MockBlock.Transactions(), mocks.MockReceipts
 
+	// non-canonical block at LondonBlock height
 	mockNonCanonicalBlock = mocks.MockNonCanonicalBlock
 	nonCanonicalBlockRcts := mocks.MockNonCanonicalBlockReceipts
 
+	// non-canonical block at LondonBlock height + 1
 	mockNonCanonicalBlock2 = mocks.MockNonCanonicalBlock2
 	nonCanonicalBlock2Rcts := mocks.MockNonCanonicalBlock2Receipts
 
+	// encode mock receipts
 	buf := new(bytes.Buffer)
 	txs.EncodeIndex(0, buf)
 	tx1 = make([]byte, buf.Len())
@@ -114,6 +118,7 @@ func init() {
 	copy(rct5, buf.Bytes())
 	buf.Reset()
 
+	// encode mock receipts for non-canonical blocks
 	nonCanonicalBlockRcts.EncodeIndex(0, buf)
 	nonCanonicalBlockRct1 = make([]byte, buf.Len())
 	copy(nonCanonicalBlockRct1, buf.Bytes())
@@ -146,6 +151,7 @@ func init() {
 	state2CID, _ = ipld.RawdataToCid(ipld.MEthStateTrie, mocks.AccountLeafNode, multihash.KECCAK_256)
 	storageCID, _ = ipld.RawdataToCid(ipld.MEthStorageTrie, mocks.StorageLeafNode, multihash.KECCAK_256)
 
+	// create raw receipts
 	rawRctLeafNodes, rctleafNodeCids := createRctTrie([][]byte{rct1, rct2, rct3, rct4, rct5})
 
 	rct1CID = rctleafNodeCids[0]
@@ -160,6 +166,7 @@ func init() {
 	rctLeaf4 = rawRctLeafNodes[3]
 	rctLeaf5 = rawRctLeafNodes[4]
 
+	// create raw receipts for non-canonical blocks
 	nonCanonicalBlockRawRctLeafNodes, nonCanonicalBlockRctLeafNodeCids := createRctTrie([][]byte{nonCanonicalBlockRct1, nonCanonicalBlockRct2})
 
 	nonCanonicalBlockRct1CID = nonCanonicalBlockRctLeafNodeCids[0]
@@ -191,6 +198,8 @@ func init() {
 	watchedAt3 = uint64(20)
 }
 
+// createRctTrie creates a receipt trie from the given raw receipts
+// returns receipt leaf nodes and their CIDs
 func createRctTrie(rcts [][]byte) ([][]byte, []cid.Cid) {
 	receiptTrie := ipld.NewRctTrie()
 
@@ -213,6 +222,7 @@ func createRctTrie(rcts [][]byte) ([][]byte, []cid.Cid) {
 	return orderedRctLeafNodes, rctleafNodeCids
 }
 
+// createRctModel creates a models.ReceiptModel object from a given ethereum receipt
 func createRctModel(rct *types.Receipt, cid cid.Cid, blockNumber string) models.ReceiptModel {
 	rctModel := models.ReceiptModel{
 		BlockNumber: blockNumber,
@@ -256,6 +266,7 @@ func tearDown(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// setupTestData indexes a single mock block along with it's state nodes
 func setupTestData(t *testing.T) {
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -278,9 +289,12 @@ func setupTestData(t *testing.T) {
 	require.Equal(t, mocks.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
 }
 
+// setupTestData indexes a mock block and a non-canonical mock block at London height
+// and a non-canonical block at London height + 1
+// along with their state nodes
 func setupTestDataNonCanonical(t *testing.T) {
+	// index a canonical block at London height
 	var tx1 interfaces.Batch
-
 	tx1, err = ind.PushBlock(
 		mockBlock,
 		mocks.MockReceipts,
@@ -298,6 +312,8 @@ func setupTestDataNonCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// index a non-canonical block at London height
+	// has transactions overlapping with that of the canonical block
 	var tx2 interfaces.Batch
 	tx2, err = ind.PushBlock(
 		mockNonCanonicalBlock,
@@ -316,6 +332,8 @@ func setupTestDataNonCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// index a non-canonical block at London height + 1
+	// has transactions overlapping with that of the canonical block
 	var tx3 interfaces.Batch
 	tx3, err = ind.PushBlock(
 		mockNonCanonicalBlock2,
@@ -347,6 +365,9 @@ func testPublishAndIndexHeaderNonCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// expect three blocks to be indexed
+	// a canonical and a non-canonical block at London height,
+	// non-canonical block at London height + 1
 	expectedRes := []models.HeaderModel{
 		{
 			BlockNumber:     mockBlock.Number().String(),
@@ -426,6 +447,7 @@ func testPublishAndIndexTransactionsNonCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// expected transactions in the canonical block
 	mockBlockTxs := mocks.MockBlock.Transactions()
 	expectedBlockTxs := []models.TxModel{
 		{
@@ -490,6 +512,7 @@ func testPublishAndIndexTransactionsNonCanonical(t *testing.T) {
 		},
 	}
 
+	// expected transactions in the canonical block at London height
 	mockNonCanonicalBlockTxs := mockNonCanonicalBlock.Transactions()
 	expectedNonCanonicalBlockTxs := []models.TxModel{
 		{
@@ -518,6 +541,7 @@ func testPublishAndIndexTransactionsNonCanonical(t *testing.T) {
 		},
 	}
 
+	// expected transactions in the canonical block at London height + 1
 	mockNonCanonicalBlock2Txs := mockNonCanonicalBlock2.Transactions()
 	expectedNonCanonicalBlock2Txs := []models.TxModel{
 		{
@@ -598,6 +622,7 @@ func testPublishAndIndexReceiptsNonCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// expected receipts in the canonical block
 	rctCids := []cid.Cid{rct1CID, rct2CID, rct3CID, rct4CID, rct5CID}
 	expectedBlockRctsMap := make(map[string]models.ReceiptModel, len(mocks.MockReceipts))
 	for i, mockBlockRct := range mocks.MockReceipts {
@@ -605,6 +630,7 @@ func testPublishAndIndexReceiptsNonCanonical(t *testing.T) {
 		expectedBlockRctsMap[rctCids[i].String()] = rctModel
 	}
 
+	// expected receipts in the canonical block at London height + 1
 	nonCanonicalBlockRctCids := []cid.Cid{nonCanonicalBlockRct1CID, nonCanonicalBlockRct2CID}
 	expectedNonCanonicalBlockRctsMap := make(map[string]models.ReceiptModel, len(mocks.MockNonCanonicalBlockReceipts))
 	for i, mockNonCanonicalBlockRct := range mocks.MockNonCanonicalBlockReceipts {
@@ -612,6 +638,7 @@ func testPublishAndIndexReceiptsNonCanonical(t *testing.T) {
 		expectedNonCanonicalBlockRctsMap[nonCanonicalBlockRctCids[i].String()] = rctModel
 	}
 
+	// expected receipts in the canonical block at London height + 1
 	nonCanonicalBlock2RctCids := []cid.Cid{nonCanonicalBlock2Rct1CID, nonCanonicalBlock2Rct2CID}
 	expectedNonCanonicalBlock2RctsMap := make(map[string]models.ReceiptModel, len(mocks.MockNonCanonicalBlock2Receipts))
 	for i, mockNonCanonicalBlock2Rct := range mocks.MockNonCanonicalBlock2Receipts {
@@ -695,6 +722,7 @@ func testPublishAndIndexLogsNonCanonical(t *testing.T) {
 	}
 	mockRcts := make([]rctWithBlockHash, 0)
 
+	// logs in the canonical block
 	for _, mockBlockRct := range mocks.MockReceipts {
 		mockRcts = append(mockRcts, rctWithBlockHash{
 			mockBlockRct,
@@ -703,6 +731,7 @@ func testPublishAndIndexLogsNonCanonical(t *testing.T) {
 		})
 	}
 
+	// logs in the canonical block at London height + 1
 	for _, mockBlockRct := range mocks.MockNonCanonicalBlockReceipts {
 		mockRcts = append(mockRcts, rctWithBlockHash{
 			mockBlockRct,
@@ -711,6 +740,7 @@ func testPublishAndIndexLogsNonCanonical(t *testing.T) {
 		})
 	}
 
+	// logs in the canonical block at London height + 1
 	for _, mockBlockRct := range mocks.MockNonCanonicalBlock2Receipts {
 		mockRcts = append(mockRcts, rctWithBlockHash{
 			mockBlockRct,
@@ -776,6 +806,7 @@ func testPublishAndIndexStateNonCanonical(t *testing.T) {
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStateCID)
 	stateNodeCIDs := []cid.Cid{state1CID, state2CID, removedNodeCID, removedNodeCID}
 
+	// expected state nodes in the canonical and the non-canonical block at London height
 	expectedStateNodes := make([]models.StateNodeModel, 0)
 	for i, stateDiff := range mocks.StateDiffs {
 		expectedStateNodes = append(expectedStateNodes, models.StateNodeModel{
@@ -795,6 +826,7 @@ func testPublishAndIndexStateNonCanonical(t *testing.T) {
 		}
 	})
 
+	// expected state nodes in the non-canonical block at London height + 1
 	expectedNonCanonicalBlock2StateNodes := make([]models.StateNodeModel, 0)
 	for i, stateDiff := range mocks.StateDiffs[:2] {
 		expectedNonCanonicalBlock2StateNodes = append(expectedNonCanonicalBlock2StateNodes, models.StateNodeModel{
@@ -819,7 +851,7 @@ func testPublishAndIndexStateNonCanonical(t *testing.T) {
 		require.Equal(t, expectedStateNode, stateNodes[i])
 	}
 
-	// check state nodes for non-canonical block
+	// check state nodes for non-canonical block at London height
 	stateNodes = make([]models.StateNodeModel, 0)
 	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64(), mockNonCanonicalBlock.Hash().String())
 	if err != nil {
@@ -831,7 +863,7 @@ func testPublishAndIndexStateNonCanonical(t *testing.T) {
 		require.Equal(t, expectedStateNode, stateNodes[i])
 	}
 
-	// check state nodes for non-canonical block at another height
+	// check state nodes for non-canonical block at London height + 1
 	stateNodes = make([]models.StateNodeModel, 0)
 	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.Block2Number.Uint64(), mockNonCanonicalBlock2.Hash().String())
 	if err != nil {
@@ -855,6 +887,7 @@ func testPublishAndIndexStorageNonCanonical(t *testing.T) {
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStorageCID)
 	storageNodeCIDs := []cid.Cid{storageCID, removedNodeCID, removedNodeCID, removedNodeCID}
 
+	// expected state nodes in the canonical and the non-canonical block at London height
 	expectedStorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex := 0
 	for _, stateDiff := range mocks.StateDiffs {
@@ -879,6 +912,7 @@ func testPublishAndIndexStorageNonCanonical(t *testing.T) {
 		}
 	})
 
+	// expected state nodes in the non-canonical block at London height + 1
 	expectedNonCanonicalBlock2StorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex = 0
 	for _, stateDiff := range mocks.StateDiffs[:2] {
@@ -908,7 +942,7 @@ func testPublishAndIndexStorageNonCanonical(t *testing.T) {
 		require.Equal(t, expectedStorageNode, storageNodes[i])
 	}
 
-	// check storage nodes for non-canonical block
+	// check storage nodes for non-canonical block at London height
 	storageNodes = make([]models.StorageNodeModel, 0)
 	err = db.Select(context.Background(), &storageNodes, pgStr, mocks.BlockNumber.Uint64(), mockNonCanonicalBlock.Hash().String())
 	if err != nil {
@@ -920,7 +954,7 @@ func testPublishAndIndexStorageNonCanonical(t *testing.T) {
 		require.Equal(t, expectedStorageNode, storageNodes[i])
 	}
 
-	// check storage nodes for non-canonical block at another height
+	// check storage nodes for non-canonical block at London height + 1
 	storageNodes = make([]models.StorageNodeModel, 0)
 	err = db.Select(context.Background(), &storageNodes, pgStr, mockNonCanonicalBlock2.NumberU64(), mockNonCanonicalBlock2.Hash().String())
 	if err != nil {

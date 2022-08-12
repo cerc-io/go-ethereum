@@ -40,7 +40,10 @@ var (
 	// TODO: Update this to `MainnetChainConfig` when `LondonBlock` is added
 	TestConfig  = params.RopstenChainConfig
 	BlockNumber = TestConfig.LondonBlock
-	MockHeader  = types.Header{
+
+	// canonical block at London height
+	// includes 5 transactions: 3 Legacy + 1 EIP-2930 + 1 EIP-1559
+	MockHeader = types.Header{
 		Time:        0,
 		Number:      new(big.Int).Set(BlockNumber),
 		Root:        common.HexToHash("0x0"),
@@ -55,12 +58,16 @@ var (
 	MockBlock                                  = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, new(trie.Trie))
 	MockHeaderRlp, _                           = rlp.EncodeToBytes(MockBlock.Header())
 
+	// non-canonical block at London height
+	// includes 2nd and 5th transactions from the canonical block
 	MockNonCanonicalHeader            = MockHeader
 	MockNonCanonicalBlockTransactions = types.Transactions{MockTransactions[1], MockTransactions[4]}
 	MockNonCanonicalBlockReceipts     = createNonCanonicalBlockReceipts(TestConfig, BlockNumber, MockNonCanonicalBlockTransactions)
 	MockNonCanonicalBlock             = types.NewBlock(&MockNonCanonicalHeader, MockNonCanonicalBlockTransactions, nil, MockNonCanonicalBlockReceipts, new(trie.Trie))
 	MockNonCanonicalHeaderRlp, _      = rlp.EncodeToBytes(MockNonCanonicalBlock.Header())
 
+	// non-canonical block at London height + 1
+	// includes 3rd and 5th transactions from the canonical block
 	Block2Number            = big.NewInt(BlockNumber.Int64() + 1)
 	MockNonCanonicalHeader2 = types.Header{
 		Time:        0,
@@ -465,6 +472,7 @@ func createTransactionsAndReceipts(config *params.ChainConfig, blockNumber *big.
 	return types.Transactions{signedTrx1, signedTrx2, signedTrx3, signedTrx4, signedTrx5}, types.Receipts{mockReceipt1, mockReceipt2, mockReceipt3, mockReceipt4, mockReceipt5}, senderAddr
 }
 
+// createNonCanonicalBlockReceipts is a helper function to generate mock receipts with mock logs for non-canonical blocks
 func createNonCanonicalBlockReceipts(config *params.ChainConfig, blockNumber *big.Int, transactions types.Transactions) types.Receipts {
 	transactionSigner := types.MakeSigner(config, blockNumber)
 	mockCurve := elliptic.P256()
