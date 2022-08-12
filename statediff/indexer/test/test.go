@@ -1549,3 +1549,28 @@ func TestLegacyIndexer(t *testing.T, db sql.Database) {
 	require.Equal(t, legacyData.MockHeader.Coinbase.String(), header.Coinbase)
 	require.Nil(t, legacyData.MockHeader.BaseFee)
 }
+
+func TestBlock(t *testing.T, ind interfaces.StateDiffIndexer, testBlock *types.Block, testReceipts types.Receipts) {
+	var tx interfaces.Batch
+	tx, err = ind.PushBlock(
+		testBlock,
+		testReceipts,
+		testBlock.Difficulty())
+	require.NoError(t, err)
+
+	defer func() {
+		if err := tx.Submit(err); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, node := range mocks.StateDiffs {
+		err = ind.PushStateNode(tx, node, testBlock.Hash().String())
+		require.NoError(t, err)
+	}
+
+	if batchTx, ok := tx.(*sql.BatchTx); ok {
+		require.Equal(t, testBlock.Number().String(), batchTx.BlockNumber)
+	} else if batchTx, ok := tx.(*file.BatchTx); ok {
+		require.Equal(t, testBlock.Number().String(), batchTx.BlockNumber)
+	}
+}

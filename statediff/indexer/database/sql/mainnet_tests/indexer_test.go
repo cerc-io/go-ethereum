@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
@@ -48,65 +48,45 @@ func init() {
 	}
 }
 
-func TestPushBlockAndState(t *testing.T) {
-	conf := test_helpers.DefaultTestConfig
-	rawURL := os.Getenv(test_helpers.TEST_RAW_URL)
-	if rawURL == "" {
-		fmt.Printf("Warning: no raw url configured for statediffing mainnet tests, will look for local file and"+
-			"then try default endpoint (%s)\r\n", test_helpers.DefaultTestConfig.RawURL)
-	} else {
-		conf.RawURL = rawURL
-	}
+func TestMainnetIndexer(t *testing.T) {
+	conf := test_helpers.GetTestConfig()
+
 	for _, blockNumber := range test_helpers.ProblemBlocks {
 		conf.BlockNumber = big.NewInt(blockNumber)
 		tb, trs, err := test_helpers.TestBlockAndReceipts(conf)
 		require.NoError(t, err)
+
 		testPushBlockAndState(t, tb, trs)
 	}
+
 	testBlock, testReceipts, err := test_helpers.TestBlockAndReceiptsFromEnv(conf)
 	require.NoError(t, err)
+
 	testPushBlockAndState(t, testBlock, testReceipts)
 }
 
 func testPushBlockAndState(t *testing.T, block *types.Block, receipts types.Receipts) {
 	t.Run("Test PushBlock and PushStateNode", func(t *testing.T) {
-		setup(t, block, receipts)
-		tearDown(t)
+		setupMainnetIndexer(t)
+		defer tearDown(t)
+
+		test.TestBlock(t, ind, block, receipts)
 	})
 }
 
-func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) {
+func setupMainnetIndexer(t *testing.T) {
 	db, err = postgres.SetupSQLXDB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ind, err = sql.NewStateDiffIndexer(context.Background(), chainConf, db)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		testBlock,
-		testReceipts,
-		testBlock.Difficulty())
-	require.NoError(t, err)
-
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, testBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, testBlock.Number().String(), tx.(*sql.BatchTx).BlockNumber)
 }
 
 func tearDown(t *testing.T) {
 	require.Equal(t, int64(0), db.Stats().Idle())
 	require.Equal(t, int64(0), db.Stats().InUse())
 	require.Equal(t, int64(0), db.Stats().Open())
+
 	test_helpers.TearDownDB(t, db)
-	err = ind.Close()
-	require.NoError(t, err)
+	require.NoError(t, ind.Close())
 }
