@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
@@ -275,7 +276,11 @@ func SetupTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
 		require.NoError(t, err)
 	}
 
-	require.Equal(t, mocks.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
+	if batchTx, ok := tx.(*sql.BatchTx); ok {
+		require.Equal(t, mocks.BlockNumber.String(), batchTx.BlockNumber)
+	} else if batchTx, ok := tx.(*file.BatchTx); ok {
+		require.Equal(t, mocks.BlockNumber.String(), batchTx.BlockNumber)
+	}
 }
 
 func TestPublishAndIndexHeaderIPLDs(t *testing.T, db sql.Database) {
@@ -810,10 +815,10 @@ func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
 		require.NoError(t, err)
 	}
 
-	if tx, ok := tx1.(*sql.BatchTx); ok {
-		require.Equal(t, mocks.BlockNumber.String(), tx.BlockNumber)
-	} else if tx, ok := tx1.(*sql.BatchTx); ok {
-		require.Equal(t, mocks.BlockNumber.String(), tx.BlockNumber)
+	if batchTx, ok := tx1.(*sql.BatchTx); ok {
+		require.Equal(t, mocks.BlockNumber.String(), batchTx.BlockNumber)
+	} else if batchTx, ok := tx1.(*file.BatchTx); ok {
+		require.Equal(t, mocks.BlockNumber.String(), batchTx.BlockNumber)
 	}
 
 	if err := tx1.Submit(err); err != nil {
@@ -856,10 +861,10 @@ func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
 		require.NoError(t, err)
 	}
 
-	if tx, ok := tx3.(*sql.BatchTx); ok {
-		require.Equal(t, mocks.Block2Number.String(), tx.BlockNumber)
-	} else if tx, ok := tx3.(*sql.BatchTx); ok {
-		require.Equal(t, mocks.Block2Number.String(), tx.BlockNumber)
+	if batchTx, ok := tx3.(*sql.BatchTx); ok {
+		require.Equal(t, mocks.Block2Number.String(), batchTx.BlockNumber)
+	} else if batchTx, ok := tx3.(*file.BatchTx); ok {
+		require.Equal(t, mocks.Block2Number.String(), batchTx.BlockNumber)
 	}
 
 	if err := tx3.Submit(err); err != nil {

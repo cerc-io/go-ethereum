@@ -121,6 +121,7 @@ func dumpWatchedAddressesCSVFileData(t *testing.T) {
 
 func tearDownCSV(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
+	require.NoError(t, db.Close())
 
 	err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 	require.NoError(t, err)
@@ -128,12 +129,9 @@ func tearDownCSV(t *testing.T) {
 	if err := os.Remove(file.CSVTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
-
-	err = db.Close()
-	require.NoError(t, err)
 }
 
-func TestCSVFileIndexerLegacy(t *testing.T) {
+func TestLegacyCSVFileIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
 		setupCSVLegacy(t)
 		dumpCSVFileData(t)

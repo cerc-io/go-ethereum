@@ -96,6 +96,7 @@ func resetAndDumpWatchedAddressesFileData(t *testing.T) {
 
 func tearDown(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
+	require.NoError(t, db.Close())
 
 	err := os.Remove(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
@@ -103,12 +104,9 @@ func tearDown(t *testing.T) {
 	if err := os.Remove(file.SQLTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
-
-	err = db.Close()
-	require.NoError(t, err)
 }
 
-func TestSQLFileIndexerLegacy(t *testing.T) {
+func TestLegacySQLFileIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
 		setupLegacy(t)
 		dumpFileData(t)
