@@ -22,13 +22,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 func setupCSVIndexer(t *testing.T) {
@@ -47,10 +48,9 @@ func setupCSVIndexer(t *testing.T) {
 	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.CSVTestConfig)
 	require.NoError(t, err)
 
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
 }
 
@@ -78,6 +78,11 @@ func setupCSV(t *testing.T) {
 	}
 
 	require.Equal(t, mocks.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
+}
+
+func setupCSVNonCanonical(t *testing.T) {
+	setupCSVIndexer(t)
+	test.SetupTestDataNonCanonical(t, ind)
 }
 
 func TestCSVFileIndexer(t *testing.T) {
@@ -130,6 +135,56 @@ func TestCSVFileIndexer(t *testing.T) {
 	})
 }
 
+func TestCSVFileIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexHeaderNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexTransactionsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index receipts", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexReceiptsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index logs", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexLogsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexStateNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexStorageNonCanonical(t, db)
+	})
+}
+
 func TestCSVFileWatchAddressMethods(t *testing.T) {
 	setupCSVIndexer(t)
 	defer tearDownCSV(t)
@@ -140,42 +195,42 @@ func TestCSVFileWatchAddressMethods(t *testing.T) {
 
 	t.Run("Insert watched addresses", func(t *testing.T) {
 		testInsertWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
 		testInsertAlreadyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Remove watched addresses", func(t *testing.T) {
 		testRemoveWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
 		testRemoveNonWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Set watched addresses", func(t *testing.T) {
 		testSetWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
 		testSetAlreadyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
@@ -186,14 +241,14 @@ func TestCSVFileWatchAddressMethods(t *testing.T) {
 
 	t.Run("Clear watched addresses", func(t *testing.T) {
 		testClearWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})
 
 	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
 		testClearEmptyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
+			test_helpers.TearDownDB(t, db)
 			dumpWatchedAddressesCSVFileData(t)
 		})
 	})

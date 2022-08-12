@@ -106,7 +106,7 @@ func tearDown(t *testing.T) {
 	require.Equal(t, int64(0), db.Stats().Idle())
 	require.Equal(t, int64(0), db.Stats().InUse())
 	require.Equal(t, int64(0), db.Stats().Open())
-	sql.TearDownDB(t, db)
+	test_helpers.TearDownDB(t, db)
 	err = ind.Close()
 	require.NoError(t, err)
 }

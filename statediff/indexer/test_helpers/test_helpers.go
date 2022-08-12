@@ -16,6 +16,15 @@
 
 package test_helpers
 
+import (
+	"bufio"
+	"context"
+	"os"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+)
+
 // ListContainsString used to check if a list of strings contains a particular string
 func ListContainsString(sss []string, s string) bool {
 	for _, str := range sss {
@@ -24,4 +33,99 @@ func ListContainsString(sss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// DedupFile removes the duplicates from the given file
+func DedupFile(filePath string) error {
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	stmts := make(map[string]struct{}, 0)
+	sc := bufio.NewScanner(f)
+
+	for sc.Scan() {
+		s := sc.Text()
+		stmts[s] = struct{}{}
+	}
+	if err != nil {
+		return err
+	}
+
+	f.Close()
+
+	f, err = os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	for stmt := range stmts {
+		f.Write([]byte(stmt + "\n"))
+	}
+
+	return nil
+}
+
+// TearDownDB is used to tear down the watcher dbs after tests
+func TearDownDB(t *testing.T, db sql.Database) {
+	ctx := context.Background()
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM eth.header_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.uncle_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.transaction_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.receipt_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.state_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.storage_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.state_accounts`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.access_list_elements`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth.log_cids`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM blocks`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM nodes`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `DELETE FROM eth_meta.watched_addresses`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

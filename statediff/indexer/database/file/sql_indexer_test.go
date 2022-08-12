@@ -22,13 +22,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 )
 
 func setupIndexer(t *testing.T) {
@@ -45,10 +45,9 @@ func setupIndexer(t *testing.T) {
 	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.SQLTestConfig)
 	require.NoError(t, err)
 
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
 }
 
@@ -76,6 +75,11 @@ func setup(t *testing.T) {
 	}
 
 	require.Equal(t, mocks.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
+}
+
+func setupSQLNonCanonical(t *testing.T) {
+	setupIndexer(t)
+	test.SetupTestDataNonCanonical(t, ind)
 }
 
 func TestSQLFileIndexer(t *testing.T) {
@@ -125,6 +129,56 @@ func TestSQLFileIndexer(t *testing.T) {
 		defer tearDown(t)
 
 		testPublishAndIndexStorageIPLDs(t)
+	})
+}
+
+func TestSQLFileIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexHeaderNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexTransactionsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index receipts", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexReceiptsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index logs", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexLogsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexStateNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupSQLNonCanonical(t)
+		dumpFileData(t)
+		defer tearDown(t)
+
+		test.TestPublishAndIndexStorageNonCanonical(t, db)
 	})
 }
 

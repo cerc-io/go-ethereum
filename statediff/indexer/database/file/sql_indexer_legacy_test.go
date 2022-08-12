@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 func setupLegacy(t *testing.T) {
@@ -73,10 +74,13 @@ func setupLegacy(t *testing.T) {
 }
 
 func dumpFileData(t *testing.T) {
+	err := test_helpers.DedupFile(file.SQLTestConfig.FilePath)
+	require.NoError(t, err)
+
 	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
 
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	_, err = db.Exec(context.Background(), string(sqlFileBytes))
 	require.NoError(t, err)
 }
 
@@ -91,7 +95,7 @@ func resetAndDumpWatchedAddressesFileData(t *testing.T) {
 }
 
 func tearDown(t *testing.T) {
-	file.TearDownDB(t, sqlxdb)
+	test_helpers.TearDownDB(t, db)
 
 	err := os.Remove(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
@@ -100,7 +104,7 @@ func tearDown(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err = sqlxdb.Close()
+	err = db.Close()
 	require.NoError(t, err)
 }
 

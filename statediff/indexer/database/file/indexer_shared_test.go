@@ -33,7 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
@@ -49,6 +49,7 @@ var (
 	mockLegacyBlock *types.Block
 	legacyHeaderCID cid.Cid
 
+	db     sql.Database
 	sqlxdb *sqlx.DB
 	err    error
 	ind    interfaces.StateDiffIndexer
@@ -193,7 +194,7 @@ func expectTrue(t *testing.T, value bool) {
 }
 
 func resetDB(t *testing.T) {
-	file.TearDownDB(t, sqlxdb)
+	test_helpers.TearDownDB(t, db)
 
 	connStr := postgres.DefaultConfig.DbConnectionString()
 	sqlxdb, err = sqlx.Connect("postgres", connStr)

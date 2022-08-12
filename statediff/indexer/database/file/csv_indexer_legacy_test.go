@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 const dbDirectory = "/file_indexer"
@@ -83,8 +84,15 @@ func setupCSVLegacy(t *testing.T) {
 
 func dumpCSVFileData(t *testing.T) {
 	outputDir := filepath.Join(dbDirectory, file.CSVTestConfig.OutputDir)
+	workingDir, err := os.Getwd()
+	require.NoError(t, err)
+
+	localOutputDir := filepath.Join(workingDir, file.CSVTestConfig.OutputDir)
 
 	for _, tbl := range file.Tables {
+		err := test_helpers.DedupFile(file.TableFilePath(localOutputDir, tbl.Name))
+		require.NoError(t, err)
+
 		var stmt string
 		varcharColumns := tbl.VarcharColumns()
 		if len(varcharColumns) > 0 {
@@ -98,7 +106,7 @@ func dumpCSVFileData(t *testing.T) {
 			stmt = fmt.Sprintf(pgCopyStatement, tbl.Name, file.TableFilePath(outputDir, tbl.Name))
 		}
 
-		_, err = sqlxdb.Exec(stmt)
+		_, err = db.Exec(context.Background(), stmt)
 		require.NoError(t, err)
 	}
 }
@@ -112,7 +120,7 @@ func dumpWatchedAddressesCSVFileData(t *testing.T) {
 }
 
 func tearDownCSV(t *testing.T) {
-	file.TearDownDB(t, sqlxdb)
+	test_helpers.TearDownDB(t, db)
 
 	err := os.RemoveAll(file.CSVTestConfig.OutputDir)
 	require.NoError(t, err)
@@ -121,7 +129,7 @@ func tearDownCSV(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err = sqlxdb.Close()
+	err = db.Close()
 	require.NoError(t, err)
 }
 
