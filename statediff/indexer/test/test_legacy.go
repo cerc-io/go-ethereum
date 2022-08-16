@@ -68,7 +68,7 @@ func SetupLegacyTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
 }
 
 func TestLegacyIndexer(t *testing.T, db sql.Database) {
-	pgStr := `SELECT cid, td, reward, block_hash, coinbase
+	pgStr := `SELECT cid, cast(td AS TEXT), cast(reward AS TEXT), block_hash, coinbase
 	FROM eth.header_cids
 	WHERE block_number = $1`
 	// check header was properly indexed
