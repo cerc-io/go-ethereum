@@ -62,6 +62,18 @@ var DefaultTestConfig = TestConfig{
 	LocalCache:  true,
 }
 
+func GetTestConfig() TestConfig {
+	conf := DefaultTestConfig
+	rawURL := os.Getenv(TEST_RAW_URL)
+	if rawURL == "" {
+		fmt.Printf("Warning: no raw url configured for statediffing mainnet tests, will look for local file and"+
+			"then try default endpoint (%s)\r\n", DefaultTestConfig.RawURL)
+	} else {
+		conf.RawURL = rawURL
+	}
+	return conf
+}
+
 // TestBlockAndReceiptsFromEnv retrieves the block and receipts using env variables to override default config block number
 func TestBlockAndReceiptsFromEnv(conf TestConfig) (*types.Block, types.Receipts, error) {
 	blockNumberStr := os.Getenv(TEST_BLOCK_NUMBER)

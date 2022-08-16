@@ -19,16 +19,16 @@ package file_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 )
 
 func setupCSVIndexer(t *testing.T) {
@@ -47,37 +47,20 @@ func setupCSVIndexer(t *testing.T) {
 	ind, err = file.NewStateDiffIndexer(context.Background(), mocks.TestConfig, file.CSVTestConfig)
 	require.NoError(t, err)
 
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
 }
 
 func setupCSV(t *testing.T) {
 	setupCSVIndexer(t)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockBlock,
-		mocks.MockReceipts,
-		mocks.MockBlock.Difficulty())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-		if err := ind.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, mockBlock.Hash().String())
-		require.NoError(t, err)
-	}
+	test.SetupTestData(t, ind)
+}
 
-	require.Equal(t, mocks.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
+func setupCSVNonCanonical(t *testing.T) {
+	setupCSVIndexer(t)
+	test.SetupTestDataNonCanonical(t, ind)
 }
 
 func TestCSVFileIndexer(t *testing.T) {
@@ -86,7 +69,7 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexHeaderIPLDs(t)
+		test.TestPublishAndIndexHeaderIPLDs(t, db)
 	})
 
 	t.Run("Publish and index transaction IPLDs in a single tx", func(t *testing.T) {
@@ -94,7 +77,7 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexTransactionIPLDs(t)
+		test.TestPublishAndIndexTransactionIPLDs(t, db)
 	})
 
 	t.Run("Publish and index log IPLDs for multiple receipt of a specific block", func(t *testing.T) {
@@ -102,7 +85,7 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexLogIPLDs(t)
+		test.TestPublishAndIndexLogIPLDs(t, db)
 	})
 
 	t.Run("Publish and index receipt IPLDs in a single tx", func(t *testing.T) {
@@ -110,7 +93,7 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexReceiptIPLDs(t)
+		test.TestPublishAndIndexReceiptIPLDs(t, db)
 	})
 
 	t.Run("Publish and index state IPLDs in a single tx", func(t *testing.T) {
@@ -118,7 +101,7 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexStateIPLDs(t)
+		test.TestPublishAndIndexStateIPLDs(t, db)
 	})
 
 	t.Run("Publish and index storage IPLDs in a single tx", func(t *testing.T) {
@@ -126,7 +109,57 @@ func TestCSVFileIndexer(t *testing.T) {
 		dumpCSVFileData(t)
 		defer tearDownCSV(t)
 
-		testPublishAndIndexStorageIPLDs(t)
+		test.TestPublishAndIndexStorageIPLDs(t, db)
+	})
+}
+
+func TestCSVFileIndexerNonCanonical(t *testing.T) {
+	t.Run("Publish and index header", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexHeaderNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index transactions", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexTransactionsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index receipts", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexReceiptsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index logs", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexLogsNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index state nodes", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexStateNonCanonical(t, db)
+	})
+
+	t.Run("Publish and index storage nodes", func(t *testing.T) {
+		setupCSVNonCanonical(t)
+		dumpCSVFileData(t)
+		defer tearDownCSV(t)
+
+		test.TestPublishAndIndexStorageNonCanonical(t, db)
 	})
 }
 
@@ -135,66 +168,88 @@ func TestCSVFileWatchAddressMethods(t *testing.T) {
 	defer tearDownCSV(t)
 
 	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
-		testLoadEmptyWatchedAddresses(t)
+		test.TestLoadEmptyWatchedAddresses(t, ind)
 	})
 
 	t.Run("Insert watched addresses", func(t *testing.T) {
-		testInsertWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetInsertWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt1)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestInsertWatchedAddresses(t, db)
 	})
 
 	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
-		testInsertAlreadyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetInsertAlreadyWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestInsertAlreadyWatchedAddresses(t, db)
 	})
 
 	t.Run("Remove watched addresses", func(t *testing.T) {
-		testRemoveWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetRemoveWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestRemoveWatchedAddresses(t, db)
 	})
 
 	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
-		testRemoveNonWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetRemoveNonWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestRemoveNonWatchedAddresses(t, db)
 	})
 
 	t.Run("Set watched addresses", func(t *testing.T) {
-		testSetWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetSetWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestSetWatchedAddresses(t, db)
 	})
 
 	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
-		testSetAlreadyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		args := mocks.GetSetAlreadyWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt3)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestSetAlreadyWatchedAddresses(t, db)
 	})
 
 	t.Run("Load watched addresses", func(t *testing.T) {
-		testLoadWatchedAddresses(t)
+		test.TestLoadWatchedAddresses(t, ind)
 	})
 
 	t.Run("Clear watched addresses", func(t *testing.T) {
-		testClearWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestClearWatchedAddresses(t, db)
 	})
 
 	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
-		testClearEmptyWatchedAddresses(t, func(t *testing.T) {
-			file.TearDownDB(t, sqlxdb)
-			dumpWatchedAddressesCSVFileData(t)
-		})
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestClearEmptyWatchedAddresses(t, db)
 	})
 }

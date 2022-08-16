@@ -20,52 +20,25 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-cid"
-	"github.com/jmoiron/sqlx"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
-	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
-	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 )
 
-var (
-	legacyData      = mocks.NewLegacyData()
-	mockLegacyBlock *types.Block
-	legacyHeaderCID cid.Cid
-)
+func setupLegacySQLXIndexer(t *testing.T) {
+	db, err = postgres.SetupSQLXDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ind, err = sql.NewStateDiffIndexer(context.Background(), test.LegacyConfig, db)
+	require.NoError(t, err)
+}
 
 func setupLegacySQLX(t *testing.T) {
-	mockLegacyBlock = legacyData.MockBlock
-	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-
-	db, err = postgres.SetupSQLXDB()
-	require.NoError(t, err)
-
-	ind, err = sql.NewStateDiffIndexer(context.Background(), legacyData.Config, db)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockLegacyBlock,
-		legacyData.MockReceipts,
-		legacyData.MockBlock.Difficulty())
-	require.NoError(t, err)
-
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range legacyData.StateDiffs {
-		err = ind.PushStateNode(tx, node, mockLegacyBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, legacyData.BlockNumber.String(), tx.(*sql.BatchTx).BlockNumber)
+	setupLegacySQLXIndexer(t)
+	test.SetupLegacyTestData(t, ind)
 }
 
 func TestLegacySQLXIndexer(t *testing.T) {
@@ -73,25 +46,7 @@ func TestLegacySQLXIndexer(t *testing.T) {
 		setupLegacySQLX(t)
 		defer tearDown(t)
 		defer checkTxClosure(t, 0, 0, 0)
-		pgStr := `SELECT cid, td, reward, block_hash, coinbase
-				FROM eth.header_cids
-				WHERE block_number = $1`
-		// check header was properly indexed
-		type res struct {
-			CID       string
-			TD        string
-			Reward    string
-			BlockHash string `db:"block_hash"`
-			Coinbase  string `db:"coinbase"`
-		}
-		header := new(res)
-		err = db.QueryRow(context.Background(), pgStr, legacyData.BlockNumber.Uint64()).(*sqlx.Row).StructScan(header)
-		require.NoError(t, err)
 
-		require.Equal(t, legacyHeaderCID.String(), header.CID)
-		require.Equal(t, legacyData.MockBlock.Difficulty().String(), header.TD)
-		require.Equal(t, "5000000000000011250", header.Reward)
-		require.Equal(t, legacyData.MockHeader.Coinbase.String(), header.Coinbase)
-		require.Nil(t, legacyData.MockHeader.BaseFee)
+		test.TestLegacyIndexer(t, db)
 	})
 }

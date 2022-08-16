@@ -255,6 +255,21 @@ var (
 			},
 		},
 	}
+
+	// Mock data for testing watched addresses methods
+	Contract1Address   = "0x5d663F5269090bD2A7DC2390c911dF6083D7b28F"
+	Contract2Address   = "0x6Eb7e5C66DB8af2E96159AC440cbc8CDB7fbD26B"
+	Contract3Address   = "0xcfeB164C328CA13EFd3C77E1980d94975aDfedfc"
+	Contract4Address   = "0x0Edf0c4f393a628DE4828B228C48175b3EA297fc"
+	Contract1CreatedAt = uint64(1)
+	Contract2CreatedAt = uint64(2)
+	Contract3CreatedAt = uint64(3)
+	Contract4CreatedAt = uint64(4)
+
+	LastFilledAt = uint64(0)
+	WatchedAt1   = uint64(10)
+	WatchedAt2   = uint64(15)
+	WatchedAt3   = uint64(20)
 )
 
 type LegacyData struct {
@@ -284,8 +299,7 @@ type LegacyData struct {
 	StateDiffs           []sdtypes.StateNode
 }
 
-func NewLegacyData() *LegacyData {
-	config := params.MainnetChainConfig
+func NewLegacyData(config *params.ChainConfig) *LegacyData {
 	// Block number before london fork.
 	blockNumber := config.EIP155Block
 
@@ -505,4 +519,91 @@ func createNonCanonicalBlockReceipts(config *params.ChainConfig, blockNumber *bi
 	}
 
 	return types.Receipts{mockReceipt0, mockReceipt1}
+}
+
+// Helper methods for testing watched addresses methods
+func GetInsertWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract1Address,
+			CreatedAt: Contract1CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+	}
+}
+
+func GetInsertAlreadyWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract3Address,
+			CreatedAt: Contract3CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+	}
+}
+
+func GetRemoveWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract3Address,
+			CreatedAt: Contract3CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+	}
+}
+
+func GetRemoveNonWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract1Address,
+			CreatedAt: Contract1CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+	}
+}
+
+func GetSetWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract1Address,
+			CreatedAt: Contract1CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+		{
+			Address:   Contract3Address,
+			CreatedAt: Contract3CreatedAt,
+		},
+	}
+}
+
+func GetSetAlreadyWatchedAddressesArgs() []sdtypes.WatchAddressArg {
+	return []sdtypes.WatchAddressArg{
+		{
+			Address:   Contract4Address,
+			CreatedAt: Contract4CreatedAt,
+		},
+		{
+			Address:   Contract2Address,
+			CreatedAt: Contract2CreatedAt,
+		},
+		{
+			Address:   Contract3Address,
+			CreatedAt: Contract3CreatedAt,
+		},
+	}
 }

@@ -22,93 +22,80 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
-func setupLegacy(t *testing.T) {
-	mockLegacyBlock = legacyData.MockBlock
-	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
+var (
+	db  sql.Database
+	err error
+	ind interfaces.StateDiffIndexer
+)
 
+func setupLegacySQLIndexer(t *testing.T) {
 	if _, err := os.Stat(file.SQLTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
 		err := os.Remove(file.SQLTestConfig.FilePath)
 		require.NoError(t, err)
 	}
-	ind, err := file.NewStateDiffIndexer(context.Background(), legacyData.Config, file.SQLTestConfig)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockLegacyBlock,
-		legacyData.MockReceipts,
-		legacyData.MockBlock.Difficulty())
+
+	ind, err = file.NewStateDiffIndexer(context.Background(), test.LegacyConfig, file.SQLTestConfig)
 	require.NoError(t, err)
 
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-		if err := ind.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	for _, node := range legacyData.StateDiffs {
-		err = ind.PushStateNode(tx, node, legacyData.MockBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, legacyData.BlockNumber.String(), tx.(*file.BatchTx).BlockNumber)
-
-	connStr := postgres.DefaultConfig.DbConnectionString()
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
 }
 
+func setupLegacySQL(t *testing.T) {
+	setupLegacySQLIndexer(t)
+	test.SetupLegacyTestData(t, ind)
+}
+
 func dumpFileData(t *testing.T) {
+	err := test_helpers.DedupFile(file.SQLTestConfig.FilePath)
+	require.NoError(t, err)
+
 	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.FilePath)
 	require.NoError(t, err)
 
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	_, err = db.Exec(context.Background(), string(sqlFileBytes))
 	require.NoError(t, err)
 }
 
 func resetAndDumpWatchedAddressesFileData(t *testing.T) {
-	resetDB(t)
+	test_helpers.TearDownDB(t, db)
 
 	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.WatchedAddressesFilePath)
 	require.NoError(t, err)
 
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	_, err = db.Exec(context.Background(), string(sqlFileBytes))
 	require.NoError(t, err)
 }
 
 func tearDown(t *testing.T) {
-	file.TearDownDB(t, sqlxdb)
+	test_helpers.TearDownDB(t, db)
+	require.NoError(t, db.Close())
 
-	err := os.Remove(file.SQLTestConfig.FilePath)
-	require.NoError(t, err)
+	require.NoError(t, os.Remove(file.SQLTestConfig.FilePath))
 
 	if err := os.Remove(file.SQLTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)
 	}
-
-	err = sqlxdb.Close()
-	require.NoError(t, err)
 }
 
-func TestSQLFileIndexerLegacy(t *testing.T) {
+func TestLegacySQLFileIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
-		setupLegacy(t)
+		setupLegacySQL(t)
 		dumpFileData(t)
 		defer tearDown(t)
-		testLegacyPublishAndIndexHeaderIPLDs(t)
+
+		test.TestLegacyIndexer(t, db)
 	})
 }

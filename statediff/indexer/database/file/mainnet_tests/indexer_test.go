@@ -24,20 +24,22 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
+	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
 var (
-	sqlxdb    *sqlx.DB
+	err       error
+	db        sql.Database
+	ind       interfaces.StateDiffIndexer
 	chainConf = params.MainnetChainConfig
 )
 
@@ -53,67 +55,44 @@ func init() {
 }
 
 func TestPushBlockAndState(t *testing.T) {
-	conf := test_helpers.DefaultTestConfig
-	rawURL := os.Getenv(test_helpers.TEST_RAW_URL)
-	if rawURL == "" {
-		fmt.Printf("Warning: no raw url configured for statediffing mainnet tests, will look for local file and"+
-			"then try default endpoint (%s)\r\n", test_helpers.DefaultTestConfig.RawURL)
-	} else {
-		conf.RawURL = rawURL
-	}
+	conf := test_helpers.GetTestConfig()
+
 	for _, blockNumber := range test_helpers.ProblemBlocks {
 		conf.BlockNumber = big.NewInt(blockNumber)
 		tb, trs, err := test_helpers.TestBlockAndReceipts(conf)
 		require.NoError(t, err)
+
 		testPushBlockAndState(t, tb, trs)
 	}
+
 	testBlock, testReceipts, err := test_helpers.TestBlockAndReceiptsFromEnv(conf)
 	require.NoError(t, err)
+
 	testPushBlockAndState(t, testBlock, testReceipts)
 }
 
 func testPushBlockAndState(t *testing.T, block *types.Block, receipts types.Receipts) {
 	t.Run("Test PushBlock and PushStateNode", func(t *testing.T) {
-		setup(t, block, receipts)
-		dumpData(t)
-		tearDown(t)
+		setupMainnetIndexer(t)
+		defer dumpData(t)
+		defer tearDown(t)
+
+		test.TestBlock(t, ind, block, receipts)
 	})
 }
 
-func setup(t *testing.T, testBlock *types.Block, testReceipts types.Receipts) {
+func setupMainnetIndexer(t *testing.T) {
 	if _, err := os.Stat(file.CSVTestConfig.FilePath); !errors.Is(err, os.ErrNotExist) {
 		err := os.Remove(file.CSVTestConfig.FilePath)
 		require.NoError(t, err)
 	}
-	ind, err := file.NewStateDiffIndexer(context.Background(), chainConf, file.CSVTestConfig)
-	require.NoError(t, err)
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		testBlock,
-		testReceipts,
-		testBlock.Difficulty())
+
+	ind, err = file.NewStateDiffIndexer(context.Background(), chainConf, file.CSVTestConfig)
 	require.NoError(t, err)
 
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-		if err := ind.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, testBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	require.Equal(t, testBlock.Number().String(), tx.(*file.BatchTx).BlockNumber)
-
-	connStr := postgres.DefaultConfig.DbConnectionString()
-
-	sqlxdb, err = sqlx.Connect("postgres", connStr)
+	db, err = postgres.SetupSQLXDB()
 	if err != nil {
-		t.Fatalf("failed to connect to db with connection string: %s err: %v", connStr, err)
+		t.Fatal(err)
 	}
 }
 
@@ -121,14 +100,13 @@ func dumpData(t *testing.T) {
 	sqlFileBytes, err := os.ReadFile(file.CSVTestConfig.FilePath)
 	require.NoError(t, err)
 
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	_, err = db.Exec(context.Background(), string(sqlFileBytes))
 	require.NoError(t, err)
 }
 
 func tearDown(t *testing.T) {
-	file.TearDownDB(t, sqlxdb)
-	err := os.Remove(file.CSVTestConfig.FilePath)
-	require.NoError(t, err)
-	err = sqlxdb.Close()
-	require.NoError(t, err)
+	test_helpers.TearDownDB(t, db)
+	require.NoError(t, db.Close())
+
+	require.NoError(t, os.Remove(file.CSVTestConfig.FilePath))
 }
