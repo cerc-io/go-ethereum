@@ -19,6 +19,7 @@ package file_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"os"
 	"testing"
 
@@ -162,71 +163,93 @@ func TestCSVFileIndexerNonCanonical(t *testing.T) {
 	})
 }
 
-// func TestCSVFileWatchAddressMethods(t *testing.T) {
-// 	setupCSVIndexer(t)
-// 	defer tearDownCSV(t)
+func TestCSVFileWatchAddressMethods(t *testing.T) {
+	setupCSVIndexer(t)
+	defer tearDownCSV(t)
 
-// 	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
-// 		testLoadEmptyWatchedAddresses(t)
-// 	})
+	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
+		test.TestLoadEmptyWatchedAddresses(t, ind)
+	})
 
-// 	t.Run("Insert watched addresses", func(t *testing.T) {
-// 		testInsertWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+	t.Run("Insert watched addresses", func(t *testing.T) {
+		args := mocks.GetInsertWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt1)))
+		require.NoError(t, err)
 
-// 	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
-// 		testInsertAlreadyWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+		resetAndDumpWatchedAddressesCSVFileData(t)
 
-// 	t.Run("Remove watched addresses", func(t *testing.T) {
-// 		testRemoveWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+		test.TestInsertWatchedAddresses(t, db)
+	})
 
-// 	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
-// 		testRemoveNonWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetInsertAlreadyWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
 
-// 	t.Run("Set watched addresses", func(t *testing.T) {
-// 		testSetWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+		resetAndDumpWatchedAddressesCSVFileData(t)
 
-// 	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
-// 		testSetAlreadyWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+		test.TestInsertAlreadyWatchedAddresses(t, db)
+	})
 
-// 	t.Run("Load watched addresses", func(t *testing.T) {
-// 		testLoadWatchedAddresses(t)
-// 	})
+	t.Run("Remove watched addresses", func(t *testing.T) {
+		args := mocks.GetRemoveWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
 
-// 	t.Run("Clear watched addresses", func(t *testing.T) {
-// 		testClearWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
+		resetAndDumpWatchedAddressesCSVFileData(t)
 
-// 	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
-// 		testClearEmptyWatchedAddresses(t, func(t *testing.T) {
-// 			test_helpers.TearDownDB(t, db)
-// 			dumpWatchedAddressesCSVFileData(t)
-// 		})
-// 	})
-// }
+		test.TestRemoveWatchedAddresses(t, db)
+	})
+
+	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
+		args := mocks.GetRemoveNonWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestRemoveNonWatchedAddresses(t, db)
+	})
+
+	t.Run("Set watched addresses", func(t *testing.T) {
+		args := mocks.GetSetWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestSetWatchedAddresses(t, db)
+	})
+
+	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetSetAlreadyWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt3)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestSetAlreadyWatchedAddresses(t, db)
+	})
+
+	t.Run("Load watched addresses", func(t *testing.T) {
+		test.TestLoadWatchedAddresses(t, ind)
+	})
+
+	t.Run("Clear watched addresses", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestClearWatchedAddresses(t, db)
+	})
+
+	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesCSVFileData(t)
+
+		test.TestClearEmptyWatchedAddresses(t, db)
+	})
+}

@@ -86,11 +86,13 @@ func dumpCSVFileData(t *testing.T) {
 	}
 }
 
-func dumpWatchedAddressesCSVFileData(t *testing.T) {
+func resetAndDumpWatchedAddressesCSVFileData(t *testing.T) {
+	test_helpers.TearDownDB(t, db)
+
 	outputFilePath := filepath.Join(dbDirectory, file.CSVTestConfig.WatchedAddressesFilePath)
 	stmt := fmt.Sprintf(pgCopyStatement, types.TableWatchedAddresses.Name, outputFilePath)
 
-	_, err = sqlxdb.Exec(stmt)
+	_, err = db.Exec(context.Background(), stmt)
 	require.NoError(t, err)
 }
 
@@ -98,8 +100,7 @@ func tearDownCSV(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
 	require.NoError(t, db.Close())
 
-	err := os.RemoveAll(file.CSVTestConfig.OutputDir)
-	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(file.CSVTestConfig.OutputDir))
 
 	if err := os.Remove(file.CSVTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)

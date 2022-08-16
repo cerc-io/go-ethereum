@@ -18,6 +18,7 @@ package sql_test
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -149,333 +150,78 @@ func TestSQLXIndexerNonCanonical(t *testing.T) {
 	})
 }
 
-// func TestSQLXWatchAddressMethods(t *testing.T) {
-// 	setupSQLXIndexer(t)
-// 	defer tearDown(t)
-// 	defer checkTxClosure(t, 0, 0, 0)
+func TestSQLXWatchAddressMethods(t *testing.T) {
+	setupSQLXIndexer(t)
+	defer tearDown(t)
+	defer checkTxClosure(t, 0, 0, 0)
 
-// 	type res struct {
-// 		Address      string `db:"address"`
-// 		CreatedAt    uint64 `db:"created_at"`
-// 		WatchedAt    uint64 `db:"watched_at"`
-// 		LastFilledAt uint64 `db:"last_filled_at"`
-// 	}
-// 	pgStr := "SELECT * FROM eth_meta.watched_addresses"
+	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
+		test.TestLoadEmptyWatchedAddresses(t, ind)
+	})
 
-// 	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
-// 		expectedData := []common.Address{}
+	t.Run("Insert watched addresses", func(t *testing.T) {
+		args := mocks.GetInsertWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt1)))
+		require.NoError(t, err)
 
-// 		rows, err := ind.LoadWatchedAddresses()
-// 		require.NoError(t, err)
+		test.TestInsertWatchedAddresses(t, db)
+	})
 
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
+	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetInsertAlreadyWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
 
-// 	t.Run("Insert watched addresses", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract1Address,
-// 				CreatedAt: contract1CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{
-// 			{
-// 				Address:      contract1Address,
-// 				CreatedAt:    contract1CreatedAt,
-// 				WatchedAt:    watchedAt1,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract2Address,
-// 				CreatedAt:    contract2CreatedAt,
-// 				WatchedAt:    watchedAt1,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 		}
+		test.TestInsertAlreadyWatchedAddresses(t, db)
+	})
 
-// 		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt1)))
-// 		require.NoError(t, err)
+	t.Run("Remove watched addresses", func(t *testing.T) {
+		args := mocks.GetRemoveWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
 
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
+		test.TestRemoveWatchedAddresses(t, db)
+	})
 
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
+	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
+		args := mocks.GetRemoveNonWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
 
-// 	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract3Address,
-// 				CreatedAt: contract3CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{
-// 			{
-// 				Address:      contract1Address,
-// 				CreatedAt:    contract1CreatedAt,
-// 				WatchedAt:    watchedAt1,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract2Address,
-// 				CreatedAt:    contract2CreatedAt,
-// 				WatchedAt:    watchedAt1,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract3Address,
-// 				CreatedAt:    contract3CreatedAt,
-// 				WatchedAt:    watchedAt2,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 		}
+		test.TestRemoveNonWatchedAddresses(t, db)
+	})
 
-// 		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
-// 		require.NoError(t, err)
+	t.Run("Set watched addresses", func(t *testing.T) {
+		args := mocks.GetSetWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
 
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
+		test.TestSetWatchedAddresses(t, db)
+	})
 
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
+	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetSetAlreadyWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt3)))
+		require.NoError(t, err)
 
-// 	t.Run("Remove watched addresses", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract3Address,
-// 				CreatedAt: contract3CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{
-// 			{
-// 				Address:      contract1Address,
-// 				CreatedAt:    contract1CreatedAt,
-// 				WatchedAt:    watchedAt1,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 		}
+		test.TestSetAlreadyWatchedAddresses(t, db)
+	})
 
-// 		err = ind.RemoveWatchedAddresses(args)
-// 		require.NoError(t, err)
+	t.Run("Load watched addresses", func(t *testing.T) {
+		test.TestLoadWatchedAddresses(t, ind)
+	})
 
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
+	t.Run("Clear watched addresses", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
 
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
+		test.TestClearWatchedAddresses(t, db)
+	})
 
-// 	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract1Address,
-// 				CreatedAt: contract1CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{}
+	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
 
-// 		err = ind.RemoveWatchedAddresses(args)
-// 		require.NoError(t, err)
-
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-
-// 	t.Run("Set watched addresses", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract1Address,
-// 				CreatedAt: contract1CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract3Address,
-// 				CreatedAt: contract3CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{
-// 			{
-// 				Address:      contract1Address,
-// 				CreatedAt:    contract1CreatedAt,
-// 				WatchedAt:    watchedAt2,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract2Address,
-// 				CreatedAt:    contract2CreatedAt,
-// 				WatchedAt:    watchedAt2,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract3Address,
-// 				CreatedAt:    contract3CreatedAt,
-// 				WatchedAt:    watchedAt2,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 		}
-
-// 		err = ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt2)))
-// 		require.NoError(t, err)
-
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-
-// 	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
-// 		args := []sdtypes.WatchAddressArg{
-// 			{
-// 				Address:   contract4Address,
-// 				CreatedAt: contract4CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract2Address,
-// 				CreatedAt: contract2CreatedAt,
-// 			},
-// 			{
-// 				Address:   contract3Address,
-// 				CreatedAt: contract3CreatedAt,
-// 			},
-// 		}
-// 		expectedData := []res{
-// 			{
-// 				Address:      contract4Address,
-// 				CreatedAt:    contract4CreatedAt,
-// 				WatchedAt:    watchedAt3,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract2Address,
-// 				CreatedAt:    contract2CreatedAt,
-// 				WatchedAt:    watchedAt3,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 			{
-// 				Address:      contract3Address,
-// 				CreatedAt:    contract3CreatedAt,
-// 				WatchedAt:    watchedAt3,
-// 				LastFilledAt: lastFilledAt,
-// 			},
-// 		}
-
-// 		err = ind.SetWatchedAddresses(args, big.NewInt(int64(watchedAt3)))
-// 		require.NoError(t, err)
-
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-
-// 	t.Run("Load watched addresses", func(t *testing.T) {
-// 		expectedData := []common.Address{
-// 			common.HexToAddress(contract4Address),
-// 			common.HexToAddress(contract2Address),
-// 			common.HexToAddress(contract3Address),
-// 		}
-
-// 		rows, err := ind.LoadWatchedAddresses()
-// 		require.NoError(t, err)
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-
-// 	t.Run("Clear watched addresses", func(t *testing.T) {
-// 		expectedData := []res{}
-
-// 		err = ind.ClearWatchedAddresses()
-// 		require.NoError(t, err)
-
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-
-// 	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
-// 		expectedData := []res{}
-
-// 		err = ind.ClearWatchedAddresses()
-// 		require.NoError(t, err)
-
-// 		rows := []res{}
-// 		err = db.Select(context.Background(), &rows, pgStr)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-
-// 		expectTrue(t, len(rows) == len(expectedData))
-// 		for idx, row := range rows {
-// 			require.Equal(t, expectedData[idx], row)
-// 		}
-// 	})
-// }
+		test.TestClearEmptyWatchedAddresses(t, db)
+	})
+}

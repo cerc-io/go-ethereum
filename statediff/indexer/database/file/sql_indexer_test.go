@@ -19,6 +19,7 @@ package file_test
 import (
 	"context"
 	"errors"
+	"math/big"
 	"os"
 	"testing"
 
@@ -160,47 +161,93 @@ func TestSQLFileIndexerNonCanonical(t *testing.T) {
 	})
 }
 
-// func TestSQLFileWatchAddressMethods(t *testing.T) {
-// 	setupIndexer(t)
-// 	defer tearDown(t)
+func TestSQLFileWatchAddressMethods(t *testing.T) {
+	setupIndexer(t)
+	defer tearDown(t)
 
-// 	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
-// 		testLoadEmptyWatchedAddresses(t)
-// 	})
+	t.Run("Load watched addresses (empty table)", func(t *testing.T) {
+		test.TestLoadEmptyWatchedAddresses(t, ind)
+	})
 
-// 	t.Run("Insert watched addresses", func(t *testing.T) {
-// 		testInsertWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+	t.Run("Insert watched addresses", func(t *testing.T) {
+		args := mocks.GetInsertWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt1)))
+		require.NoError(t, err)
 
-// 	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
-// 		testInsertAlreadyWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+		resetAndDumpWatchedAddressesFileData(t)
 
-// 	t.Run("Remove watched addresses", func(t *testing.T) {
-// 		testRemoveWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+		test.TestInsertWatchedAddresses(t, db)
+	})
 
-// 	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
-// 		testRemoveNonWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+	t.Run("Insert watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetInsertAlreadyWatchedAddressesArgs()
+		err = ind.InsertWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
 
-// 	t.Run("Set watched addresses", func(t *testing.T) {
-// 		testSetWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+		resetAndDumpWatchedAddressesFileData(t)
 
-// 	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
-// 		testSetAlreadyWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+		test.TestInsertAlreadyWatchedAddresses(t, db)
+	})
 
-// 	t.Run("Load watched addresses", func(t *testing.T) {
-// 		testLoadWatchedAddresses(t)
-// 	})
+	t.Run("Remove watched addresses", func(t *testing.T) {
+		args := mocks.GetRemoveWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
 
-// 	t.Run("Clear watched addresses", func(t *testing.T) {
-// 		testClearWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
+		resetAndDumpWatchedAddressesFileData(t)
 
-// 	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
-// 		testClearEmptyWatchedAddresses(t, resetAndDumpWatchedAddressesFileData)
-// 	})
-// }
+		test.TestRemoveWatchedAddresses(t, db)
+	})
+
+	t.Run("Remove watched addresses (some non-watched)", func(t *testing.T) {
+		args := mocks.GetRemoveNonWatchedAddressesArgs()
+		err = ind.RemoveWatchedAddresses(args)
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesFileData(t)
+
+		test.TestRemoveNonWatchedAddresses(t, db)
+	})
+
+	t.Run("Set watched addresses", func(t *testing.T) {
+		args := mocks.GetSetWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt2)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesFileData(t)
+
+		test.TestSetWatchedAddresses(t, db)
+	})
+
+	t.Run("Set watched addresses (some already watched)", func(t *testing.T) {
+		args := mocks.GetSetAlreadyWatchedAddressesArgs()
+		err = ind.SetWatchedAddresses(args, big.NewInt(int64(mocks.WatchedAt3)))
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesFileData(t)
+
+		test.TestSetAlreadyWatchedAddresses(t, db)
+	})
+
+	t.Run("Load watched addresses", func(t *testing.T) {
+		test.TestLoadWatchedAddresses(t, ind)
+	})
+
+	t.Run("Clear watched addresses", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesFileData(t)
+
+		test.TestClearWatchedAddresses(t, db)
+	})
+
+	t.Run("Clear watched addresses (empty table)", func(t *testing.T) {
+		err = ind.ClearWatchedAddresses()
+		require.NoError(t, err)
+
+		resetAndDumpWatchedAddressesFileData(t)
+
+		test.TestClearEmptyWatchedAddresses(t, db)
+	})
+}

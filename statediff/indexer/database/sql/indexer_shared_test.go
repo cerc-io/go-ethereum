@@ -16,12 +16,6 @@ var (
 	ind interfaces.StateDiffIndexer
 )
 
-func expectTrue(t *testing.T, value bool) {
-	if !value {
-		t.Fatalf("Assertion failed")
-	}
-}
-
 func checkTxClosure(t *testing.T, idle, inUse, open int64) {
 	require.Equal(t, idle, db.Stats().Idle())
 	require.Equal(t, inUse, db.Stats().InUse())
@@ -30,6 +24,5 @@ func checkTxClosure(t *testing.T, idle, inUse, open int64) {
 
 func tearDown(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
-	err := ind.Close()
-	require.NoError(t, err)
+	require.NoError(t, ind.Close())
 }

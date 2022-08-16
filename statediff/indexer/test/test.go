@@ -1,263 +1,45 @@
+// VulcanizeDB
+// Copyright © 2022 Vulcanize
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package test
 
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"os"
 	"sort"
 	"testing"
 
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
-	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
 
-var (
-	err       error
-	ipfsPgGet = `SELECT data FROM public.blocks
-					WHERE key = $1 AND block_number = $2`
-	tx1, tx2, tx3, tx4, tx5, rct1, rct2, rct3, rct4, rct5                          []byte
-	nonCanonicalBlockRct1, nonCanonicalBlockRct2                                   []byte
-	nonCanonicalBlock2Rct1, nonCanonicalBlock2Rct2                                 []byte
-	mockBlock, mockNonCanonicalBlock, mockNonCanonicalBlock2                       *types.Block
-	headerCID, mockNonCanonicalHeaderCID, mockNonCanonicalHeader2CID               cid.Cid
-	trx1CID, trx2CID, trx3CID, trx4CID, trx5CID                                    cid.Cid
-	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                                    cid.Cid
-	nonCanonicalBlockRct1CID, nonCanonicalBlockRct2CID                             cid.Cid
-	nonCanonicalBlock2Rct1CID, nonCanonicalBlock2Rct2CID                           cid.Cid
-	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5                               []byte
-	nonCanonicalBlockRctLeaf1, nonCanonicalBlockRctLeaf2                           []byte
-	nonCanonicalBlock2RctLeaf1, nonCanonicalBlock2RctLeaf2                         []byte
-	state1CID, state2CID, storageCID                                               cid.Cid
-	contract1Address, contract2Address, contract3Address, contract4Address         string
-	contract1CreatedAt, contract2CreatedAt, contract3CreatedAt, contract4CreatedAt uint64
-	lastFilledAt, watchedAt1, watchedAt2, watchedAt3                               uint64
-)
-
-func init() {
-	if os.Getenv("MODE") != "statediff" {
-		fmt.Println("Skipping statediff test")
-		os.Exit(0)
-	}
-
-	// canonical block at LondonBlock height
-	mockBlock = mocks.MockBlock
-	txs, rcts := mocks.MockBlock.Transactions(), mocks.MockReceipts
-
-	// non-canonical block at LondonBlock height
-	mockNonCanonicalBlock = mocks.MockNonCanonicalBlock
-	nonCanonicalBlockRcts := mocks.MockNonCanonicalBlockReceipts
-
-	// non-canonical block at LondonBlock height + 1
-	mockNonCanonicalBlock2 = mocks.MockNonCanonicalBlock2
-	nonCanonicalBlock2Rcts := mocks.MockNonCanonicalBlock2Receipts
-
-	// encode mock receipts
-	buf := new(bytes.Buffer)
-	txs.EncodeIndex(0, buf)
-	tx1 = make([]byte, buf.Len())
-	copy(tx1, buf.Bytes())
-	buf.Reset()
-
-	txs.EncodeIndex(1, buf)
-	tx2 = make([]byte, buf.Len())
-	copy(tx2, buf.Bytes())
-	buf.Reset()
-
-	txs.EncodeIndex(2, buf)
-	tx3 = make([]byte, buf.Len())
-	copy(tx3, buf.Bytes())
-	buf.Reset()
-
-	txs.EncodeIndex(3, buf)
-	tx4 = make([]byte, buf.Len())
-	copy(tx4, buf.Bytes())
-	buf.Reset()
-
-	txs.EncodeIndex(4, buf)
-	tx5 = make([]byte, buf.Len())
-	copy(tx5, buf.Bytes())
-	buf.Reset()
-
-	rcts.EncodeIndex(0, buf)
-	rct1 = make([]byte, buf.Len())
-	copy(rct1, buf.Bytes())
-	buf.Reset()
-
-	rcts.EncodeIndex(1, buf)
-	rct2 = make([]byte, buf.Len())
-	copy(rct2, buf.Bytes())
-	buf.Reset()
-
-	rcts.EncodeIndex(2, buf)
-	rct3 = make([]byte, buf.Len())
-	copy(rct3, buf.Bytes())
-	buf.Reset()
-
-	rcts.EncodeIndex(3, buf)
-	rct4 = make([]byte, buf.Len())
-	copy(rct4, buf.Bytes())
-	buf.Reset()
-
-	rcts.EncodeIndex(4, buf)
-	rct5 = make([]byte, buf.Len())
-	copy(rct5, buf.Bytes())
-	buf.Reset()
-
-	// encode mock receipts for non-canonical blocks
-	nonCanonicalBlockRcts.EncodeIndex(0, buf)
-	nonCanonicalBlockRct1 = make([]byte, buf.Len())
-	copy(nonCanonicalBlockRct1, buf.Bytes())
-	buf.Reset()
-
-	nonCanonicalBlockRcts.EncodeIndex(1, buf)
-	nonCanonicalBlockRct2 = make([]byte, buf.Len())
-	copy(nonCanonicalBlockRct2, buf.Bytes())
-	buf.Reset()
-
-	nonCanonicalBlock2Rcts.EncodeIndex(0, buf)
-	nonCanonicalBlock2Rct1 = make([]byte, buf.Len())
-	copy(nonCanonicalBlock2Rct1, buf.Bytes())
-	buf.Reset()
-
-	nonCanonicalBlock2Rcts.EncodeIndex(1, buf)
-	nonCanonicalBlock2Rct2 = make([]byte, buf.Len())
-	copy(nonCanonicalBlock2Rct2, buf.Bytes())
-	buf.Reset()
-
-	headerCID, _ = ipld.RawdataToCid(ipld.MEthHeader, mocks.MockHeaderRlp, multihash.KECCAK_256)
-	mockNonCanonicalHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, mocks.MockNonCanonicalHeaderRlp, multihash.KECCAK_256)
-	mockNonCanonicalHeader2CID, _ = ipld.RawdataToCid(ipld.MEthHeader, mocks.MockNonCanonicalHeader2Rlp, multihash.KECCAK_256)
-	trx1CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx1, multihash.KECCAK_256)
-	trx2CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx2, multihash.KECCAK_256)
-	trx3CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx3, multihash.KECCAK_256)
-	trx4CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx4, multihash.KECCAK_256)
-	trx5CID, _ = ipld.RawdataToCid(ipld.MEthTx, tx5, multihash.KECCAK_256)
-	state1CID, _ = ipld.RawdataToCid(ipld.MEthStateTrie, mocks.ContractLeafNode, multihash.KECCAK_256)
-	state2CID, _ = ipld.RawdataToCid(ipld.MEthStateTrie, mocks.AccountLeafNode, multihash.KECCAK_256)
-	storageCID, _ = ipld.RawdataToCid(ipld.MEthStorageTrie, mocks.StorageLeafNode, multihash.KECCAK_256)
-
-	// create raw receipts
-	rawRctLeafNodes, rctleafNodeCids := createRctTrie([][]byte{rct1, rct2, rct3, rct4, rct5})
-
-	rct1CID = rctleafNodeCids[0]
-	rct2CID = rctleafNodeCids[1]
-	rct3CID = rctleafNodeCids[2]
-	rct4CID = rctleafNodeCids[3]
-	rct5CID = rctleafNodeCids[4]
-
-	rctLeaf1 = rawRctLeafNodes[0]
-	rctLeaf2 = rawRctLeafNodes[1]
-	rctLeaf3 = rawRctLeafNodes[2]
-	rctLeaf4 = rawRctLeafNodes[3]
-	rctLeaf5 = rawRctLeafNodes[4]
-
-	// create raw receipts for non-canonical blocks
-	nonCanonicalBlockRawRctLeafNodes, nonCanonicalBlockRctLeafNodeCids := createRctTrie([][]byte{nonCanonicalBlockRct1, nonCanonicalBlockRct2})
-
-	nonCanonicalBlockRct1CID = nonCanonicalBlockRctLeafNodeCids[0]
-	nonCanonicalBlockRct2CID = nonCanonicalBlockRctLeafNodeCids[1]
-
-	nonCanonicalBlockRctLeaf1 = nonCanonicalBlockRawRctLeafNodes[0]
-	nonCanonicalBlockRctLeaf2 = nonCanonicalBlockRawRctLeafNodes[1]
-
-	nonCanonicalBlock2RawRctLeafNodes, nonCanonicalBlock2RctLeafNodeCids := createRctTrie([][]byte{nonCanonicalBlockRct1, nonCanonicalBlockRct2})
-
-	nonCanonicalBlock2Rct1CID = nonCanonicalBlock2RctLeafNodeCids[0]
-	nonCanonicalBlock2Rct2CID = nonCanonicalBlock2RctLeafNodeCids[1]
-
-	nonCanonicalBlock2RctLeaf1 = nonCanonicalBlock2RawRctLeafNodes[0]
-	nonCanonicalBlock2RctLeaf2 = nonCanonicalBlock2RawRctLeafNodes[1]
-
-	contract1Address = "0x5d663F5269090bD2A7DC2390c911dF6083D7b28F"
-	contract2Address = "0x6Eb7e5C66DB8af2E96159AC440cbc8CDB7fbD26B"
-	contract3Address = "0xcfeB164C328CA13EFd3C77E1980d94975aDfedfc"
-	contract4Address = "0x0Edf0c4f393a628DE4828B228C48175b3EA297fc"
-	contract1CreatedAt = uint64(1)
-	contract2CreatedAt = uint64(2)
-	contract3CreatedAt = uint64(3)
-	contract4CreatedAt = uint64(4)
-
-	lastFilledAt = uint64(0)
-	watchedAt1 = uint64(10)
-	watchedAt2 = uint64(15)
-	watchedAt3 = uint64(20)
-}
-
-// createRctTrie creates a receipt trie from the given raw receipts
-// returns receipt leaf nodes and their CIDs
-func createRctTrie(rcts [][]byte) ([][]byte, []cid.Cid) {
-	receiptTrie := ipld.NewRctTrie()
-
-	for i, rct := range rcts {
-		receiptTrie.Add(i, rct)
-	}
-	rctLeafNodes, keys, _ := receiptTrie.GetLeafNodes()
-
-	rctleafNodeCids := make([]cid.Cid, len(rctLeafNodes))
-	orderedRctLeafNodes := make([][]byte, len(rctLeafNodes))
-	for i, rln := range rctLeafNodes {
-		var idx uint
-
-		r := bytes.NewReader(keys[i].TrieKey)
-		rlp.Decode(r, &idx)
-		rctleafNodeCids[idx] = rln.Cid()
-		orderedRctLeafNodes[idx] = rln.RawData()
-	}
-
-	return orderedRctLeafNodes, rctleafNodeCids
-}
-
-// createRctModel creates a models.ReceiptModel object from a given ethereum receipt
-func createRctModel(rct *types.Receipt, cid cid.Cid, blockNumber string) models.ReceiptModel {
-	rctModel := models.ReceiptModel{
-		BlockNumber: blockNumber,
-		HeaderID:    rct.BlockHash.String(),
-		TxID:        rct.TxHash.String(),
-		LeafCID:     cid.String(),
-		LeafMhKey:   shared.MultihashKeyFromCID(cid),
-		LogRoot:     rct.LogRoot.String(),
-	}
-
-	contract := shared.HandleZeroAddr(rct.ContractAddress)
-	rctModel.Contract = contract
-	if contract != "" {
-		rctModel.ContractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
-	}
-
-	if len(rct.PostState) == 0 {
-		rctModel.PostStatus = rct.Status
-	} else {
-		rctModel.PostState = common.Bytes2Hex(rct.PostState)
-	}
-
-	return rctModel
-}
-
-func expectTrue(t *testing.T, value bool) {
-	if !value {
-		t.Fatalf("Assertion failed")
-	}
-}
-
-// setupTestData indexes a single mock block along with it's state nodes
+// SetupTestData indexes a single mock block along with it's state nodes
 func SetupTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
 	var tx interfaces.Batch
 	tx, err = ind.PushBlock(
@@ -802,8 +584,8 @@ func TestPublishAndIndexStorageIPLDs(t *testing.T, db sql.Database) {
 // and a non-canonical block at London height + 1
 // along with their state nodes
 func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
+	// index a canonical block at London height
 	var tx1 interfaces.Batch
-
 	tx1, err = ind.PushBlock(
 		mockBlock,
 		mocks.MockReceipts,
@@ -826,6 +608,8 @@ func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
 		t.Fatal(err)
 	}
 
+	// index a non-canonical block at London height
+	// has transactions overlapping with that of the canonical block
 	var tx2 interfaces.Batch
 	tx2, err = ind.PushBlock(
 		mockNonCanonicalBlock,
@@ -849,6 +633,8 @@ func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
 		t.Fatal(err)
 	}
 
+	// index a non-canonical block at London height + 1
+	// has transactions overlapping with that of the canonical block
 	var tx3 interfaces.Batch
 	tx3, err = ind.PushBlock(
 		mockNonCanonicalBlock2,
@@ -1032,7 +818,7 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 		},
 	}
 
-	// expected transactions in the canonical block at London height
+	// expected transactions in the non-canonical block at London height
 	mockNonCanonicalBlockTxs := mockNonCanonicalBlock.Transactions()
 	expectedNonCanonicalBlockTxs := []models.TxModel{
 		{
@@ -1061,7 +847,7 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 		},
 	}
 
-	// expected transactions in the canonical block at London height + 1
+	// expected transactions in the non-canonical block at London height + 1
 	mockNonCanonicalBlock2Txs := mockNonCanonicalBlock2.Transactions()
 	expectedNonCanonicalBlock2Txs := []models.TxModel{
 		{
@@ -1150,7 +936,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 		expectedBlockRctsMap[rctCids[i].String()] = rctModel
 	}
 
-	// expected receipts in the canonical block at London height + 1
+	// expected receipts in the non-canonical block at London height
 	nonCanonicalBlockRctCids := []cid.Cid{nonCanonicalBlockRct1CID, nonCanonicalBlockRct2CID}
 	expectedNonCanonicalBlockRctsMap := make(map[string]models.ReceiptModel, len(mocks.MockNonCanonicalBlockReceipts))
 	for i, mockNonCanonicalBlockRct := range mocks.MockNonCanonicalBlockReceipts {
@@ -1158,7 +944,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 		expectedNonCanonicalBlockRctsMap[nonCanonicalBlockRctCids[i].String()] = rctModel
 	}
 
-	// expected receipts in the canonical block at London height + 1
+	// expected receipts in the non-canonical block at London height + 1
 	nonCanonicalBlock2RctCids := []cid.Cid{nonCanonicalBlock2Rct1CID, nonCanonicalBlock2Rct2CID}
 	expectedNonCanonicalBlock2RctsMap := make(map[string]models.ReceiptModel, len(mocks.MockNonCanonicalBlock2Receipts))
 	for i, mockNonCanonicalBlock2Rct := range mocks.MockNonCanonicalBlock2Receipts {
@@ -1251,7 +1037,7 @@ func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 		})
 	}
 
-	// logs in the canonical block at London height + 1
+	// logs in the non-canonical block at London height
 	for _, mockBlockRct := range mocks.MockNonCanonicalBlockReceipts {
 		mockRcts = append(mockRcts, rctWithBlockHash{
 			mockBlockRct,
@@ -1260,7 +1046,7 @@ func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 		})
 	}
 
-	// logs in the canonical block at London height + 1
+	// logs in the non-canonical block at London height + 1
 	for _, mockBlockRct := range mocks.MockNonCanonicalBlock2Receipts {
 		mockRcts = append(mockRcts, rctWithBlockHash{
 			mockBlockRct,
@@ -1407,7 +1193,7 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStorageCID)
 	storageNodeCIDs := []cid.Cid{storageCID, removedNodeCID, removedNodeCID, removedNodeCID}
 
-	// expected state nodes in the canonical and the non-canonical block at London height
+	// expected storage nodes in the canonical and the non-canonical block at London height
 	expectedStorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex := 0
 	for _, stateDiff := range mocks.StateDiffs {
@@ -1432,7 +1218,7 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 		}
 	})
 
-	// expected state nodes in the non-canonical block at London height + 1
+	// expected storage nodes in the non-canonical block at London height + 1
 	expectedNonCanonicalBlock2StorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex = 0
 	for _, stateDiff := range mocks.StateDiffs[:2] {
@@ -1484,93 +1270,5 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 
 	for i, expectedStorageNode := range expectedNonCanonicalBlock2StorageNodes {
 		require.Equal(t, expectedStorageNode, storageNodes[i])
-	}
-}
-
-var (
-	LegacyConfig    = params.MainnetChainConfig
-	legacyData      = mocks.NewLegacyData(LegacyConfig)
-	mockLegacyBlock *types.Block
-	legacyHeaderCID cid.Cid
-)
-
-func SetupLegacyTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
-	mockLegacyBlock = legacyData.MockBlock
-	legacyHeaderCID, _ = ipld.RawdataToCid(ipld.MEthHeader, legacyData.MockHeaderRlp, multihash.KECCAK_256)
-
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		mockLegacyBlock,
-		legacyData.MockReceipts,
-		legacyData.MockBlock.Difficulty())
-	require.NoError(t, err)
-
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range legacyData.StateDiffs {
-		err = ind.PushStateNode(tx, node, mockLegacyBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	if batchTx, ok := tx.(*sql.BatchTx); ok {
-		require.Equal(t, legacyData.BlockNumber.String(), batchTx.BlockNumber)
-	} else if batchTx, ok := tx.(*file.BatchTx); ok {
-		require.Equal(t, legacyData.BlockNumber.String(), batchTx.BlockNumber)
-	}
-}
-
-func TestLegacyIndexer(t *testing.T, db sql.Database) {
-	pgStr := `SELECT cid, td, reward, block_hash, coinbase
-	FROM eth.header_cids
-	WHERE block_number = $1`
-	// check header was properly indexed
-	type res struct {
-		CID       string
-		TD        string
-		Reward    string
-		BlockHash string `db:"block_hash"`
-		Coinbase  string `db:"coinbase"`
-	}
-	header := new(res)
-	err = db.QueryRow(context.Background(), pgStr, legacyData.BlockNumber.Uint64()).Scan(
-		&header.CID,
-		&header.TD,
-		&header.Reward,
-		&header.BlockHash,
-		&header.Coinbase)
-	require.NoError(t, err)
-
-	require.Equal(t, legacyHeaderCID.String(), header.CID)
-	require.Equal(t, legacyData.MockBlock.Difficulty().String(), header.TD)
-	require.Equal(t, "5000000000000011250", header.Reward)
-	require.Equal(t, legacyData.MockHeader.Coinbase.String(), header.Coinbase)
-	require.Nil(t, legacyData.MockHeader.BaseFee)
-}
-
-func TestBlock(t *testing.T, ind interfaces.StateDiffIndexer, testBlock *types.Block, testReceipts types.Receipts) {
-	var tx interfaces.Batch
-	tx, err = ind.PushBlock(
-		testBlock,
-		testReceipts,
-		testBlock.Difficulty())
-	require.NoError(t, err)
-
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	for _, node := range mocks.StateDiffs {
-		err = ind.PushStateNode(tx, node, testBlock.Hash().String())
-		require.NoError(t, err)
-	}
-
-	if batchTx, ok := tx.(*sql.BatchTx); ok {
-		require.Equal(t, testBlock.Number().String(), batchTx.BlockNumber)
-	} else if batchTx, ok := tx.(*file.BatchTx); ok {
-		require.Equal(t, testBlock.Number().String(), batchTx.BlockNumber)
 	}
 }

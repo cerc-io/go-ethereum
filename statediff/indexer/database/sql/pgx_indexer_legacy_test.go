@@ -43,7 +43,7 @@ func setupLegacyPGX(t *testing.T) {
 
 func TestLegacyPGXIndexer(t *testing.T) {
 	t.Run("Publish and index header IPLDs", func(t *testing.T) {
-		setupLegacySQLX(t)
+		setupLegacyPGX(t)
 		defer tearDown(t)
 		defer checkTxClosure(t, 0, 0, 0)
 

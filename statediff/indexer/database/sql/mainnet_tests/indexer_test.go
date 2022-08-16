@@ -68,6 +68,7 @@ func TestMainnetIndexer(t *testing.T) {
 func testPushBlockAndState(t *testing.T, block *types.Block, receipts types.Receipts) {
 	t.Run("Test PushBlock and PushStateNode", func(t *testing.T) {
 		setupMainnetIndexer(t)
+		defer checkTxClosure(t, 0, 0, 0)
 		defer tearDown(t)
 
 		test.TestBlock(t, ind, block, receipts)
@@ -82,11 +83,13 @@ func setupMainnetIndexer(t *testing.T) {
 	ind, err = sql.NewStateDiffIndexer(context.Background(), chainConf, db)
 }
 
-func tearDown(t *testing.T) {
-	require.Equal(t, int64(0), db.Stats().Idle())
-	require.Equal(t, int64(0), db.Stats().InUse())
-	require.Equal(t, int64(0), db.Stats().Open())
+func checkTxClosure(t *testing.T, idle, inUse, open int64) {
+	require.Equal(t, idle, db.Stats().Idle())
+	require.Equal(t, inUse, db.Stats().InUse())
+	require.Equal(t, open, db.Stats().Open())
+}
 
+func tearDown(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
 	require.NoError(t, ind.Close())
 }

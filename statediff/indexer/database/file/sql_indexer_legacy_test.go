@@ -25,9 +25,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
+	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
+)
+
+var (
+	db  sql.Database
+	err error
+	ind interfaces.StateDiffIndexer
 )
 
 func setupLegacySQLIndexer(t *testing.T) {
@@ -62,12 +70,12 @@ func dumpFileData(t *testing.T) {
 }
 
 func resetAndDumpWatchedAddressesFileData(t *testing.T) {
-	resetDB(t)
+	test_helpers.TearDownDB(t, db)
 
 	sqlFileBytes, err := os.ReadFile(file.SQLTestConfig.WatchedAddressesFilePath)
 	require.NoError(t, err)
 
-	_, err = sqlxdb.Exec(string(sqlFileBytes))
+	_, err = db.Exec(context.Background(), string(sqlFileBytes))
 	require.NoError(t, err)
 }
 
@@ -75,8 +83,7 @@ func tearDown(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
 	require.NoError(t, db.Close())
 
-	err := os.Remove(file.SQLTestConfig.FilePath)
-	require.NoError(t, err)
+	require.NoError(t, os.Remove(file.SQLTestConfig.FilePath))
 
 	if err := os.Remove(file.SQLTestConfig.WatchedAddressesFilePath); !errors.Is(err, os.ErrNotExist) {
 		require.NoError(t, err)

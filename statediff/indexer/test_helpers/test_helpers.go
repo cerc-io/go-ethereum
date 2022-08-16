@@ -35,7 +35,7 @@ func ListContainsString(sss []string, s string) bool {
 	return false
 }
 
-// DedupFile removes the duplicates from the given file
+// DedupFile removes duplicates from the given file
 func DedupFile(filePath string) error {
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDONLY, os.ModePerm)
 	if err != nil {

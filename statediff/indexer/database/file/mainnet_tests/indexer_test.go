@@ -24,7 +24,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -40,7 +39,6 @@ import (
 var (
 	err       error
 	db        sql.Database
-	sqlxdb    *sqlx.DB
 	ind       interfaces.StateDiffIndexer
 	chainConf = params.MainnetChainConfig
 )
