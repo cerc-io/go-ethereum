@@ -458,33 +458,37 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 		t.Fatal(err)
 	}
 	require.Equal(t, 2, len(stateNodes))
-	for idx, stateNode := range stateNodes {
-		var data []byte
-		dc, err := cid.Decode(stateNode.CID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		mhKey := dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
-		require.Equal(t, shared.RemovedNodeMhKey, prefixedKey)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if idx == 0 {
-			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
-			require.Equal(t, common.BytesToHash(mocks.RemovedLeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x02'}, stateNode.Path)
-			require.Equal(t, []byte{}, data)
-		}
-		if idx == 1 {
-			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
-			require.Equal(t, common.BytesToHash(mocks.Contract2LeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x07'}, stateNode.Path)
-			require.Equal(t, []byte{}, data)
-		}
+	mappedNodes := make(map[string]models.StateNodeModel)
+	for _, node := range stateNodes {
+		mappedNodes[node.StateKey] = node
 	}
+	node1, ok := mappedNodes[common.BytesToHash(mocks.RemovedLeafKey).Hex()]
+	if !ok {
+		t.Fatalf("removed state nodes returend from database do not include expected leaf key %s", common.BytesToHash(mocks.RemovedLeafKey).Hex())
+	}
+	node2, ok := mappedNodes[common.BytesToHash(mocks.Contract2LeafKey).Hex()]
+	if !ok {
+		t.Fatalf("removed state nodes returend from database do not include expected leaf key %s", common.BytesToHash(mocks.Contract2LeafKey).Hex())
+	}
+	require.Equal(t, node1.CID, node2.CID)
+	require.Equal(t, shared.RemovedNodeStateCID, node1.CID)
+	var data []byte
+	dc, err := cid.Decode(node1.CID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mhKey := dshelp.MultihashToDsKey(dc.Hash())
+	prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
+	require.Equal(t, shared.RemovedNodeMhKey, prefixedKey)
+	err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Equal(t, []byte{}, data)
+	require.Equal(t, common.BytesToHash(mocks.RemovedLeafKey).Hex(), node1.StateKey)
+	require.Equal(t, []byte{'\x02'}, node1.Path)
+	require.Equal(t, common.BytesToHash(mocks.Contract2LeafKey).Hex(), node2.StateKey)
+	require.Equal(t, []byte{'\x07'}, node2.Path)
 }
 
 func TestPublishAndIndexStorageIPLDs(t *testing.T, db sql.Database) {
