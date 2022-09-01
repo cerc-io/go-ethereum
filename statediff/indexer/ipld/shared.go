@@ -19,8 +19,6 @@ package ipld
 import (
 	"bytes"
 	"errors"
-	"github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -29,6 +27,8 @@ import (
 	sdtrie "github.com/ethereum/go-ethereum/statediff/trie_helpers"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 )
 
 // IPLD Codecs for Ethereum
