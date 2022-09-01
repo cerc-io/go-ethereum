@@ -135,7 +135,9 @@ func (lt *localTrie) commit() error {
 		return err
 	}
 	//new trie.Commit method signature also requires Update with returned NodeSet
-	lt.trieDB.Update(trie.NewWithNodeSet(trieNodes))
+	if trieNodes != nil {
+		lt.trieDB.Update(trie.NewWithNodeSet(trieNodes))
+	}
 
 	// commit trieDB to the underlying ethdb.Database
 	if err := lt.trieDB.Commit(ltHash, false, nil); err != nil {
