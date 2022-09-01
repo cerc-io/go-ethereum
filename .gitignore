@@ -47,3 +47,15 @@ profile.cov
 /dashboard/assets/package-lock.json
 
 **/yarn-error.log
+foundry/deployments/local-private-network/geth-linux-amd64
+foundry/projects/local-private-network/geth-linux-amd64
+
+# Helpful repos
+related-repositories/foundry-test/**
+related-repositories/hive/**
+related-repositories/ipld-eth-db/**
+statediff/indexer/database/sql/statediffing_test_file.sql
+statediff/statediffing_test_file.sql
+statediff/known_gaps.sql
+related-repositories/foundry-test/
+related-repositories/ipld-eth-db/
