@@ -1,0 +1,6 @@
+*.log
+CURRENT*
+LOCK
+LOG
+MANIFEST-*
+ancient/FLOCK
