@@ -1,1 +1,1 @@
-# go-eth-state-node-iterator
+# concurrent iterator

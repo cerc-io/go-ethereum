@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	log "github.com/sirupsen/logrus"
 
-	iter "github.com/vulcanize/go-eth-state-node-iterator"
+	iter "github.com/ethereum/go-ethereum/trie/concurrent_iterator"
 )
 
 type Tracker struct {
@@ -61,7 +61,7 @@ func (tr *Tracker) CaptureSignal(cancelCtx context.CancelFunc) {
 func (tr *Tracker) Tracked(it trie.NodeIterator, recoveredPath []byte) (ret *Iterator) {
 	// create seeked path of max capacity (65)
 	iterSeekedPath := make([]byte, 0, 65)
-	// intially populate seeked path with the recovered path
+	// initially populate seeked path with the recovered path
 	// to be used in trie traversal
 	if recoveredPath != nil {
 		iterSeekedPath = append(iterSeekedPath, recoveredPath...)

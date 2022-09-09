@@ -2,6 +2,7 @@ package iterator
 
 import (
 	"bytes"
+
 	"github.com/ethereum/go-ethereum/trie"
 )
 
