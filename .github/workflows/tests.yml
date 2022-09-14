@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
-        run: docker build -t vulcanize/go-ethereum .
+        run: docker build -t cerc-io/go-ethereum .
 
   geth-unit-test:
     name: Run geth unit test
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ env.ipld-eth-db-ref }}
-          repository: vulcanize/ipld-eth-db
+          repository: cerc-io/ipld-eth-db
           path: "./ipld-eth-db/"
           fetch-depth: 0
 
