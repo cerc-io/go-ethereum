@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run docker build
-        run: docker build -t vulcanize/go-ethereum -f Dockerfile .
+        run: docker build -t cerc-io/go-ethereum -f Dockerfile .
       - name: Get the version
         id: vars
         run: |
