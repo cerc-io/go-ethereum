@@ -23,7 +23,7 @@ jobs:
       - name: Tag docker image
         run: docker tag git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}} git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.tag}}
       - name: Docker Login
-        run: echo ${{ secrets.GITEA_TOKEN }} | docker login https://git.vdb.to -u circcicd --password-stdin
+        run: echo ${{ secrets.GITEA_TOKEN }} | docker login https://git.vdb.to -u cerccicd --password-stdin
       - name: Docker Push
         run: docker push git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
       - name: Docker Push TAGGED
