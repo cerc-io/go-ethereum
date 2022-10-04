@@ -10,9 +10,11 @@ pipeline {
                 }
             }
             steps {
-                echo 'Building ...'
-                docker build -t cerc-io/go-ethereum .
-                echo 'built geth'
+                docker.withRegistry('https://git.vdb.to'){
+                    echo 'Building ...'
+                    def geth_image = docker.build("cerc-io/go-ethereum")
+                    echo 'built geth'
+                }
             }
         }
         stage('Test') {
