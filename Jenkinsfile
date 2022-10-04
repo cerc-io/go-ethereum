@@ -20,7 +20,7 @@ pipeline {
                 }
             }
             tools {
-                    go 'go-1.18'
+                    go 'go-1.18.5'
                 }
                 environment {
                     GO111MODULE = 'on'
