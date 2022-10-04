@@ -10,10 +10,12 @@ pipeline {
                 }
             }
             steps {
-                docker.withRegistry('https://git.vdb.to'){
-                    echo 'Building ...'
-                    def geth_image = docker.build("cerc-io/go-ethereum")
-                    echo 'built geth'
+                script{
+                    docker.withRegistry('https://git.vdb.to'){
+                        echo 'Building geth image...'
+                        def geth_image = docker.build("cerc-io/go-ethereum:jenkinscicd")
+                        echo 'built geth image'
+                    }
                 }
             }
         }
