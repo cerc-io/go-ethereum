@@ -3,12 +3,6 @@ pipeline {
 
     stages {
         stage('Build') {
-            agent {
-                docker {
-                    image 'ubuntu:latest'
-                    reuseNode true
-                }
-            }
             steps {
                 script{
                     docker.withRegistry('https://git.vdb.to'){
