@@ -14,8 +14,22 @@ pipeline {
             }
         }
         stage('Test') {
+            agent {
+                docker {
+                    image 'golang:1.18-alpine'
+                }
+            }
+            tools {
+                    go 'go-1.18'
+                }
+                environment {
+                    GO111MODULE = 'on'
+                    CGO_ENABLED = 0
+                    GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
+                }
             steps {
                 echo 'Testing ...'
+                sh 'make test'
             }
         }
         stage('Packaging') {
