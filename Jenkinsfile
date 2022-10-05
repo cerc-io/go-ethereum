@@ -29,6 +29,7 @@ pipeline {
                 }
             steps {
                 echo 'Testing ...'
+                sh 'apt-get install make'
                 sh 'make test'
             }
         }
