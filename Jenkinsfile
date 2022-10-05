@@ -29,7 +29,7 @@ pipeline {
                 }
             steps {
                 echo 'Testing ...'
-                sh 'sudo apt-get install -y make'
+                sh 'apt install build-essential -y --no-install-recommends'
                 sh 'make test'
             }
         }
