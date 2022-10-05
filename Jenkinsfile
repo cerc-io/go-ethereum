@@ -16,7 +16,7 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    image 'golang:1.18-alpine'
+                    image 'ubuntu:latest'
                 }
             }
             tools {
