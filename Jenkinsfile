@@ -16,20 +16,16 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    image 'ubuntu:latest'
+                    image 'cerc-io/foundation:jenkinscicd'
                 }
             }
-            tools {
-                    go 'go-1.18.5'
-                }
-                environment {
-                    GO111MODULE = 'on'
-                    CGO_ENABLED = 0
-                    GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
-                }
+            environment {
+                GO111MODULE = 'on'
+                CGO_ENABLED = 0
+                GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
+            }
             steps {
                 echo 'Testing ...'
-                sh 'apt install build-essential -y --no-install-recommends'
                 sh 'make test'
             }
         }
