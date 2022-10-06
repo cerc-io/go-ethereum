@@ -16,7 +16,8 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    image 'cerc-io/foundation:jenkinscicd'
+                    //image 'cerc-io/foundation:jenkinscicd'
+                    image 'cerc-io/go-ethereum:jenkinscicd'
                 }
             }
             environment {
@@ -30,8 +31,6 @@ pipeline {
             steps {
                 echo 'Testing ...'
                 sh 'env'
-                sh 'go mod tidy'
-                sh 'go get -d ./...'
                 sh 'go env'
                 sh 'make test'
             }

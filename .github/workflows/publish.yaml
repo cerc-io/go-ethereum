@@ -33,4 +33,4 @@ jobs:
       - name: curl
         uses: enflo/curl-action@master
         with:
-          curl: --user circcicd:${{ secrets.GITEA_TOKEN }} --upload-file geth-linux-amd64 https://git.vdb.to/api/packages/cerc-io/generic/go-ethereum/v1.10.23-statediff-alpha-unstable/geth-linux-amd64
+          curl: --user cerccicd:${{ secrets.GITEA_TOKEN }} --upload-file geth-linux-amd64 https://git.vdb.to/api/packages/cerc-io/generic/go-ethereum/${{ github.event.inputs.giteaPublishTag }}/geth-linux-amd64
