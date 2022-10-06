@@ -22,7 +22,7 @@ pipeline {
             }
             environment {
                 GO111MODULE = 'on'
-                CGO_ENABLED = 1
+                CGO_ENABLED = 0
                 GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOMODCACHE = "${WORKSPACE}/pkg/mod"
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
