@@ -30,6 +30,7 @@ pipeline {
             steps {
                 echo 'Testing ...'
                 sh 'env'
+                sh 'go mod tidy'
                 sh 'go get -d ./...'
                 sh 'go env'
                 sh 'make test'
