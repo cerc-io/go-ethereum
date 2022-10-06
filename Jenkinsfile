@@ -23,6 +23,7 @@ pipeline {
                 GO111MODULE = 'on'
                 CGO_ENABLED = 0
                 GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
+                GOMODCACHE = "${WORKSPACE}/pkg/mod"
             }
             steps {
                 echo 'Testing ...'
