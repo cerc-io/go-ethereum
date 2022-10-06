@@ -30,7 +30,6 @@ pipeline {
                 sh 'env'
                 sh 'pwd'
                 sh 'go env'
-                sh 'ls -tla /var/lib/jenkins/jobs'
                 sh 'make test'
             }
         }
