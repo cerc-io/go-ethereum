@@ -22,11 +22,13 @@ pipeline {
             }
             environment {
                 GO111MODULE = 'on'
-                CGO_ENABLED = 0
+                CGO_ENABLED = 1
                 GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOMODCACHE = "${WORKSPACE}/pkg/mod"
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
+                GOMOD="/dev/null"
+
             }
             steps {
                 echo 'Testing ...'
