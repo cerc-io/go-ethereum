@@ -28,7 +28,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'pwd'
-                sh 'export GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"'
+                sh 'go env'
                 sh 'make test'
             }
         }
