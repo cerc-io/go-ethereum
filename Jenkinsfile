@@ -39,7 +39,6 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh 'whoami'
                 sh 'make test'
             }
         }
