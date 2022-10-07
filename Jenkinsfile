@@ -28,6 +28,7 @@ pipeline {
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
                 GOMOD="/dev/null"
+                GOFLAGS="-mod=readonly"
 
             }
             steps {
