@@ -25,9 +25,12 @@ pipeline {
                 CGO_ENABLED = 1
                 //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOPATH = "/tmp/go"
-                GOMODCACHE = "${WORKSPACE}/pkg/mod"
-                GOCACHE = "${WORKSPACE}/.cache/go-build"
-                GOENV = "${WORKSPACE}/.config/go/env"
+                //GOMODCACHE = "${WORKSPACE}/pkg/mod"
+                //GOCACHE = "${WORKSPACE}/.cache/go-build"
+                //GOENV = "${WORKSPACE}/.config/go/env"
+                GOMODCACHE = "/tmp/go/pkg/mod"
+                GOCACHE = "/tmp/go/.cache/go-build"
+                GOENV = "/tmp/go/.config/go/env"
                 GOMOD="/dev/null"
                 GOFLAGS="-mod=mod"
 
