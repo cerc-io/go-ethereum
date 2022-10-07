@@ -23,7 +23,7 @@ pipeline {
             environment {
                 GO111MODULE = 'on'
                 CGO_ENABLED = 1
-                GOPATH = "${WORKSPACE}"
+                GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOMODCACHE = "${WORKSPACE}/pkg/mod"
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
@@ -34,6 +34,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
+                sh 'ls -tla'
                 sh 'make test'
             }
         }
