@@ -39,6 +39,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
+                sh 'go get -t ./...'
                 sh 'make test'
             }
         }
