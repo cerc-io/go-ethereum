@@ -39,8 +39,8 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh 'go get -t ./...'
-                sh 'make test'
+                sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                //sh 'make test'
             }
         }
         stage('Packaging') {
