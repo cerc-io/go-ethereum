@@ -21,6 +21,7 @@ pipeline {
                 }
             }
             environment {
+                GO111MODULE = 'on'
                 CGO_ENABLED = 1
                 //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOPATH = "/tmp/go"
@@ -31,7 +32,7 @@ pipeline {
                 //GOCACHE = "/tmp/go/.cache/go-build"
                 //GOENV = "/tmp/go/.config/go/env"
                 GOMOD="/dev/null"
-                //GOFLAGS="-mod=mod"
+                GOFLAGS="-mod=readonly"
 
             }
             steps {
