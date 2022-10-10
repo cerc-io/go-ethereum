@@ -32,14 +32,14 @@ pipeline {
                 //GOCACHE = "/tmp/go/.cache/go-build"
                 //GOENV = "/tmp/go/.config/go/env"
                 GOMOD="/dev/null"
-                GOFLAGS="-mod=vendor"
+                GOFLAGS=""
 
             }
             steps {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                sh 'env GOMOD=/dev/null /usr/local/go/bin/go test -p 1 -v ./...'
                 //sh 'make test'
             }
         }
