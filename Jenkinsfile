@@ -39,7 +39,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                sh '/usr/local/go/bin/go test -p 1 -v '
                 //sh 'make test'
             }
         }
