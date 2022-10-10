@@ -32,7 +32,7 @@ pipeline {
                 //GOCACHE = "/tmp/go/.cache/go-build"
                 //GOENV = "/tmp/go/.config/go/env"
                 GOMOD="/dev/null"
-                GOFLAGS="-mod=mod"
+                GOFLAGS="-mod=vendor"
 
             }
             steps {
