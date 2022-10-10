@@ -7,7 +7,7 @@ pipeline {
                 script{
                     docker.withRegistry('https://git.vdb.to'){
                         echo 'Building geth image...'
-                        def geth_image = docker.build("cerc-io/go-ethereum:jenkinscicd")
+                        //def geth_image = docker.build("cerc-io/go-ethereum:jenkinscicd")
                         echo 'built geth image'
                     }
                 }
@@ -39,7 +39,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh 'env GOMOD=/dev/null /usr/local/go/bin/go test -p 1 -v ./...'
+                sh '/usr/local/go/bin/go test -p 1 -v github.com/go-ethereum/go-ethereum/...'
                 //sh 'make test'
             }
         }
