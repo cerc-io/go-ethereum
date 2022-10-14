@@ -1,6 +1,8 @@
 pipeline {
     agent any
-
+    tools {
+        go 'go-1.18.6'
+    }
     stages {
         stage('Build') {
             steps {
@@ -20,9 +22,7 @@ pipeline {
                     image 'ubuntu:latest'
                 }
             }
-            tools {
-                go 'go-1.18.6'
-            }
+
             environment {
                 GO111MODULE = 'on'
                 CGO_ENABLED = 1
