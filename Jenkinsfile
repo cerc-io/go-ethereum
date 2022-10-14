@@ -26,10 +26,9 @@ pipeline {
                 CGO_ENABLED = 1
                 //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
                 GOPATH = "/go"
-                //GOPATH = "${WORKSPACE}"
                 GOMODCACHE = "/go/pkg/mod"
-                //GOCACHE = "${WORKSPACE}/.cache/go-build"
-                //GOENV = "${WORKSPACE}/.config/go/env"
+                GOCACHE = "${WORKSPACE}/.cache/go-build"
+                GOENV = "${WORKSPACE}/.config/go/env"
                 //GOMODCACHE = "/tmp/go/pkg/mod"
                 //GOMOD="/dev/null"
                 //GOFLAGS=""
@@ -41,7 +40,6 @@ pipeline {
                 sh 'go env'
                 //sh 'go work init . ;go work use .' //https://github.com/golangci/golangci-lint/issues/2654
                 //sh '/usr/local/go/bin/go test -p 1 -v ./...'
-                sh 'go get -d ./...'
                 sh 'make test'
             }
         }
