@@ -31,8 +31,8 @@ pipeline {
                 GOMODCACHE = "/tmp/go/pkg/mod"
                 //GOCACHE = "/tmp/go/.cache/go-build"
                 //GOENV = "/tmp/go/.config/go/env"
-                GOMOD="/dev/null"
-                GOFLAGS=""
+                //GOMOD="/dev/null"
+                //GOFLAGS=""
 
             }
             steps {
@@ -41,6 +41,7 @@ pipeline {
                 sh 'go env'
                 //sh 'go work init . ;go work use .' //https://github.com/golangci/golangci-lint/issues/2654
                 //sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                sh 'go get -d ./...'
                 sh 'make test'
             }
         }
