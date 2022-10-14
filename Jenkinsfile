@@ -39,8 +39,8 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                sh 'go work init . ;go work use .' //https://github.com/golangci/golangci-lint/issues/2654
-                sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                //sh 'go work init . ;go work use .' //https://github.com/golangci/golangci-lint/issues/2654
+                //sh '/usr/local/go/bin/go test -p 1 -v ./...'
                 //sh 'make test'
             }
         }
