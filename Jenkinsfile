@@ -24,13 +24,12 @@ pipeline {
                 GO111MODULE = 'on'
                 CGO_ENABLED = 1
                 //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
-                GOPATH = "/tmp/go"
-                //GOMODCACHE = "${WORKSPACE}/pkg/mod"
+                //GOPATH = "/tmp/go"
+                GOPATH = "${WORKSPACE}"
+                GOMODCACHE = "${WORKSPACE}/pkg/mod"
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
-                GOMODCACHE = "/tmp/go/pkg/mod"
-                //GOCACHE = "/tmp/go/.cache/go-build"
-                //GOENV = "/tmp/go/.config/go/env"
+                //GOMODCACHE = "/tmp/go/pkg/mod"
                 //GOMOD="/dev/null"
                 //GOFLAGS=""
 
