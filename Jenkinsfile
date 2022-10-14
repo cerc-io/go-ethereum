@@ -1,8 +1,6 @@
 pipeline {
     agent any
-    tools {
-        go 'go-1.18.6'
-    }
+
     stages {
         stage('Build') {
             steps {
@@ -19,17 +17,17 @@ pipeline {
             agent {
                 docker {
                     //image 'cerc-io/foundation:jenkinscicd'
-                    image 'ubuntu:latest'
+                    image 'cerc-io/foundation_alpine:jenkinscicd'
                 }
             }
 
             environment {
                 GO111MODULE = 'on'
                 CGO_ENABLED = 1
-                GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
-                //GOPATH = "/tmp/go"
+                //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
+                GOPATH = "/go"
                 //GOPATH = "${WORKSPACE}"
-                //GOMODCACHE = "${WORKSPACE}/pkg/mod"
+                GOMODCACHE = "/go/pkg/mod"
                 //GOCACHE = "${WORKSPACE}/.cache/go-build"
                 //GOENV = "${WORKSPACE}/.config/go/env"
                 //GOMODCACHE = "/tmp/go/pkg/mod"
