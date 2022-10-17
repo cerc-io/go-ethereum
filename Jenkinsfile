@@ -1,6 +1,8 @@
 pipeline {
     agent any
-
+    options {
+        skipDefaultCheckout(true)
+    }
     stages {
         stage('Build') {
             steps {
@@ -36,6 +38,8 @@ pipeline {
 
             }
             steps {
+                cleanWs()
+                checkout scm
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
