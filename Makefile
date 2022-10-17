@@ -50,7 +50,6 @@ ios:
 	@echo "Import \"$(GOBIN)/Geth.framework\" to use the library."
 
 test: all
-	go work use .
 	$(GORUN) build/ci.go test -v
 	#GO111MODULE=on GOMOD="/dev/null" GOWORK="" go test -p 1 ./... -v
 
