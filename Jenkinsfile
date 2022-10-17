@@ -28,8 +28,8 @@ pipeline {
                 //GOPATH = "/go"
                 GOPATH = "/tmp/go"
                 //GOMODCACHE = "/go/pkg/mod"
-                GOCACHE = "${WORKSPACE}/.cache/go-build"
-                GOENV = "${WORKSPACE}/.config/go/env"
+                //GOCACHE = "${WORKSPACE}/.cache/go-build"
+                //GOENV = "${WORKSPACE}/.config/go/env"
                 //GOMODCACHE = "/tmp/go/pkg/mod"
                 //GOMOD="/dev/null"
                 //GOFLAGS=""
@@ -39,10 +39,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-
                 //sh '/usr/local/go/bin/go test -p 1 -v ./...'
-                sh 'cwd'
-                sh 'which go'
                 sh 'make test'
             }
         }
