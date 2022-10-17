@@ -16,17 +16,18 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    //image 'cerc-io/foundation:jenkinscicd'
-                    image 'cerc-io/foundation_alpine:jenkinscicd'
+                    image 'cerc-io/foundation:jenkinscicd'
+                    //image 'cerc-io/foundation_alpine:jenkinscicd'
                 }
             }
 
             environment {
-                GO111MODULE = 'on'
+                GO111MODULE = "on"
                 CGO_ENABLED = 1
                 //GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
-                GOPATH = "/go"
-                GOMODCACHE = "/go/pkg/mod"
+                //GOPATH = "/go"
+                GOPATH = "/tmp/go"
+                //GOMODCACHE = "/go/pkg/mod"
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
                 //GOMODCACHE = "/tmp/go/pkg/mod"
@@ -38,8 +39,10 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
-                //sh 'go work init . ;go work use .' //https://github.com/golangci/golangci-lint/issues/2654
+
                 //sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                sh 'cwd'
+                sh 'which go'
                 sh 'make test'
             }
         }
