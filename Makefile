@@ -51,7 +51,7 @@ ios:
 
 test: all
 	#$(GORUN) build/ci.go test -v
-	GO111MODULE=on go test -p 1 github.com/ethereum/go-ethereum/... -v
+	GO111MODULE=on GOMOD="/dev/null" GOWORK="" go test -p 1 ./... -v
 
 lint: ## Run linters.
 	$(GORUN) build/ci.go lint
