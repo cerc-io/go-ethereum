@@ -31,7 +31,6 @@ pipeline {
                 GOCACHE = "${WORKSPACE}/.cache/go-build"
                 GOENV = "${WORKSPACE}/.config/go/env"
                 GOMODCACHE = "/tmp/go/pkg/mod"
-                GOMOD="/dev/null"
                 GOWORK=""
                 //GOFLAGS=""
 
@@ -40,6 +39,7 @@ pipeline {
                 echo 'Testing ...'
                 sh 'env'
                 sh 'go env'
+                sh 'ls -tlh'
                 //sh '/usr/local/go/bin/go test -p 1 -v ./...'
                 sh 'make test'
             }
