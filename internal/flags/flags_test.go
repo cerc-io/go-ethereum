@@ -23,10 +23,20 @@ import (
 )
 
 func TestPathExpansion(t *testing.T) {
-	user, _ := user.Current()
+	user, err := user.Current()
+	if user != nil {
+		t.Log("User: ", user.Name)
+		t.Log("User: ", user.HomeDir)
+	}
+	if err != nil {
+		t.Log("CURRENT ERR: ", err.Error())
+	}
+
+	home := homeDir()
+
 	tests := map[string]string{
 		"/home/someuser/tmp": "/home/someuser/tmp",
-		"~/tmp":              user.HomeDir + "/tmp",
+		"~/tmp":              home + "/tmp",
 		"~thisOtherUser/b/":  "~thisOtherUser/b",
 		"$DDDXXX/a/b":        "/tmp/a/b",
 		"/a/b/":              "/a/b",
@@ -38,4 +48,14 @@ func TestPathExpansion(t *testing.T) {
 			t.Errorf("test %s, got %s, expected %s\n", test, got, expected)
 		}
 	}
+}
+
+func homeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+	if usr, err := user.Current(); err == nil {
+		return usr.HomeDir
+	}
+	return ""
 }
