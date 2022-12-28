@@ -18,6 +18,7 @@ package sql
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -42,6 +43,8 @@ type BatchTx struct {
 	iplds            chan models.IPLDModel
 	ipldCache        models.IPLDBatch
 	removedCacheFlag *uint32
+	// Tracks expected cache size and ensures cache is caught up before flush
+	cacheWg sync.WaitGroup
 
 	submit func(blockTx *BatchTx, err error) error
 }
@@ -52,6 +55,7 @@ func (tx *BatchTx) Submit(err error) error {
 }
 
 func (tx *BatchTx) flush() error {
+	tx.cacheWg.Wait()
 	_, err := tx.dbtx.Exec(tx.ctx, tx.stm, pq.Array(tx.ipldCache.BlockNumbers), pq.Array(tx.ipldCache.Keys),
 		pq.Array(tx.ipldCache.Values))
 	if err != nil {
@@ -69,6 +73,7 @@ func (tx *BatchTx) cache() {
 			tx.ipldCache.BlockNumbers = append(tx.ipldCache.BlockNumbers, i.BlockNumber)
 			tx.ipldCache.Keys = append(tx.ipldCache.Keys, i.Key)
 			tx.ipldCache.Values = append(tx.ipldCache.Values, i.Data)
+			tx.cacheWg.Done()
 		case <-tx.quit:
 			tx.ipldCache = models.IPLDBatch{}
 			return
@@ -77,6 +82,7 @@ func (tx *BatchTx) cache() {
 }
 
 func (tx *BatchTx) cacheDirect(key string, value []byte) {
+	tx.cacheWg.Add(1)
 	tx.iplds <- models.IPLDModel{
 		BlockNumber: tx.BlockNumber,
 		Key:         key,
@@ -85,6 +91,7 @@ func (tx *BatchTx) cacheDirect(key string, value []byte) {
 }
 
 func (tx *BatchTx) cacheIPLD(i node.Node) {
+	tx.cacheWg.Add(1)
 	tx.iplds <- models.IPLDModel{
 		BlockNumber: tx.BlockNumber,
 		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
@@ -98,6 +105,7 @@ func (tx *BatchTx) cacheRaw(codec, mh uint64, raw []byte) (string, string, error
 		return "", "", err
 	}
 	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
+	tx.cacheWg.Add(1)
 	tx.iplds <- models.IPLDModel{
 		BlockNumber: tx.BlockNumber,
 		Key:         prefixedKey,
@@ -109,6 +117,7 @@ func (tx *BatchTx) cacheRaw(codec, mh uint64, raw []byte) (string, string, error
 func (tx *BatchTx) cacheRemoved(key string, value []byte) {
 	if atomic.LoadUint32(tx.removedCacheFlag) == 0 {
 		atomic.StoreUint32(tx.removedCacheFlag, 1)
+		tx.cacheWg.Add(1)
 		tx.iplds <- models.IPLDModel{
 			BlockNumber: tx.BlockNumber,
 			Key:         key,
