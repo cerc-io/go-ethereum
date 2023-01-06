@@ -122,11 +122,8 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 	t = time.Now()
 
-	// Begin new db tx for everything
-	tx, err := sdi.dbWriter.db.Begin(sdi.ctx)
-	if err != nil {
-		return nil, err
-	}
+	// Begin new DB tx for everything
+	tx := NewDelayedTx(sdi.dbWriter.db)
 	defer func() {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
@@ -589,11 +586,8 @@ func (sdi *StateDiffIndexer) LoadWatchedAddresses() ([]common.Address, error) {
 }
 
 // InsertWatchedAddresses inserts the given addresses in the database
-func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
-	tx, err := sdi.dbWriter.db.Begin(sdi.ctx)
-	if err != nil {
-		return err
-	}
+func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) (err error) {
+	tx := NewDelayedTx(sdi.dbWriter.db)
 	defer func() {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
@@ -617,11 +611,8 @@ func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressA
 }
 
 // RemoveWatchedAddresses removes the given watched addresses from the database
-func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressArg) error {
-	tx, err := sdi.dbWriter.db.Begin(sdi.ctx)
-	if err != nil {
-		return err
-	}
+func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressArg) (err error) {
+	tx := NewDelayedTx(sdi.dbWriter.db)
 	defer func() {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
@@ -644,11 +635,8 @@ func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressA
 }
 
 // SetWatchedAddresses clears and inserts the given addresses in the database
-func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
-	tx, err := sdi.dbWriter.db.Begin(sdi.ctx)
-	if err != nil {
-		return err
-	}
+func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) (err error) {
+	tx := NewDelayedTx(sdi.dbWriter.db)
 	defer func() {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
