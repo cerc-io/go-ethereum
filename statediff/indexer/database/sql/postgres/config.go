@@ -77,6 +77,9 @@ type Config struct {
 
 	// driver type
 	Driver DriverType
+
+	// toggle on/off upserts
+	Upsert bool
 }
 
 // Type satisfies interfaces.Config

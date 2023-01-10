@@ -118,6 +118,8 @@ This service introduces a CLI flag namespace `statediff`
 
 `--statediff.db.clientname` is the client name to use in the Postgres database
 
+`--statediff.db.upsert` whether or not the service, when operating in a direct database writing mode, should overwrite any existing conflicting data
+
 `--statediff.file.path` full path (including filename) to write statediff data out to when operating in file mode
 
 `--statediff.file.wapath` full path (including filename) to write statediff watched addresses out to when operating in file mode

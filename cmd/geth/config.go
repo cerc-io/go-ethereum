@@ -244,6 +244,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 					ClientName:   clientName,
 					Driver:       driverType,
 				}
+				if ctx.IsSet(utils.StateDiffUpsert.Name) {
+					pgConfig.Upsert = ctx.Bool(utils.StateDiffUpsert.Name)
+				}
 				if ctx.IsSet(utils.StateDiffDBMinConns.Name) {
 					pgConfig.MinConns = ctx.Int(utils.StateDiffDBMinConns.Name)
 				}

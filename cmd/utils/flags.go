@@ -1078,6 +1078,11 @@ var (
 		Usage: "Client name to use when writing state diffs to database",
 		Value: "go-ethereum",
 	}
+	StateDiffUpsert = &cli.BoolFlag{
+		Name:  "statediff.db.upsert",
+		Usage: "Should the statediff service overwrite data existing in the database?",
+		Value: false,
+	}
 	StateDiffWritingFlag = &cli.BoolFlag{
 		Name:  "statediff.writing",
 		Usage: "Activates progressive writing of state diffs to database as new block are synced",
