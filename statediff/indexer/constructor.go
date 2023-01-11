@@ -65,7 +65,7 @@ func NewStateDiffIndexer(ctx context.Context, chainConfig *params.ChainConfig, n
 		default:
 			return nil, nil, fmt.Errorf("unrecognized Postgres driver type: %s", pgc.Driver)
 		}
-		db := postgres.NewPostgresDB(driver)
+		db := postgres.NewPostgresDB(driver, pgc.Upsert)
 		ind, err := sql.NewStateDiffIndexer(ctx, chainConfig, db)
 		return db, ind, err
 	case shared.DUMP:

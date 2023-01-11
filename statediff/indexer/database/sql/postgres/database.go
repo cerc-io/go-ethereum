@@ -26,21 +26,27 @@ const (
 )
 
 // NewPostgresDB returns a postgres.DB using the provided driver
-func NewPostgresDB(driver sql.Driver) *DB {
-	return &DB{driver}
+func NewPostgresDB(driver sql.Driver, upsert bool) *DB {
+	return &DB{upsert, driver}
 }
 
 // DB implements sql.Database using a configured driver and Postgres statement syntax
 type DB struct {
+	upsert bool
 	sql.Driver
 }
 
 // InsertHeaderStm satisfies the sql.Statements interface
 // Stm == Statement
 func (db *DB) InsertHeaderStm() string {
-	return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase)
+	if db.upsert {
+		return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 			ON CONFLICT (block_hash, block_number) DO UPDATE SET (parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase) = ($3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, eth.header_cids.times_validated + 1, $16)`
+	}
+	return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			ON CONFLICT (block_hash, block_number) DO NOTHING`
 }
 
 // InsertUncleStm satisfies the sql.Statements interface
@@ -75,8 +81,12 @@ func (db *DB) InsertLogStm() string {
 
 // InsertStateStm satisfies the sql.Statements interface
 func (db *DB) InsertStateStm() string {
-	return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	if db.upsert {
+		return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (header_id, state_path, block_number) DO UPDATE SET (block_number, state_leaf_key, cid, node_type, diff, mh_key) = ($1, $3, $4, $6, $7, $8)`
+	}
+	return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (header_id, state_path, block_number) DO NOTHING`
 }
 
 // InsertAccountStm satisfies the sql.Statements interface
@@ -87,8 +97,12 @@ func (db *DB) InsertAccountStm() string {
 
 // InsertStorageStm satisfies the sql.Statements interface
 func (db *DB) InsertStorageStm() string {
-	return `INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	if db.upsert {
+		return `INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (header_id, state_path, storage_path, block_number) DO UPDATE SET (block_number, storage_leaf_key, cid, node_type, diff, mh_key) = ($1, $4, $5, $7, $8, $9)`
+	}
+	return `INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (header_id, state_path, storage_path, block_number) DO NOTHING`
 }
 
 // InsertIPLDStm satisfies the sql.Statements interface
