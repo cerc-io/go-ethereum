@@ -17,8 +17,9 @@
 package statediff
 
 import (
-	"github.com/ethereum/go-ethereum/metrics"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 const (

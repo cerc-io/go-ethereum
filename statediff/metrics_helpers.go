@@ -18,9 +18,10 @@ package statediff
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 func countStateDiffBegin(block *types.Block) (time.Time, log.Logger) {
