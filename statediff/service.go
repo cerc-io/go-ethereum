@@ -267,13 +267,13 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 		for {
 			select {
 			case chainEvent := <-chainEventCh:
-				lastHeight := statediffMetrics.lastEventHeight.Value()
+				lastHeight := defaultStatediffMetrics.lastEventHeight.Value()
 				nextHeight := int64(chainEvent.Block.Number().Uint64())
 				if nextHeight-lastHeight != 1 {
 					log.Warn("Statediffing service received block out-of-order", "next height", nextHeight, "last height", lastHeight)
 				}
-				statediffMetrics.lastEventHeight.Update(nextHeight)
-				statediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
+				defaultStatediffMetrics.lastEventHeight.Update(nextHeight)
+				defaultStatediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
 				chainEventFwd <- chainEvent
 			case err := <-errCh:
 				log.Error("Error from chain event subscription", "error", err)
