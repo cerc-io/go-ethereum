@@ -26,6 +26,8 @@ const (
 	namespace = "statediff"
 )
 
+var defaultStatediffMetrics = RegisterStatediffMetrics(metrics.DefaultRegistry)
+
 // Build a fully qualified metric name
 func metricName(subsystem, name string) string {
 	if name == "" {
@@ -58,6 +60,14 @@ type statediffMetricsHandles struct {
 	knownGapErrorStart metrics.Gauge
 	// A known gaps end block which had an error being written to the DB
 	knownGapErrorEnd metrics.Gauge
+
+	apiRequests         metrics.Counter
+	apiRequestsUnderway metrics.Counter
+
+	failed              metrics.Counter
+	succeeded           metrics.Counter
+	underway            metrics.Counter
+	totalProcessingTime metrics.Gauge
 }
 
 func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
@@ -71,6 +81,12 @@ func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
 		knownGapEnd:           metrics.NewGauge(),
 		knownGapErrorStart:    metrics.NewGauge(),
 		knownGapErrorEnd:      metrics.NewGauge(),
+		apiRequests:           metrics.NewCounter(),
+		apiRequestsUnderway:   metrics.NewCounter(),
+		failed:                metrics.NewCounter(),
+		succeeded:             metrics.NewCounter(),
+		underway:              metrics.NewCounter(),
+		totalProcessingTime:   metrics.NewGauge(),
 	}
 	subsys := "service"
 	reg.Register(metricName(subsys, "last_sync_height"), ctx.lastSyncHeight)
@@ -82,5 +98,11 @@ func RegisterStatediffMetrics(reg metrics.Registry) statediffMetricsHandles {
 	reg.Register(metricName(subsys, "known_gaps_end"), ctx.knownGapEnd)
 	reg.Register(metricName(subsys, "known_gaps_error_start"), ctx.knownGapErrorStart)
 	reg.Register(metricName(subsys, "known_gaps_error_end"), ctx.knownGapErrorEnd)
+	reg.Register(metricName(subsys, "api_requests"), ctx.apiRequests)
+	reg.Register(metricName(subsys, "api_requests_underway"), ctx.apiRequestsUnderway)
+	reg.Register(metricName(subsys, "failed"), ctx.failed)
+	reg.Register(metricName(subsys, "succeeded"), ctx.succeeded)
+	reg.Register(metricName(subsys, "underway"), ctx.underway)
+	reg.Register(metricName(subsys, "total_processing_time"), ctx.totalProcessingTime)
 	return ctx
 }

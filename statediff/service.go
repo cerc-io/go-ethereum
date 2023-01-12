@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -68,8 +67,6 @@ var writeLoopParams = ParamsWithMutex{
 		IncludeCode:              true,
 	},
 }
-
-var statediffMetrics = RegisterStatediffMetrics(metrics.DefaultRegistry)
 
 type blockChain interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
@@ -270,13 +267,13 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 		for {
 			select {
 			case chainEvent := <-chainEventCh:
-				lastHeight := statediffMetrics.lastEventHeight.Value()
+				lastHeight := defaultStatediffMetrics.lastEventHeight.Value()
 				nextHeight := int64(chainEvent.Block.Number().Uint64())
 				if nextHeight-lastHeight != 1 {
 					log.Warn("Statediffing service received block out-of-order", "next height", nextHeight, "last height", lastHeight)
 				}
-				statediffMetrics.lastEventHeight.Update(nextHeight)
-				statediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
+				defaultStatediffMetrics.lastEventHeight.Update(nextHeight)
+				defaultStatediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
 				chainEventFwd <- chainEvent
 			case err := <-errCh:
 				log.Error("Error from chain event subscription", "error", err)
@@ -314,7 +311,7 @@ func (sds *Service) writeGenesisStateDiff(currBlock *types.Block, workerId uint)
 			genesisBlockNumber, "error", err.Error(), "worker", workerId)
 		return
 	}
-	statediffMetrics.lastStatediffHeight.Update(genesisBlockNumber)
+	defaultStatediffMetrics.lastStatediffHeight.Update(genesisBlockNumber)
 }
 
 func (sds *Service) writeLoopWorker(params workerParams) {
@@ -350,7 +347,7 @@ func (sds *Service) writeLoopWorker(params workerParams) {
 			}
 
 			// TODO: how to handle with concurrent workers
-			statediffMetrics.lastStatediffHeight.Update(int64(currentBlock.Number().Uint64()))
+			defaultStatediffMetrics.lastStatediffHeight.Update(int64(currentBlock.Number().Uint64()))
 		case <-sds.QuitChan:
 			log.Info("Quitting the statediff writing process", "worker", params.id)
 			return
@@ -368,7 +365,7 @@ func (sds *Service) Loop(chainEventCh chan core.ChainEvent) {
 		select {
 		//Notify chain event channel of events
 		case chainEvent := <-chainEventCh:
-			statediffMetrics.serviceLoopChannelLen.Update(int64(len(chainEventCh)))
+			defaultStatediffMetrics.serviceLoopChannelLen.Update(int64(len(chainEventCh)))
 			log.Debug("Loop(): chain event received", "event", chainEvent)
 			// if we don't have any subscribers, do not process a statediff
 			if atomic.LoadInt32(&sds.subscribers) == 0 {
@@ -800,11 +797,12 @@ func (sds *Service) WriteStateDiffFor(blockHash common.Hash, params Params) erro
 
 // Writes a state diff from the current block, parent state root, and provided params
 func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, params Params) error {
-	// log.Info("Writing state diff", "block height", block.Number().Uint64())
 	var totalDifficulty *big.Int
 	var receipts types.Receipts
 	var err error
 	var tx interfaces.Batch
+	start, logger := countStateDiffBegin(block)
+	defer countStateDiffEnd(start, logger, err)
 	if params.IncludeTD {
 		totalDifficulty = sds.BlockChain.GetTd(block.Hash(), block.NumberU64())
 	}

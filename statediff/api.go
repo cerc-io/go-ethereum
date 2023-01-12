@@ -142,12 +142,22 @@ func (api *PublicStateDiffAPI) StreamCodeAndCodeHash(ctx context.Context, blockN
 
 // WriteStateDiffAt writes a state diff object directly to DB at the specific blockheight
 func (api *PublicStateDiffAPI) WriteStateDiffAt(ctx context.Context, blockNumber uint64, params Params) error {
-	return api.sds.WriteStateDiffAt(blockNumber, params)
+	var err error
+	start, logger := countApiRequestBegin("writeStateDiffAt", blockNumber)
+	defer countApiRequestEnd(start, logger, err)
+
+	err = api.sds.WriteStateDiffAt(blockNumber, params)
+	return err
 }
 
 // WriteStateDiffFor writes a state diff object directly to DB for the specific block hash
 func (api *PublicStateDiffAPI) WriteStateDiffFor(ctx context.Context, blockHash common.Hash, params Params) error {
-	return api.sds.WriteStateDiffFor(blockHash, params)
+	var err error
+	start, logger := countApiRequestBegin("writeStateDiffFor", blockHash.Hex())
+	defer countApiRequestEnd(start, logger, err)
+
+	err = api.sds.WriteStateDiffFor(blockHash, params)
+	return err
 }
 
 // WatchAddress changes the list of watched addresses to which the direct indexing is restricted according to given operation
