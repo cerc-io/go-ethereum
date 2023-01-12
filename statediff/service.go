@@ -270,7 +270,12 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 		for {
 			select {
 			case chainEvent := <-chainEventCh:
-				statediffMetrics.lastEventHeight.Update(int64(chainEvent.Block.Number().Uint64()))
+				lastHeight := statediffMetrics.lastEventHeight.Value()
+				nextHeight := int64(chainEvent.Block.Number().Uint64())
+				if nextHeight-lastHeight != 1 {
+					log.Warn("Statediffing service received block out-of-order", "next height", nextHeight, "last height", lastHeight)
+				}
+				statediffMetrics.lastEventHeight.Update(nextHeight)
 				statediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
 				chainEventFwd <- chainEvent
 			case err := <-errCh:
@@ -336,8 +341,11 @@ func (sds *Service) writeLoopWorker(params workerParams) {
 			err := sds.writeStateDiffWithRetry(currentBlock, parentBlock.Root(), writeLoopParams.Params)
 			writeLoopParams.RUnlock()
 			if err != nil {
-				// This is where the Postgres errors bubbles up to, so this is where we want to emit a comprehensie error trace/report
-				log.Error("statediff.Service.WriteLoop: processing error", "block height", currentBlock.Number().Uint64(), "error", err.Error(), "worker", params.id)
+				log.Error("statediff.Service.WriteLoop: processing error",
+					"block height", currentBlock.Number().Uint64(),
+					"block hash", currentBlock.Hash().Hex(),
+					"error", err.Error(),
+					"worker", params.id)
 				continue
 			}
 
@@ -807,28 +815,25 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	if err != nil {
 		return err
 	}
-	// defer handling of commit/rollback for any return case
-	defer func() {
-		if err := tx.Submit(err); err != nil {
-			log.Error("batch transaction submission failed", "err", err)
-		}
-	}()
+
 	output := func(node types2.StateNode) error {
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	codeOutput := func(c types2.CodeAndCodeHash) error {
 		return sds.indexer.PushCodeAndCodeHash(tx, c)
 	}
+
 	err = sds.Builder.WriteStateDiffObject(types2.StateRoots{
 		NewStateRoot: block.Root(),
 		OldStateRoot: parentRoot,
 	}, params, output, codeOutput)
+	// TODO this anti-pattern needs to be sorted out eventually
+	if err := tx.Submit(err); err != nil {
+		return fmt.Errorf("batch transaction submission failed: %s", err.Error())
+	}
 
 	// allow dereferencing of parent, keep current locked as it should be the next parent
 	sds.BlockChain.UnlockTrie(parentRoot)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -839,8 +844,8 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 		err = sds.writeStateDiff(block, parentRoot, params)
 		if err != nil && strings.Contains(err.Error(), deadlockDetected) {
 			// Retry only when the deadlock is detected.
-			if i != sds.maxRetry {
-				log.Info("dead lock detected while writing statediff", "err", err, "retry number", i)
+			if i+1 < sds.maxRetry {
+				log.Warn("dead lock detected while writing statediff", "err", err, "retry number", i)
 			}
 			continue
 		}
