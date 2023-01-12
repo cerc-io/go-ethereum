@@ -176,7 +176,6 @@ var (
 		utils.StateDiffFileMode,
 		utils.StateDiffFileCsvDir,
 		utils.StateDiffFilePath,
-		utils.StateDiffKnownGapsFilePath,
 		utils.StateDiffWaitForSync,
 		utils.StateDiffWatchedAddressesFilePath,
 		utils.StateDiffUpsert,
