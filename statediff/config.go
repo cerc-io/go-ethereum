@@ -30,8 +30,6 @@ import (
 type Config struct {
 	// The configuration used for the stateDiff Indexer
 	IndexerConfig interfaces.Config
-	// The filepath to write knownGaps insert statements if we can't connect to the DB.
-	KnownGapsFilePath string
 	// A unique ID used for this service
 	ID string
 	// Name for the client this service is running
