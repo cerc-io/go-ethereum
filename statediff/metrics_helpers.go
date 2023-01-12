@@ -49,13 +49,14 @@ func countStateDiffEnd(start time.Time, logger log.Logger, err error) time.Durat
 	}
 	defaultStatediffMetrics.totalProcessingTime.Inc(duration.Milliseconds())
 
-	logger.Debug(fmt.Sprintf("writeStateDiff END (duration=%dms, err=%t) [underway=%d, succeeded=%d, failed=%d, total_time=%d]",
+	logger.Debug(fmt.Sprintf("writeStateDiff END (duration=%dms, err=%t) [underway=%d, succeeded=%d, failed=%d, total_time=%dms]",
 		duration.Milliseconds(), nil != err,
 		defaultStatediffMetrics.underway.Count(),
 		defaultStatediffMetrics.succeeded.Count(),
 		defaultStatediffMetrics.failed.Count(),
 		defaultStatediffMetrics.totalProcessingTime.Value(),
 	))
+
 	return duration
 }
 
@@ -66,7 +67,7 @@ func countApiRequestBegin(methodName string, blockHashOrNumber interface{}) (tim
 	defaultStatediffMetrics.apiRequests.Inc(1)
 	defaultStatediffMetrics.apiRequestsUnderway.Inc(1)
 
-	logger.Debug(fmt.Sprintf("statediff API BEGIN [api_underway=%d, api_total=%d])",
+	logger.Debug(fmt.Sprintf("statediff API BEGIN [underway=%d, requests=%d])",
 		defaultStatediffMetrics.apiRequestsUnderway.Count(),
 		defaultStatediffMetrics.apiRequests.Count(),
 	))
@@ -78,7 +79,7 @@ func countApiRequestEnd(start time.Time, logger log.Logger, err error) time.Dura
 	duration := time.Since(start)
 	defaultStatediffMetrics.apiRequestsUnderway.Dec(1)
 
-	logger.Debug(fmt.Sprintf("statediff API END (duration=%dms, err=%t) [api_underway=%d, api_total=%d]",
+	logger.Debug(fmt.Sprintf("statediff API END (duration=%dms, err=%t) [underway=%d, requests=%d]",
 		duration.Milliseconds(), nil != err,
 		defaultStatediffMetrics.apiRequestsUnderway.Count(),
 		defaultStatediffMetrics.apiRequests.Count(),
