@@ -29,7 +29,7 @@ func countStateDiffBegin(block *types.Block) (time.Time, log.Logger) {
 	logger := log.New("hash", block.Hash().Hex(), "number", block.NumberU64())
 
 	defaultStatediffMetrics.underway.Inc(1)
-	logger.Debug(fmt.Sprintf("writeStateDiff BEGIN [underway=%d, succeeded=%d, failed=%d, time=%d]",
+	logger.Debug(fmt.Sprintf("writeStateDiff BEGIN [underway=%d, succeeded=%d, failed=%d, total_time=%dms]",
 		defaultStatediffMetrics.underway.Count(),
 		defaultStatediffMetrics.succeeded.Count(),
 		defaultStatediffMetrics.failed.Count(),
