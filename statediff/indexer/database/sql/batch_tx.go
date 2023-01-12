@@ -59,7 +59,17 @@ func (tx *BatchTx) flush() error {
 	_, err := tx.dbtx.Exec(tx.ctx, tx.stm, pq.Array(tx.ipldCache.BlockNumbers), pq.Array(tx.ipldCache.Keys),
 		pq.Array(tx.ipldCache.Values))
 	if err != nil {
-		return err
+		log.Debug(insertError{"public.blocks", err, tx.stm,
+			struct {
+				blockNumbers []string
+				keys         []string
+				values       [][]byte
+			}{
+				tx.ipldCache.BlockNumbers,
+				tx.ipldCache.Keys,
+				tx.ipldCache.Values,
+			}}.Error())
+		return insertError{"public.blocks", err, tx.stm, "too many arguments; use debug mode for full list"}
 	}
 	tx.ipldCache = models.IPLDBatch{}
 	return nil
