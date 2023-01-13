@@ -265,6 +265,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 				if ctx.IsSet(utils.StateDiffDBConnTimeout.Name) {
 					pgConfig.ConnTimeout = time.Duration(ctx.Duration(utils.StateDiffDBConnTimeout.Name).Seconds())
 				}
+				if ctx.IsSet(utils.StateDiffLogStatements.Name) {
+					pgConfig.LogStatements = ctx.Bool(utils.StateDiffLogStatements.Name)
+				}
 				indexerConfig = pgConfig
 			case shared.DUMP:
 				dumpTypeStr := ctx.String(utils.StateDiffDBDumpDst.Name)
