@@ -141,13 +141,12 @@ func (api *PublicStateDiffAPI) StreamCodeAndCodeHash(ctx context.Context, blockN
 }
 
 // WriteStateDiffAt writes a state diff object directly to DB at the specific blockheight
-func (api *PublicStateDiffAPI) WriteStateDiffAt(ctx context.Context, blockNumber uint64, params Params) error {
+func (api *PublicStateDiffAPI) WriteStateDiffAt(ctx context.Context, blockNumber uint64, params Params) JobID {
 	var err error
 	start, logger := countApiRequestBegin("writeStateDiffAt", blockNumber)
 	defer countApiRequestEnd(start, logger, err)
 
-	err = api.sds.WriteStateDiffAt(blockNumber, params)
-	return err
+	return api.sds.WriteStateDiffAt(blockNumber, params)
 }
 
 // WriteStateDiffFor writes a state diff object directly to DB for the specific block hash
@@ -163,4 +162,52 @@ func (api *PublicStateDiffAPI) WriteStateDiffFor(ctx context.Context, blockHash 
 // WatchAddress changes the list of watched addresses to which the direct indexing is restricted according to given operation
 func (api *PublicStateDiffAPI) WatchAddress(operation types.OperationType, args []types.WatchAddressArg) error {
 	return api.sds.WatchAddress(operation, args)
+}
+
+// StreamWrites sets up a subscription that streams the status of completed calls to WriteStateDiff*
+func (api *PublicStateDiffAPI) StreamWrites(ctx context.Context) (*rpc.Subscription, error) {
+	// ensure that the RPC connection supports subscriptions
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return nil, rpc.ErrNotificationsUnsupported
+	}
+
+	// create subscription and start waiting for events
+	rpcSub := notifier.CreateSubscription()
+
+	go func() {
+		// subscribe to events from the statediff service
+		statusChan := make(chan JobStatus, chainEventChanSize)
+		quitChan := make(chan bool, 1)
+		api.sds.SubscribeWriteStatus(rpcSub.ID, statusChan, quitChan)
+
+		var err error
+		defer func() {
+			if err != nil {
+				if err = api.sds.UnsubscribeWriteStatus(rpcSub.ID); err != nil {
+					log.Error("Failed to unsubscribe from job status stream: " + err.Error())
+				}
+			}
+		}()
+		// loop and await payloads and relay them to the subscriber with the notifier
+		for {
+			select {
+			case status := <-statusChan:
+				if err = notifier.Notify(rpcSub.ID, status); err != nil {
+					log.Error("Failed to send job status; error: " + err.Error())
+					return
+				}
+			case err = <-rpcSub.Err():
+				if err != nil {
+					log.Error("State diff service rpcSub error: " + err.Error())
+					return
+				}
+			case <-quitChan:
+				// don't need to unsubscribe, service does so before sending the quit signal
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
 }
