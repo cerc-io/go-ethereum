@@ -1080,7 +1080,7 @@ var (
 	}
 	StateDiffLogStatements = &cli.BoolFlag{
 		Name:  "statediff.db.logstatements",
-		Usage: "Should the statediff service log all database statements?",
+		Usage: "Should the statediff service log all database statements? (Note: pgx only)",
 		Value: false,
 	}
 	StateDiffWritingFlag = &cli.BoolFlag{
