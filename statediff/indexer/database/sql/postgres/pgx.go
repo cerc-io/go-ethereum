@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/georgysavva/scany/pgxscan"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -85,6 +87,11 @@ func MakeConfig(config Config) (*pgxpool.Config, error) {
 	if config.MaxConnIdleTime != 0 {
 		conf.MaxConnIdleTime = config.MaxConnIdleTime
 	}
+
+	if config.LogStatements {
+		conf.ConnConfig.Logger = NewLogAdapter(log.New())
+	}
+
 	return conf, nil
 }
 

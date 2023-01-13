@@ -70,6 +70,7 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 	MaxConnLifetime time.Duration
 	ConnTimeout     time.Duration
+	LogStatements   bool
 
 	// node info params
 	ID         string

@@ -179,6 +179,7 @@ var (
 		utils.StateDiffWaitForSync,
 		utils.StateDiffWatchedAddressesFilePath,
 		utils.StateDiffUpsert,
+		utils.StateDiffLogStatements,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
