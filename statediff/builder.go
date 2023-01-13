@@ -727,7 +727,7 @@ func (sdb *StateDiffBuilder) buildStorageNodesIncremental(oldSR common.Hash, new
 	if bytes.Equal(newSR.Bytes(), oldSR.Bytes()) {
 		return nil
 	}
-	log.Debug("Storage Roots for Incremental Diff", "old", oldSR.Hex(), "new", newSR.Hex())
+	log.Trace("Storage Roots for Incremental Diff", "old", oldSR.Hex(), "new", newSR.Hex())
 	oldTrie, err := sdb.StateCache.OpenTrie(oldSR)
 	if err != nil {
 		return err
