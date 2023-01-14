@@ -13,7 +13,7 @@ docker cp $ID:/app/docker-tsdb out/docker-tsdb/
 docker rm -v $ID
 
 # Spin up TimescaleDB
-docker-compose -f out/docker-tsdb/docker-compose.test.yml -f docker-compose.yml up ipld-eth-db
+docker-compose -f out/docker-tsdb/docker-compose.test.yml -f docker-compose.yml up ipld-eth-db -d
 sleep 45
 
 # Run unit tests
