@@ -37,6 +37,13 @@ import (
 const dbDirectory = "/file_indexer"
 const pgCopyStatement = `COPY %s FROM '%s' CSV`
 
+func init() {
+	if os.Getenv("STATEDIFF_DB") != "file" {
+		fmt.Println("Skipping statediff indexer CSV file mode test")
+		os.Exit(0)
+	}
+}
+
 func setupLegacyCSVIndexer(t *testing.T) {
 	if _, err := os.Stat(file.CSVTestConfig.OutputDir); !errors.Is(err, os.ErrNotExist) {
 		err := os.RemoveAll(file.CSVTestConfig.OutputDir)
