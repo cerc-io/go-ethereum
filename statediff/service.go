@@ -87,7 +87,7 @@ type IService interface {
 	APIs() []rpc.API
 	// Loop is the main event loop for processing state diffs
 	Loop(chainEventCh chan core.ChainEvent)
-	// Subscribe method to subscribe to receive state diff processing output`
+	// Subscribe method to subscribe to receive state diff processing output
 	Subscribe(id rpc.ID, sub chan<- Payload, quitChan chan<- bool, params Params)
 	// Unsubscribe method to unsubscribe from state diff processing
 	Unsubscribe(id rpc.ID) error
@@ -100,13 +100,18 @@ type IService interface {
 	// StreamCodeAndCodeHash method to stream out all code and codehash pairs
 	StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- types2.CodeAndCodeHash, quitChan chan<- bool)
 	// WriteStateDiffAt method to write state diff object directly to DB
-	WriteStateDiffAt(blockNumber uint64, params Params) error
+	WriteStateDiffAt(blockNumber uint64, params Params) JobID
 	// WriteStateDiffFor method to write state diff object directly to DB
 	WriteStateDiffFor(blockHash common.Hash, params Params) error
 	// WriteLoop event loop for progressively processing and writing diffs directly to DB
 	WriteLoop(chainEventCh chan core.ChainEvent)
 	// Method to change the addresses being watched in write loop params
 	WatchAddress(operation types2.OperationType, args []types2.WatchAddressArg) error
+
+	// SubscribeWriteStatus method to subscribe to receive state diff processing output
+	SubscribeWriteStatus(id rpc.ID, sub chan<- JobStatus, quitChan chan<- bool)
+	// UnsubscribeWriteStatus method to unsubscribe from state diff processing
+	UnsubscribeWriteStatus(id rpc.ID) error
 }
 
 // Service is the underlying struct for the state diffing service
@@ -139,6 +144,27 @@ type Service struct {
 	numWorkers uint
 	// Number of retry for aborted transactions due to deadlock.
 	maxRetry uint
+	// Write job status subscriptions
+	jobStatusSubs map[rpc.ID]statusSubscription
+	// Job ID ticker
+	lastJobID uint64
+	// In flight jobs (for WriteStateDiffAt)
+	currentJobs      map[uint64]JobID
+	currentJobsMutex sync.Mutex
+}
+
+// IDs used for tracking in-progress jobs (0 for invalid)
+type JobID uint64
+
+// JobStatus represents the status of a completed job
+type JobStatus struct {
+	id  JobID
+	err error
+}
+
+type statusSubscription struct {
+	statusChan chan<- JobStatus
+	quitChan   chan<- bool
 }
 
 // BlockCache caches the last block for safe access from different service loops
@@ -748,7 +774,27 @@ func (sds *Service) StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- typ
 // WriteStateDiffAt writes a state diff at the specific blockheight directly to the database
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
-func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) error {
+func (sds *Service) WriteStateDiffAt(blockNumber uint64, params Params) JobID {
+	sds.currentJobsMutex.Lock()
+	defer sds.currentJobsMutex.Unlock()
+	if id, has := sds.currentJobs[blockNumber]; has {
+		return id
+	}
+	id := JobID(atomic.AddUint64(&sds.lastJobID, 1))
+	sds.currentJobs[blockNumber] = id
+	go func() {
+		err := sds.writeStateDiffAt(blockNumber, params)
+		sds.currentJobsMutex.Lock()
+		delete(sds.currentJobs, blockNumber)
+		sds.currentJobsMutex.Unlock()
+		for _, sub := range sds.jobStatusSubs {
+			sub.statusChan <- JobStatus{id, err}
+		}
+	}()
+	return id
+}
+
+func (sds *Service) writeStateDiffAt(blockNumber uint64, params Params) error {
 	log.Info("writing state diff at", "block height", blockNumber)
 
 	// use watched addresses from statediffing write loop if not provided
@@ -850,6 +896,33 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 		break
 	}
 	return err
+}
+
+// SubscribeWriteStatus is used by the API to subscribe to the job status updates
+func (sds *Service) SubscribeWriteStatus(id rpc.ID, sub chan<- JobStatus, quitChan chan<- bool) {
+	log.Info("Subscribing to job status updates", "subscription id", id)
+	sds.Lock()
+	if sds.jobStatusSubs == nil {
+		sds.jobStatusSubs = map[rpc.ID]statusSubscription{}
+	}
+	sds.jobStatusSubs[id] = statusSubscription{
+		statusChan: sub,
+		quitChan:   quitChan,
+	}
+	sds.Unlock()
+}
+
+// UnsubscribeWriteStatus is used to unsubscribe from job status updates
+func (sds *Service) UnsubscribeWriteStatus(id rpc.ID) error {
+	log.Info("Unsubscribing from job status updates", "subscription id", id)
+	sds.Lock()
+	close(sds.jobStatusSubs[id].quitChan)
+	delete(sds.jobStatusSubs, id)
+	if len(sds.jobStatusSubs) == 0 {
+		sds.jobStatusSubs = nil
+	}
+	sds.Unlock()
+	return nil
 }
 
 // WatchAddress performs one of following operations on the watched addresses in writeLoopParams and the db:
