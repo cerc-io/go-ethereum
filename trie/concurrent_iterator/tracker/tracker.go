@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
-	log "github.com/sirupsen/logrus"
 
 	iter "github.com/ethereum/go-ethereum/trie/concurrent_iterator"
 )
@@ -50,14 +50,14 @@ func (tr *Tracker) CaptureSignal(cancelCtx context.CancelFunc) {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigChan
-		log.Errorf("Signal received (%v), stopping", sig)
+		log.Error("Signal received (%v), stopping", "signal", sig)
 		// cancel context on receiving a signal
 		// on ctx cancellation, all the iterators complete processing of their current node before stopping
 		cancelCtx()
 	}()
 }
 
-// Wraps an iterator in a Iterator. This should not be called once halts are possible.
+// Tracked wraps an iterator in a Iterator. This should not be called once halts are possible.
 func (tr *Tracker) Tracked(it trie.NodeIterator, recoveredPath []byte) (ret *Iterator) {
 	// create seeked path of max capacity (65)
 	iterSeekedPath := make([]byte, 0, 65)
@@ -79,14 +79,14 @@ func (tr *Tracker) Tracked(it trie.NodeIterator, recoveredPath []byte) (ret *Ite
 	return
 }
 
-// explicitly stops an iterator
+// StopIterator explicitly stops an iterator
 func (tr *Tracker) StopIterator(it *Iterator) {
 	tr.stopChan <- it
 }
 
 // dumps iterator path and bounds to a text file so it can be restored later
 func (tr *Tracker) dump() error {
-	log.Debugf("Dumping recovery state to: %s", tr.recoveryFile)
+	log.Debug("Dumping recovery state to", "recovery file", tr.recoveryFile)
 	var rows [][]string
 	for it := range tr.started {
 		var startPath []byte
@@ -120,7 +120,7 @@ func (tr *Tracker) dump() error {
 	return out.WriteAll(rows)
 }
 
-// attempts to read iterator state from file
+// Restore attempts to read iterator state from file
 // if file doesn't exist, returns an empty slice with no error
 func (tr *Tracker) Restore(tree state.Trie) ([]trie.NodeIterator, error) {
 	file, err := os.Open(tr.recoveryFile)
@@ -130,7 +130,7 @@ func (tr *Tracker) Restore(tree state.Trie) ([]trie.NodeIterator, error) {
 		}
 		return nil, err
 	}
-	log.Debugf("Restoring recovery state from: %s", tr.recoveryFile)
+	log.Debug("Restoring recovery state from", "recovery file", tr.recoveryFile)
 
 	defer file.Close()
 	in := csv.NewReader(file)
@@ -173,7 +173,7 @@ func (tr *Tracker) Restore(tree state.Trie) ([]trie.NodeIterator, error) {
 		ret = append(ret, tr.Tracked(it, recoveredPath))
 	}
 
-	log.Debugf("Restored %d iterators", len(ret))
+	log.Debug("Restored iterators", "count", len(ret))
 	return ret, nil
 }
 
@@ -213,7 +213,7 @@ func (it *Iterator) Next(descend bool) bool {
 		if it.tracker.running {
 			it.tracker.stopChan <- it
 		} else {
-			log.Errorf("iterator stopped after tracker halted: path=%x", it.Path())
+			log.Error("iterator stopped after tracker halted", "path", it.Path())
 		}
 	}
 	return ret

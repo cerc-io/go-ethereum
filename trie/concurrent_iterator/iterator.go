@@ -43,7 +43,7 @@ func (it *PrefixBoundIterator) Next(descend bool) bool {
 	return cmp <= 0
 }
 
-// Iterator with an upper bound value (hex path prefix)
+// NewPrefixBoundIterator returns an iterator with an upper bound value (hex path prefix)
 func NewPrefixBoundIterator(it trie.NodeIterator, from []byte, to []byte) *PrefixBoundIterator {
 	return &PrefixBoundIterator{NodeIterator: it, StartPath: from, EndPath: to}
 }
@@ -102,7 +102,7 @@ func (gen *prefixGenerator) Next() {
 	}
 }
 
-// Generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
+// MakePaths generates paths that cut trie domain into `nbins` uniform conterminous bins (w/ opt. prefix)
 // eg. MakePaths([], 2) => [[0] [8]]
 //	   MakePaths([4], 32) => [[4 0 0] [4 0 8] [4 1 0]... [4 f 8]]
 func MakePaths(prefix []byte, nbins uint) [][]byte {
@@ -129,7 +129,7 @@ func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
 	}
 }
 
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+// SubtrieIterators cuts a trie by path prefix, returning `nbins` iterators covering its subtries
 func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
 	eachPrefixRange(nil, nbins, func(from []byte, to []byte) {
@@ -139,7 +139,7 @@ func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
 	return iters
 }
 
-// Factory for per-bin subtrie iterators
+// SubtrieIteratorFactory is a factory for per-bin subtrie iterators
 type SubtrieIteratorFactory struct {
 	tree                 state.Trie
 	startPaths, endPaths [][]byte
@@ -152,7 +152,7 @@ func (fac *SubtrieIteratorFactory) IteratorAt(bin uint) *PrefixBoundIterator {
 	return NewPrefixBoundIterator(it, fac.startPaths[bin], fac.endPaths[bin])
 }
 
-// Cut a trie by path prefix, returning `nbins` iterators covering its subtries
+// NewSubtrieIteratorFactory cuts a trie by path prefix, returning `nbins` iterators covering its subtries
 func NewSubtrieIteratorFactory(tree state.Trie, nbins uint) SubtrieIteratorFactory {
 	starts := make([][]byte, 0, nbins)
 	ends := make([][]byte, 0, nbins)
