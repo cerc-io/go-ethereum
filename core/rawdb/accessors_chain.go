@@ -644,6 +644,23 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *para
 	return receipts
 }
 
+// ReadStorageReceipts is a modification of ReadRawReceipts that skips a conversion to types.Receipt
+// and returns the ReceipstForStorage instead
+func ReadStorageReceipts(db ethdb.Reader, hash common.Hash, number uint64) []*types.ReceiptForStorage {
+	// Retrieve the flattened receipt slice
+	data := ReadReceiptsRLP(db, hash, number)
+	if len(data) == 0 {
+		return nil
+	}
+	// Convert the receipts from their storage form to their internal representation
+	var storageReceipts []*types.ReceiptForStorage
+	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+		return nil
+	}
+	return storageReceipts
+}
+
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
@@ -815,6 +832,17 @@ func WriteAncientBlocks(db ethdb.AncientWriter, blocks []*types.Block, receipts 
 		}
 		return nil
 	})
+}
+
+// WriteAncientBlock is a public wrapper of writeAncientBlock
+func WriteAncientBlock(op ethdb.AncientWriteOp, block *types.Block, receipts types.Receipts, td *big.Int) error {
+	stReceipts := make([]*types.ReceiptForStorage, len(receipts))
+	// Convert receipts to storage format and sum up total difficulty.
+	stReceipts = stReceipts[:0]
+	for i, receipt := range receipts {
+		stReceipts[i] = (*types.ReceiptForStorage)(receipt)
+	}
+	return writeAncientBlock(op, block, block.Header(), stReceipts, td)
 }
 
 func writeAncientBlock(op ethdb.AncientWriteOp, block *types.Block, header *types.Header, receipts []*types.ReceiptForStorage, td *big.Int) error {

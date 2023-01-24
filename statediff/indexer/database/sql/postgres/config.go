@@ -70,6 +70,7 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 	MaxConnLifetime time.Duration
 	ConnTimeout     time.Duration
+	LogStatements   bool
 
 	// node info params
 	ID         string
@@ -77,6 +78,9 @@ type Config struct {
 
 	// driver type
 	Driver DriverType
+
+	// toggle on/off upserts
+	Upsert bool
 }
 
 // Type satisfies interfaces.Config

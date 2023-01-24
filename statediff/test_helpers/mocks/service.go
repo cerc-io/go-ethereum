@@ -189,9 +189,9 @@ func (sds *MockStateDiffService) newPayload(stateObject []byte, block *types.Blo
 }
 
 // WriteStateDiffAt mock method
-func (sds *MockStateDiffService) WriteStateDiffAt(blockNumber uint64, params statediff.Params) error {
+func (sds *MockStateDiffService) WriteStateDiffAt(blockNumber uint64, params statediff.Params) statediff.JobID {
 	// TODO: something useful here
-	return nil
+	return 0
 }
 
 // WriteStateDiffFor mock method
@@ -434,5 +434,16 @@ func (sds *MockStateDiffService) WatchAddress(operation sdtypes.OperationType, a
 		return fmt.Errorf("%s %s", unexpectedOperation, operation)
 	}
 
+	return nil
+}
+
+// SubscribeWriteStatus is used by the API to subscribe to the job status updates
+func (sds *MockStateDiffService) SubscribeWriteStatus(id rpc.ID, sub chan<- statediff.JobStatus, quitChan chan<- bool) {
+	// TODO when WriteStateDiff methods are implemented
+}
+
+// UnsubscribeWriteStatus is used to unsubscribe from job status updates
+func (sds *MockStateDiffService) UnsubscribeWriteStatus(id rpc.ID) error {
+	// TODO when WriteStateDiff methods are implemented
 	return nil
 }

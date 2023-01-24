@@ -31,7 +31,7 @@ func SetupSQLXDB() (sql.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPostgresDB(driver), nil
+	return NewPostgresDB(driver, false), nil
 }
 
 // SetupPGXDB is used to setup a pgx db for tests
@@ -40,5 +40,5 @@ func SetupPGXDB() (sql.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPostgresDB(driver), nil
+	return NewPostgresDB(driver, false), nil
 }

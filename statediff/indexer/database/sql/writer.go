@@ -55,7 +55,7 @@ func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 		header.Reward, header.StateRoot, header.TxRoot, header.RctRoot, header.UncleRoot, header.Bloom,
 		header.Timestamp, header.MhKey, 1, header.Coinbase)
 	if err != nil {
-		return fmt.Errorf("error upserting header_cids entry: %v", err)
+		return insertError{"eth.header_cids", err, w.db.InsertHeaderStm(), header}
 	}
 	indexerMetrics.blocks.Inc(1)
 	return nil
@@ -69,7 +69,7 @@ func (w *Writer) upsertUncleCID(tx Tx, uncle models.UncleModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertUncleStm(),
 		uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID, uncle.Reward, uncle.MhKey)
 	if err != nil {
-		return fmt.Errorf("error upserting uncle_cids entry: %v", err)
+		return insertError{"eth.uncle_cids", err, w.db.InsertUncleStm(), uncle}
 	}
 	return nil
 }
@@ -83,7 +83,7 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 		transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst, transaction.Src,
 		transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
 	if err != nil {
-		return fmt.Errorf("error upserting transaction_cids entry: %v", err)
+		return insertError{"eth.transaction_cids", err, w.db.InsertTxStm(), transaction}
 	}
 	indexerMetrics.transactions.Inc(1)
 	return nil
@@ -98,7 +98,7 @@ func (w *Writer) upsertAccessListElement(tx Tx, accessListElement models.AccessL
 		accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address,
 		accessListElement.StorageKeys)
 	if err != nil {
-		return fmt.Errorf("error upserting access_list_element entry: %v", err)
+		return insertError{"eth.access_list_elements", err, w.db.InsertAccessListElementStm(), accessListElement}
 	}
 	indexerMetrics.accessListEntries.Inc(1)
 	return nil
@@ -113,7 +113,7 @@ func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 		rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey, rct.PostState,
 		rct.PostStatus, rct.LogRoot)
 	if err != nil {
-		return fmt.Errorf("error upserting receipt_cids entry: %w", err)
+		return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
 	}
 	indexerMetrics.receipts.Inc(1)
 	return nil
@@ -129,7 +129,7 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 			log.BlockNumber, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
 			log.Topic2, log.Topic3, log.Data)
 		if err != nil {
-			return fmt.Errorf("error upserting logs entry: %w", err)
+			return insertError{"eth.log_cids", err, w.db.InsertLogStm(), *log}
 		}
 		indexerMetrics.logs.Inc(1)
 	}
@@ -149,7 +149,7 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 		stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
 		stateNode.MhKey)
 	if err != nil {
-		return fmt.Errorf("error upserting state_cids entry: %v", err)
+		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
 	}
 	return nil
 }
@@ -163,7 +163,7 @@ func (w *Writer) upsertStateAccount(tx Tx, stateAccount models.StateAccountModel
 		stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
 		stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot)
 	if err != nil {
-		return fmt.Errorf("error upserting state_accounts entry: %v", err)
+		return insertError{"eth.state_accounts", err, w.db.InsertAccountStm(), stateAccount}
 	}
 	return nil
 }
@@ -181,7 +181,21 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
 		storageCID.NodeType, true, storageCID.MhKey)
 	if err != nil {
-		return fmt.Errorf("error upserting storage_cids entry: %v", err)
+		return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
 	}
 	return nil
+}
+
+type insertError struct {
+	table     string
+	err       error
+	stmt      string
+	arguments interface{}
+}
+
+var _ error = insertError{}
+
+func (dbe insertError) Error() string {
+	return fmt.Sprintf("error inserting %s entry: %v\r\nstatement: %s\r\narguments: %+v",
+		dbe.table, dbe.err, dbe.stmt, dbe.arguments)
 }

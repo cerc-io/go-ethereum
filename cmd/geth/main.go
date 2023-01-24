@@ -176,9 +176,10 @@ var (
 		utils.StateDiffFileMode,
 		utils.StateDiffFileCsvDir,
 		utils.StateDiffFilePath,
-		utils.StateDiffKnownGapsFilePath,
 		utils.StateDiffWaitForSync,
 		utils.StateDiffWatchedAddressesFilePath,
+		utils.StateDiffUpsert,
+		utils.StateDiffLogStatements,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
