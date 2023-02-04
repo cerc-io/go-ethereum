@@ -207,7 +207,7 @@ func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, outp
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
 	start, t := time.Now(), time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes duration=%dms", time.Since(start).Milliseconds()))
+	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
 	// collect a slice of all the nodes that were touched and exist at B (B-A)
 	// a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
@@ -231,7 +231,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	t = time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - sorting keys duration=%dms", time.Since(t).Milliseconds()))
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes sort duration=%dms", time.Since(t).Milliseconds()))
 
 	// and then find the intersection of these keys
 	// these are the leafkeys for the accounts which exist at both A and B but are different
@@ -239,7 +239,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	// and leaving the truly created or deleted keys in place
 	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - finding intersection count=%d duration=%dms",
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes intersection count=%d duration=%dms",
 		len(updatedKeys),
 		time.Since(t).Milliseconds()))
 
@@ -260,7 +260,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
 	start, t := time.Now(), time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes duration=%dms", time.Since(start).Milliseconds()))
+	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
 	// collect a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, diffPathsAtB, err := sdb.createdAndUpdatedState(
@@ -284,7 +284,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 	t = time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - sorting keys duration=%dms", time.Since(t).Milliseconds()))
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodessort sort duration=%dms", time.Since(t).Milliseconds()))
 
 	// and then find the intersection of these keys
 	// these are the leafkeys for the accounts which exist at both A and B but are different
@@ -292,7 +292,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 	// and leaving the truly created or deleted keys in place
 	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - finding intersection count=%d duration=%dms",
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes intersection count=%d duration=%dms",
 		len(updatedKeys),
 		time.Since(t).Milliseconds()))
 
