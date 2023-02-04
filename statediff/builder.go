@@ -239,7 +239,9 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	// and leaving the truly created or deleted keys in place
 	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - finding intersection duration=%dms", time.Since(t).Milliseconds()))
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - finding intersection count=%d duration=%dms",
+		len(updatedKeys),
+		time.Since(t).Milliseconds()))
 
 	// build the diff nodes for the updated accounts using the mappings at both A and B as directed by the keys found as the intersection of the two
 	err = sdb.buildAccountUpdates(
@@ -290,7 +292,9 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 	// and leaving the truly created or deleted keys in place
 	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
-	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - finding intersection duration=%dms", time.Since(t).Milliseconds()))
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - finding intersection count=%d duration=%dms",
+		len(updatedKeys),
+		time.Since(t).Milliseconds()))
 
 	// build the diff nodes for the updated accounts using the mappings at both A and B as directed by the keys found as the intersection of the two
 	err = sdb.buildAccountUpdates(
