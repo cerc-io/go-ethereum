@@ -206,7 +206,7 @@ func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, outp
 }
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
-	start, t := time.Now(), time.Now()
+	start := time.Now()
 	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
 	// collect a slice of all the nodes that were touched and exist at B (B-A)
 	// a map of their leafkey to all the accounts that were touched and exist at B
@@ -228,7 +228,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	}
 
 	// collect and sort the leafkey keys for both account mappings into a slice
-	t = time.Now()
+	t := time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
 	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes sort duration=%dms", time.Since(t).Milliseconds()))
@@ -259,7 +259,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 }
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
-	start, t := time.Now(), time.Now()
+	start := time.Now()
 	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
 	// collect a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
@@ -281,7 +281,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 	}
 
 	// collect and sort the leafkeys for both account mappings into a slice
-	t = time.Now()
+	t := time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
 	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodessort sort duration=%dms", time.Since(t).Milliseconds()))
