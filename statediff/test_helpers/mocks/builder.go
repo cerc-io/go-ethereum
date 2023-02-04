@@ -42,8 +42,8 @@ func (builder *Builder) BuildStateDiffObject(args statediff.Args, params statedi
 }
 
 // BuildStateDiffObject mock method
-func (builder *Builder) WriteStateDiffObject(args sdtypes.StateRoots, params statediff.Params, output sdtypes.StateNodeSink, codeOutput sdtypes.CodeSink) error {
-	builder.StateRoots = args
+func (builder *Builder) WriteStateDiffObject(args statediff.Args, params statediff.Params, output sdtypes.StateNodeSink, codeOutput sdtypes.CodeSink) error {
+	builder.StateRoots = sdtypes.StateRoots{OldStateRoot: args.OldStateRoot, NewStateRoot: args.NewStateRoot}
 	builder.Params = params
 
 	return builder.builderError

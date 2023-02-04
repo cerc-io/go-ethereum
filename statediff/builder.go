@@ -22,6 +22,7 @@ package statediff
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -45,7 +46,7 @@ var (
 type Builder interface {
 	BuildStateDiffObject(args Args, params Params) (types2.StateObject, error)
 	BuildStateTrieObject(current *types.Block) (types2.StateObject, error)
-	WriteStateDiffObject(args types2.StateRoots, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error
+	WriteStateDiffObject(args Args, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error
 }
 
 type StateDiffBuilder struct {
@@ -157,9 +158,7 @@ func (sdb *StateDiffBuilder) buildStateTrie(it trie.NodeIterator) ([]types2.Stat
 func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (types2.StateObject, error) {
 	var stateNodes []types2.StateNode
 	var codeAndCodeHashes []types2.CodeAndCodeHash
-	err := sdb.WriteStateDiffObject(
-		types2.StateRoots{OldStateRoot: args.OldStateRoot, NewStateRoot: args.NewStateRoot},
-		params, StateNodeAppender(&stateNodes), CodeMappingAppender(&codeAndCodeHashes))
+	err := sdb.WriteStateDiffObject(args, params, StateNodeAppender(&stateNodes), CodeMappingAppender(&codeAndCodeHashes))
 	if err != nil {
 		return types2.StateObject{}, err
 	}
@@ -172,7 +171,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (typ
 }
 
 // WriteStateDiffObject writes a statediff object to output callback
-func (sdb *StateDiffBuilder) WriteStateDiffObject(args types2.StateRoots, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
+func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
 	// Load tries for old and new states
 	oldTrie, err := sdb.StateCache.OpenTrie(args.OldStateRoot)
 	if err != nil {
@@ -198,19 +197,22 @@ func (sdb *StateDiffBuilder) WriteStateDiffObject(args types2.StateRoots, params
 		},
 	}
 
+	logger := log.New("hash", args.BlockHash.Hex(), "number", args.BlockNumber)
 	if !params.IntermediateStateNodes {
-		return sdb.BuildStateDiffWithoutIntermediateStateNodes(iterPairs, params, output, codeOutput)
+		return sdb.BuildStateDiffWithoutIntermediateStateNodes(iterPairs, params, output, codeOutput, logger)
 	} else {
-		return sdb.BuildStateDiffWithIntermediateStateNodes(iterPairs, params, output, codeOutput)
+		return sdb.BuildStateDiffWithIntermediateStateNodes(iterPairs, params, output, codeOutput, logger)
 	}
 }
 
-func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
+func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
+	start, t := time.Now(), time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes duration=%dms", time.Since(start).Milliseconds()))
 	// collect a slice of all the nodes that were touched and exist at B (B-A)
 	// a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, diffPathsAtB, err := sdb.createdAndUpdatedStateWithIntermediateNodes(
-		iterPairs[0].Older, iterPairs[0].Newer, params.watchedAddressesLeafPaths, output)
+		iterPairs[0].Older, iterPairs[0].Newer, params.watchedAddressesLeafPaths, output, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting createdAndUpdatedNodes: %v", err)
 	}
@@ -220,42 +222,48 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		iterPairs[1].Older, iterPairs[1].Newer,
 		diffAccountsAtB, diffPathsAtB, params.watchedAddressesLeafPaths,
-		params.IntermediateStateNodes, params.IntermediateStorageNodes, output)
+		params.IntermediateStateNodes, params.IntermediateStorageNodes, output, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
 
 	// collect and sort the leafkey keys for both account mappings into a slice
+	t = time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - sorting keys duration=%dms", time.Since(t).Milliseconds()))
 
 	// and then find the intersection of these keys
 	// these are the leafkeys for the accounts which exist at both A and B but are different
 	// this also mutates the passed in createKeys and deleteKeys, removing the intersection keys
 	// and leaving the truly created or deleted keys in place
+	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes - finding intersection duration=%dms", time.Since(t).Milliseconds()))
 
 	// build the diff nodes for the updated accounts using the mappings at both A and B as directed by the keys found as the intersection of the two
 	err = sdb.buildAccountUpdates(
 		diffAccountsAtB, diffAccountsAtA, updatedKeys,
-		params.IntermediateStorageNodes, output)
+		params.IntermediateStorageNodes, output, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for updated accounts: %v", err)
 	}
 	// build the diff nodes for created accounts
-	err = sdb.buildAccountCreations(diffAccountsAtB, params.IntermediateStorageNodes, output, codeOutput)
+	err = sdb.buildAccountCreations(diffAccountsAtB, params.IntermediateStorageNodes, output, codeOutput, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for created accounts: %v", err)
 	}
 	return nil
 }
 
-func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
+func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
+	start, t := time.Now(), time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes duration=%dms", time.Since(start).Milliseconds()))
 	// collect a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, diffPathsAtB, err := sdb.createdAndUpdatedState(
 		iterPairs[0].Older, iterPairs[0].Newer,
-		params.watchedAddressesLeafPaths)
+		params.watchedAddressesLeafPaths, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting createdAndUpdatedNodes: %v", err)
 	}
@@ -265,30 +273,34 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		iterPairs[1].Older, iterPairs[1].Newer,
 		diffAccountsAtB, diffPathsAtB, params.watchedAddressesLeafPaths,
-		params.IntermediateStateNodes, params.IntermediateStorageNodes, output)
+		params.IntermediateStateNodes, params.IntermediateStorageNodes, output, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
 
 	// collect and sort the leafkeys for both account mappings into a slice
+	t = time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - sorting keys duration=%dms", time.Since(t).Milliseconds()))
 
 	// and then find the intersection of these keys
 	// these are the leafkeys for the accounts which exist at both A and B but are different
 	// this also mutates the passed in createKeys and deleteKeys, removing in intersection keys
 	// and leaving the truly created or deleted keys in place
+	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes - finding intersection duration=%dms", time.Since(t).Milliseconds()))
 
 	// build the diff nodes for the updated accounts using the mappings at both A and B as directed by the keys found as the intersection of the two
 	err = sdb.buildAccountUpdates(
 		diffAccountsAtB, diffAccountsAtA, updatedKeys,
-		params.IntermediateStorageNodes, output)
+		params.IntermediateStorageNodes, output, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for updated accounts: %v", err)
 	}
 	// build the diff nodes for created accounts
-	err = sdb.buildAccountCreations(diffAccountsAtB, params.IntermediateStorageNodes, output, codeOutput)
+	err = sdb.buildAccountCreations(diffAccountsAtB, params.IntermediateStorageNodes, output, codeOutput, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for created accounts: %v", err)
 	}
@@ -298,7 +310,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 // createdAndUpdatedState returns
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
-func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte) (types2.AccountMap, map[string]bool, error) {
+func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte, logger log.Logger) (types2.AccountMap, map[string]bool, error) {
 	diffPathsAtB := make(map[string]bool)
 	diffAccountsAtB := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
@@ -354,7 +366,9 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator, watc
 // a slice of all the intermediate nodes that exist in a different state at B than A
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
-func (sdb *StateDiffBuilder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte, output types2.StateNodeSink) (types2.AccountMap, map[string]bool, error) {
+func (sdb *StateDiffBuilder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte, output types2.StateNodeSink, logger log.Logger) (types2.AccountMap, map[string]bool, error) {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff createdAndUpdatedStateWithIntermediateNodes duration=%dms", time.Since(start).Milliseconds()))
 	diffPathsAtB := make(map[string]bool)
 	diffAccountsAtB := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
@@ -420,7 +434,9 @@ func (sdb *StateDiffBuilder) createdAndUpdatedStateWithIntermediateNodes(a, b tr
 
 // deletedOrUpdatedState returns a slice of all the pathes that are emptied at B
 // and a mapping of their leafkeys to all the accounts that exist in a different state at A than B
-func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffAccountsAtB types2.AccountMap, diffPathsAtB map[string]bool, watchedAddressesLeafPaths [][]byte, intermediateStateNodes, intermediateStorageNodes bool, output types2.StateNodeSink) (types2.AccountMap, error) {
+func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffAccountsAtB types2.AccountMap, diffPathsAtB map[string]bool, watchedAddressesLeafPaths [][]byte, intermediateStateNodes, intermediateStorageNodes bool, output types2.StateNodeSink, logger log.Logger) (types2.AccountMap, error) {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff deletedOrUpdatedState duration=%dms", time.Since(start).Milliseconds()))
 	diffAccountAtA := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
 
@@ -526,7 +542,9 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 // to generate the statediff node objects for all of the accounts that existed at both A and B but in different states
 // needs to be called before building account creations and deletions as this mutates
 // those account maps to remove the accounts which were updated
-func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.AccountMap, updatedKeys []string, intermediateStorageNodes bool, output types2.StateNodeSink) error {
+func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.AccountMap, updatedKeys []string, intermediateStorageNodes bool, output types2.StateNodeSink, logger log.Logger) error {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff buildAccountUpdates duration=%dms", time.Since(start).Milliseconds()))
 	var err error
 	for _, key := range updatedKeys {
 		createdAcc := creations[key]
@@ -560,7 +578,9 @@ func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.Acc
 
 // buildAccountCreations returns the statediff node objects for all the accounts that exist at B but not at A
 // it also returns the code and codehash for created contract accounts
-func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, intermediateStorageNodes bool, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
+func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, intermediateStorageNodes bool, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff buildAccountCreations duration=%dms", time.Since(start).Milliseconds()))
 	for _, val := range accounts {
 		diff := types2.StateNode{
 			NodeType:  val.NodeType,
