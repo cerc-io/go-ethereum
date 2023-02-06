@@ -22,6 +22,7 @@ package statediff
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -45,7 +46,7 @@ var (
 // Builder interface exposes the method for building a state diff between two blocks
 type Builder interface {
 	BuildStateDiffObject(args Args, params Params) (types2.StateObject, error)
-	WriteStateDiffObject(args types2.StateRoots, params Params, output types2.StateNodeSink, ipldOutput types2.IPLDSink) error
+	WriteStateDiffObject(args Args, params Params, output types2.StateNodeSink, ipldOutput types2.IPLDSink) error
 }
 
 type StateDiffBuilder struct {
@@ -86,9 +87,7 @@ func NewBuilder(stateCache state.Database) Builder {
 func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (types2.StateObject, error) {
 	var stateNodes []types2.StateLeafNode
 	var iplds []types2.IPLD
-	err := sdb.WriteStateDiffObject(
-		types2.StateRoots{OldStateRoot: args.OldStateRoot, NewStateRoot: args.NewStateRoot},
-		params, StateNodeAppender(&stateNodes), IPLDMappingAppender(&iplds))
+	err := sdb.WriteStateDiffObject(args, params, StateNodeAppender(&stateNodes), IPLDMappingAppender(&iplds))
 	if err != nil {
 		return types2.StateObject{}, err
 	}
@@ -101,7 +100,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (typ
 }
 
 // WriteStateDiffObject writes a statediff object to output sinks
-func (sdb *StateDiffBuilder) WriteStateDiffObject(args types2.StateRoots, params Params, output types2.StateNodeSink,
+func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, output types2.StateNodeSink,
 	ipldOutput types2.IPLDSink) error {
 	// Load tries for old and new states
 	oldTrie, err := sdb.StateCache.OpenTrie(args.OldStateRoot)
@@ -128,16 +127,19 @@ func (sdb *StateDiffBuilder) WriteStateDiffObject(args types2.StateRoots, params
 		},
 	}
 
-	return sdb.BuildStateDiffWithIntermediateStateNodes(iterPairs, params, output, ipldOutput)
+	logger := log.New("hash", args.BlockHash.Hex(), "number", args.BlockNumber)
+	return sdb.BuildStateDiffWithIntermediateStateNodes(iterPairs, params, output, ipldOutput, logger)
 }
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params,
-	output types2.StateNodeSink, ipldOutput types2.IPLDSink) error {
+	output types2.StateNodeSink, ipldOutput types2.IPLDSink, logger log.Logger) error {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
 	// collect a slice of all the nodes that were touched and exist at B (B-A)
 	// a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, err := sdb.createdAndUpdatedState(
-		iterPairs[0].Older, iterPairs[0].Newer, params.watchedAddressesLeafPaths, ipldOutput)
+		iterPairs[0].Older, iterPairs[0].Newer, params.watchedAddressesLeafPaths, ipldOutput, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting createdAndUpdatedNodes: %v", err)
 	}
@@ -146,28 +148,34 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 	// a map of their leafkey to all the accounts that were touched and exist at A
 	diffAccountsAtA, err := sdb.deletedOrUpdatedState(
 		iterPairs[1].Older, iterPairs[1].Newer, diffAccountsAtB,
-		params.watchedAddressesLeafPaths, output)
+		params.watchedAddressesLeafPaths, output, logger)
 	if err != nil {
 		return fmt.Errorf("error collecting deletedOrUpdatedNodes: %v", err)
 	}
 
 	// collect and sort the leafkey keys for both account mappings into a slice
+	t := time.Now()
 	createKeys := trie_helpers.SortKeys(diffAccountsAtB)
 	deleteKeys := trie_helpers.SortKeys(diffAccountsAtA)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes sort duration=%dms", time.Since(t).Milliseconds()))
 
 	// and then find the intersection of these keys
 	// these are the leafkeys for the accounts which exist at both A and B but are different
 	// this also mutates the passed in createKeys and deleteKeys, removing the intersection keys
 	// and leaving the truly created or deleted keys in place
+	t = time.Now()
 	updatedKeys := trie_helpers.FindIntersection(createKeys, deleteKeys)
+	logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes intersection count=%d duration=%dms",
+		len(updatedKeys),
+		time.Since(t).Milliseconds()))
 
 	// build the diff nodes for the updated accounts using the mappings at both A and B as directed by the keys found as the intersection of the two
-	err = sdb.buildAccountUpdates(diffAccountsAtB, diffAccountsAtA, updatedKeys, output, ipldOutput)
+	err = sdb.buildAccountUpdates(diffAccountsAtB, diffAccountsAtA, updatedKeys, output, ipldOutput, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for updated accounts: %v", err)
 	}
 	// build the diff nodes for created accounts
-	err = sdb.buildAccountCreations(diffAccountsAtB, output, ipldOutput)
+	err = sdb.buildAccountCreations(diffAccountsAtB, output, ipldOutput, logger)
 	if err != nil {
 		return fmt.Errorf("error building diff for created accounts: %v", err)
 	}
@@ -179,7 +187,9 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
 func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
-	watchedAddressesLeafPaths [][]byte, output types2.IPLDSink) (types2.AccountMap, error) {
+	watchedAddressesLeafPaths [][]byte, output types2.IPLDSink, logger log.Logger) (types2.AccountMap, error) {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff createdAndUpdatedState duration=%dms", time.Since(start).Milliseconds()))
 	diffAccountsAtB := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
 
@@ -275,7 +285,9 @@ func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watched
 // deletedOrUpdatedState returns a slice of all the pathes that are emptied at B
 // and a mapping of their leafkeys to all the accounts that exist in a different state at A than B
 func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffAccountsAtB types2.AccountMap,
-	watchedAddressesLeafPaths [][]byte, output types2.StateNodeSink) (types2.AccountMap, error) {
+	watchedAddressesLeafPaths [][]byte, output types2.StateNodeSink, logger log.Logger) (types2.AccountMap, error) {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff deletedOrUpdatedState duration=%dms", time.Since(start).Milliseconds()))
 	diffAccountAtA := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
 
@@ -330,7 +342,9 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 // needs to be called before building account creations and deletions as this mutates
 // those account maps to remove the accounts which were updated
 func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.AccountMap, updatedKeys []string,
-	output types2.StateNodeSink, ipldOutput types2.IPLDSink) error {
+	output types2.StateNodeSink, ipldOutput types2.IPLDSink, logger log.Logger) error {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff buildAccountUpdates duration=%dms", time.Since(start).Milliseconds()))
 	var err error
 	for _, key := range updatedKeys {
 		createdAcc := creations[key]
@@ -361,7 +375,10 @@ func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.Acc
 
 // buildAccountCreations returns the statediff node objects for all the accounts that exist at B but not at A
 // it also returns the code and codehash for created contract accounts
-func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, output types2.StateNodeSink, ipldOutput types2.IPLDSink) error {
+func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, output types2.StateNodeSink,
+	ipldOutput types2.IPLDSink, logger log.Logger) error {
+	start := time.Now()
+	defer logger.Debug(fmt.Sprintf("statediff buildAccountCreations duration=%dms", time.Since(start).Milliseconds()))
 	for _, val := range accounts {
 		diff := types2.StateLeafNode{
 			AccountWrapper: val,

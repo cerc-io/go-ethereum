@@ -800,9 +800,11 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		return sds.indexer.PushIPLD(tx, c)
 	}
 
-	err = sds.Builder.WriteStateDiffObject(types2.StateRoots{
+	err = sds.Builder.WriteStateDiffObject(Args{
 		NewStateRoot: block.Root(),
 		OldStateRoot: parentRoot,
+		BlockHash:    block.Hash(),
+		BlockNumber:  block.Number(),
 	}, params, output, ipldOutput)
 	// TODO this anti-pattern needs to be sorted out eventually
 	if err := tx.Submit(err); err != nil {
