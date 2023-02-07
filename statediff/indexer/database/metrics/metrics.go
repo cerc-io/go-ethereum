@@ -98,7 +98,7 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	reg.Register(metricName(subsys, "t_tx_receipt_processing"), ctx.TxAndRecProcessingTimer)
 	reg.Register(metricName(subsys, "t_state_store_code_processing"), ctx.StateStoreCodeProcessingTimer)
 
-	log.Info("Registering statediff indexer metrics.")
+	log.Debug("Registering statediff indexer metrics.")
 	return ctx
 }
 
@@ -142,7 +142,7 @@ func RegisterDBMetrics(reg metrics.Registry) dbMetricsHandles {
 	reg.Register(metricName(subsys, "closed_max_idle"), ctx.closedMaxIdle)
 	reg.Register(metricName(subsys, "closed_max_lifetime"), ctx.closedMaxLifetime)
 
-	log.Info("Registering statediff DB metrics.")
+	log.Debug("Registering statediff DB metrics.")
 	return ctx
 }
 
