@@ -25,6 +25,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
+
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	node "github.com/ipfs/go-ipld-format"
@@ -254,7 +256,7 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UncleRoot, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.MhKey, 1, header.Coinbase)
 	csw.rows <- tableRow{types.TableHeader, values}
-	indexerMetrics.blocks.Inc(1)
+	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertUncleCID(uncle models.UncleModel) {
@@ -269,14 +271,14 @@ func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 	values = append(values, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 		transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
 	csw.rows <- tableRow{types.TableTransaction, values}
-	indexerMetrics.transactions.Inc(1)
+	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
 	var values []interface{}
 	values = append(values, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address, accessListElement.StorageKeys)
 	csw.rows <- tableRow{types.TableAccessListElement, values}
-	indexerMetrics.accessListEntries.Inc(1)
+	metrics.IndexerMetrics.AccessListEntriesCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
@@ -284,7 +286,7 @@ func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
 		rct.PostState, rct.PostStatus, rct.LogRoot)
 	csw.rows <- tableRow{types.TableReceipt, values}
-	indexerMetrics.receipts.Inc(1)
+	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
@@ -293,7 +295,7 @@ func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 		values = append(values, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3, l.Data)
 		csw.rows <- tableRow{types.TableLog, values}
-		indexerMetrics.logs.Inc(1)
+		metrics.IndexerMetrics.LogsCounter.Inc(1)
 	}
 }
 
