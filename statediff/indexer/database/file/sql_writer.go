@@ -24,6 +24,8 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
+
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	node "github.com/ipfs/go-ipld-format"
@@ -214,7 +216,7 @@ func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UncleRoot, header.Bloom, header.Timestamp, header.MhKey, 1, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
-	indexerMetrics.blocks.Inc(1)
+	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
@@ -225,26 +227,26 @@ func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
 func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(txInsert, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 		transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value))
-	indexerMetrics.transactions.Inc(1)
+	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(alInsert, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address,
 		formatPostgresStringArray(accessListElement.StorageKeys)))
-	indexerMetrics.accessListEntries.Inc(1)
+	metrics.IndexerMetrics.AccessListEntriesCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
 		rct.PostState, rct.PostStatus, rct.LogRoot))
-	indexerMetrics.receipts.Inc(1)
+	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
 		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3, l.Data))
-		indexerMetrics.logs.Inc(1)
+		metrics.IndexerMetrics.LogsCounter.Inc(1)
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/node"
 )
@@ -139,7 +140,7 @@ func (pgx *PGXDriver) Begin(ctx context.Context) (sql.Tx, error) {
 	return pgxTxWrapper{tx: tx}, nil
 }
 
-func (pgx *PGXDriver) Stats() sql.Stats {
+func (pgx *PGXDriver) Stats() metrics.DbStats {
 	stats := pgx.pool.Stat()
 	return pgxStatsWrapper{stats: stats}
 }
@@ -173,43 +174,43 @@ type pgxStatsWrapper struct {
 	stats *pgxpool.Stat
 }
 
-// MaxOpen satisfies sql.Stats
+// MaxOpen satisfies metrics.DbStats
 func (s pgxStatsWrapper) MaxOpen() int64 {
 	return int64(s.stats.MaxConns())
 }
 
-// Open satisfies sql.Stats
+// Open satisfies metrics.DbStats
 func (s pgxStatsWrapper) Open() int64 {
 	return int64(s.stats.TotalConns())
 }
 
-// InUse satisfies sql.Stats
+// InUse satisfies metrics.DbStats
 func (s pgxStatsWrapper) InUse() int64 {
 	return int64(s.stats.AcquiredConns())
 }
 
-// Idle satisfies sql.Stats
+// Idle satisfies metrics.DbStats
 func (s pgxStatsWrapper) Idle() int64 {
 	return int64(s.stats.IdleConns())
 }
 
-// WaitCount satisfies sql.Stats
+// WaitCount satisfies metrics.DbStats
 func (s pgxStatsWrapper) WaitCount() int64 {
 	return s.stats.EmptyAcquireCount()
 }
 
-// WaitDuration satisfies sql.Stats
+// WaitDuration satisfies metrics.DbStats
 func (s pgxStatsWrapper) WaitDuration() time.Duration {
 	return s.stats.AcquireDuration()
 }
 
-// MaxIdleClosed satisfies sql.Stats
+// MaxIdleClosed satisfies metrics.DbStats
 func (s pgxStatsWrapper) MaxIdleClosed() int64 {
 	// this stat isn't supported by pgxpool, but we don't want to panic
 	return 0
 }
 
-// MaxLifetimeClosed satisfies sql.Stats
+// MaxLifetimeClosed satisfies metrics.DbStats
 func (s pgxStatsWrapper) MaxLifetimeClosed() int64 {
 	return s.stats.CanceledAcquireCount()
 }

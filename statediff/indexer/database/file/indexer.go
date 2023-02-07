@@ -34,9 +34,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
@@ -52,10 +52,6 @@ const defaultWatchedAddressesSQLFilePath = "./statediff-watched-addresses.sql"
 const watchedAddressesInsert = "INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ('%s', '%d', '%d') ON CONFLICT (address) DO NOTHING;"
 
 var _ interfaces.StateDiffIndexer = &StateDiffIndexer{}
-
-var (
-	indexerMetrics = RegisterIndexerMetrics(metrics.DefaultRegistry)
-)
 
 // StateDiffIndexer satisfies the indexer.StateDiffIndexer interface for ethereum statediff objects on top of a void
 type StateDiffIndexer struct {
@@ -175,12 +171,12 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		BlockNumber: block.Number().String(),
 		submit: func(self *BatchTx, err error) error {
 			tDiff := time.Since(t)
-			indexerMetrics.tStateStoreCodeProcessing.Update(tDiff)
+			metrics.IndexerMetrics.StateStoreCodeProcessingTimer.Update(tDiff)
 			traceMsg += fmt.Sprintf("state, storage, and code storage processing time: %s\r\n", tDiff.String())
 			t = time.Now()
 			sdi.fileWriter.Flush()
 			tDiff = time.Since(t)
-			indexerMetrics.tPostgresCommit.Update(tDiff)
+			metrics.IndexerMetrics.PostgresCommitTimer.Update(tDiff)
 			traceMsg += fmt.Sprintf("postgres transaction commit duration: %s\r\n", tDiff.String())
 			traceMsg += fmt.Sprintf(" TOTAL PROCESSING DURATION: %s\r\n", time.Since(start).String())
 			log.Debug(traceMsg)
@@ -188,21 +184,21 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		},
 	}
 	tDiff := time.Since(t)
-	indexerMetrics.tFreePostgres.Update(tDiff)
+	metrics.IndexerMetrics.FreePostgresTimer.Update(tDiff)
 	traceMsg += fmt.Sprintf("time spent waiting for free postgres tx: %s:\r\n", tDiff.String())
 	t = time.Now()
 
 	// write header, collect headerID
 	headerID := sdi.processHeader(block.Header(), headerNode, reward, totalDifficulty)
 	tDiff = time.Since(t)
-	indexerMetrics.tHeaderProcessing.Update(tDiff)
+	metrics.IndexerMetrics.HeaderProcessingTimer.Update(tDiff)
 	traceMsg += fmt.Sprintf("header processing time: %s\r\n", tDiff.String())
 	t = time.Now()
 
 	// write uncles
 	sdi.processUncles(headerID, block.Number(), uncleNodes)
 	tDiff = time.Since(t)
-	indexerMetrics.tUncleProcessing.Update(tDiff)
+	metrics.IndexerMetrics.UncleProcessingTimer.Update(tDiff)
 	traceMsg += fmt.Sprintf("uncle processing time: %s\r\n", tDiff.String())
 	t = time.Now()
 
@@ -224,7 +220,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 		return nil, err
 	}
 	tDiff = time.Since(t)
-	indexerMetrics.tTxAndRecProcessing.Update(tDiff)
+	metrics.IndexerMetrics.TxAndRecProcessingTimer.Update(tDiff)
 	traceMsg += fmt.Sprintf("tx and receipt processing time: %s\r\n", tDiff.String())
 	t = time.Now()
 
