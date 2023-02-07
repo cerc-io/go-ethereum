@@ -14,16 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sql
+package metrics
 
 import (
 	"strings"
+	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
 const (
 	namespace = "statediff"
+)
+
+var (
+	IndexerMetrics = RegisterIndexerMetrics(metrics.DefaultRegistry)
+	DBMetrics      = RegisterDBMetrics(metrics.DefaultRegistry)
 )
 
 // Build a fully qualified metric name
@@ -39,57 +47,59 @@ func metricName(subsystem, name string) string {
 	return strings.Join(parts, "/")
 }
 
-type indexerMetricsHandles struct {
-	// The total number of processed blocks
-	blocks metrics.Counter
+type IndexerMetricsHandles struct {
+	// The total number of processed BlocksCounter
+	BlocksCounter metrics.Counter
 	// The total number of processed transactions
-	transactions metrics.Counter
+	TransactionsCounter metrics.Counter
 	// The total number of processed receipts
-	receipts metrics.Counter
+	ReceiptsCounter metrics.Counter
 	// The total number of processed logs
-	logs metrics.Counter
+	LogsCounter metrics.Counter
 	// The total number of access list entries processed
-	accessListEntries metrics.Counter
+	AccessListEntriesCounter metrics.Counter
 	// Time spent waiting for free postgres tx
-	tFreePostgres metrics.Timer
+	FreePostgresTimer metrics.Timer
 	// Postgres transaction commit duration
-	tPostgresCommit metrics.Timer
+	PostgresCommitTimer metrics.Timer
 	// Header processing time
-	tHeaderProcessing metrics.Timer
+	HeaderProcessingTimer metrics.Timer
 	// Uncle processing time
-	tUncleProcessing metrics.Timer
+	UncleProcessingTimer metrics.Timer
 	// Tx and receipt processing time
-	tTxAndRecProcessing metrics.Timer
+	TxAndRecProcessingTimer metrics.Timer
 	// State, storage, and code combined processing time
-	tStateStoreCodeProcessing metrics.Timer
+	StateStoreCodeProcessingTimer metrics.Timer
 }
 
-func RegisterIndexerMetrics(reg metrics.Registry) indexerMetricsHandles {
-	ctx := indexerMetricsHandles{
-		blocks:                    metrics.NewCounter(),
-		transactions:              metrics.NewCounter(),
-		receipts:                  metrics.NewCounter(),
-		logs:                      metrics.NewCounter(),
-		accessListEntries:         metrics.NewCounter(),
-		tFreePostgres:             metrics.NewTimer(),
-		tPostgresCommit:           metrics.NewTimer(),
-		tHeaderProcessing:         metrics.NewTimer(),
-		tUncleProcessing:          metrics.NewTimer(),
-		tTxAndRecProcessing:       metrics.NewTimer(),
-		tStateStoreCodeProcessing: metrics.NewTimer(),
+func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
+	ctx := IndexerMetricsHandles{
+		BlocksCounter:                 metrics.NewCounter(),
+		TransactionsCounter:           metrics.NewCounter(),
+		ReceiptsCounter:               metrics.NewCounter(),
+		LogsCounter:                   metrics.NewCounter(),
+		AccessListEntriesCounter:      metrics.NewCounter(),
+		FreePostgresTimer:             metrics.NewTimer(),
+		PostgresCommitTimer:           metrics.NewTimer(),
+		HeaderProcessingTimer:         metrics.NewTimer(),
+		UncleProcessingTimer:          metrics.NewTimer(),
+		TxAndRecProcessingTimer:       metrics.NewTimer(),
+		StateStoreCodeProcessingTimer: metrics.NewTimer(),
 	}
 	subsys := "indexer"
-	reg.Register(metricName(subsys, "blocks"), ctx.blocks)
-	reg.Register(metricName(subsys, "transactions"), ctx.transactions)
-	reg.Register(metricName(subsys, "receipts"), ctx.receipts)
-	reg.Register(metricName(subsys, "logs"), ctx.logs)
-	reg.Register(metricName(subsys, "access_list_entries"), ctx.accessListEntries)
-	reg.Register(metricName(subsys, "t_free_postgres"), ctx.tFreePostgres)
-	reg.Register(metricName(subsys, "t_postgres_commit"), ctx.tPostgresCommit)
-	reg.Register(metricName(subsys, "t_header_processing"), ctx.tHeaderProcessing)
-	reg.Register(metricName(subsys, "t_uncle_processing"), ctx.tUncleProcessing)
-	reg.Register(metricName(subsys, "t_tx_receipt_processing"), ctx.tTxAndRecProcessing)
-	reg.Register(metricName(subsys, "t_state_store_code_processing"), ctx.tStateStoreCodeProcessing)
+	reg.Register(metricName(subsys, "blocks"), ctx.BlocksCounter)
+	reg.Register(metricName(subsys, "transactions"), ctx.TransactionsCounter)
+	reg.Register(metricName(subsys, "receipts"), ctx.ReceiptsCounter)
+	reg.Register(metricName(subsys, "logs"), ctx.LogsCounter)
+	reg.Register(metricName(subsys, "access_list_entries"), ctx.AccessListEntriesCounter)
+	reg.Register(metricName(subsys, "t_free_postgres"), ctx.FreePostgresTimer)
+	reg.Register(metricName(subsys, "t_postgres_commit"), ctx.PostgresCommitTimer)
+	reg.Register(metricName(subsys, "t_header_processing"), ctx.HeaderProcessingTimer)
+	reg.Register(metricName(subsys, "t_uncle_processing"), ctx.UncleProcessingTimer)
+	reg.Register(metricName(subsys, "t_tx_receipt_processing"), ctx.TxAndRecProcessingTimer)
+	reg.Register(metricName(subsys, "t_state_store_code_processing"), ctx.StateStoreCodeProcessingTimer)
+
+	log.Debug("Registering statediff indexer metrics.")
 	return ctx
 }
 
@@ -132,10 +142,24 @@ func RegisterDBMetrics(reg metrics.Registry) dbMetricsHandles {
 	reg.Register(metricName(subsys, "blocked_milliseconds"), ctx.blockedMilliseconds)
 	reg.Register(metricName(subsys, "closed_max_idle"), ctx.closedMaxIdle)
 	reg.Register(metricName(subsys, "closed_max_lifetime"), ctx.closedMaxLifetime)
+
+	log.Debug("Registering statediff DB metrics.")
 	return ctx
 }
 
-func (met *dbMetricsHandles) Update(stats Stats) {
+// DbStats interface to accommodate different concrete sql stats types
+type DbStats interface {
+	MaxOpen() int64
+	Open() int64
+	InUse() int64
+	Idle() int64
+	WaitCount() int64
+	WaitDuration() time.Duration
+	MaxIdleClosed() int64
+	MaxLifetimeClosed() int64
+}
+
+func (met *dbMetricsHandles) Update(stats DbStats) {
 	met.maxOpen.Update(stats.MaxOpen())
 	met.open.Update(stats.Open())
 	met.inUse.Update(stats.InUse())

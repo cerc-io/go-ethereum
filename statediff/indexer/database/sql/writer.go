@@ -21,6 +21,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 )
 
@@ -66,7 +67,7 @@ func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 	if err != nil {
 		return insertError{"eth.header_cids", err, w.db.InsertHeaderStm(), header}
 	}
-	indexerMetrics.blocks.Inc(1)
+	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 	return nil
 }
 
@@ -107,7 +108,7 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 	if err != nil {
 		return insertError{"eth.transaction_cids", err, w.db.InsertTxStm(), transaction}
 	}
-	indexerMetrics.transactions.Inc(1)
+	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 	return nil
 }
 
@@ -127,7 +128,7 @@ func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	if err != nil {
 		return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
 	}
-	indexerMetrics.receipts.Inc(1)
+	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 	return nil
 }
 
@@ -151,7 +152,7 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 		if err != nil {
 			return insertError{"eth.log_cids", err, w.db.InsertLogStm(), *log}
 		}
-		indexerMetrics.logs.Inc(1)
+		metrics.IndexerMetrics.LogsCounter.Inc(1)
 	}
 	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
@@ -35,7 +36,6 @@ import (
 )
 
 var (
-	nullHash        = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	pipeSize        = 65336 // min(linuxPipeSize, macOSPipeSize)
 	writeBufferSize = pipeSize * 16 * 96
 )
@@ -191,7 +191,7 @@ func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 		header.TotalDifficulty, formatPostgresStringArray(header.NodeIDs), header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UnclesHash, header.Bloom, header.Timestamp, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
-	indexerMetrics.blocks.Inc(1)
+	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
@@ -202,20 +202,20 @@ func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
 func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(txInsert, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 		transaction.Src, transaction.Index, transaction.Type, transaction.Value))
-	indexerMetrics.transactions.Inc(1)
+	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
 		rct.PostState, rct.PostStatus))
-	indexerMetrics.receipts.Inc(1)
+	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
 		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.HeaderID, l.CID, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3))
-		indexerMetrics.logs.Inc(1)
+		metrics.IndexerMetrics.LogsCounter.Inc(1)
 	}
 }
 
