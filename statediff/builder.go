@@ -24,6 +24,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/metrics"
+	metrics2 "github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -206,8 +209,8 @@ func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, outp
 }
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN BuildStateDiffWithIntermediateStateNodes")
+	defer timeDuration("statediff END BuildStateDiffWithIntermediateStateNodes", time.Now(), logger, metrics2.IndexerMetrics.BuildStateDiffWithIntermediateStateNodesTimer)
 	// collect a slice of all the nodes that were touched and exist at B (B-A)
 	// a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
@@ -259,8 +262,8 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithIntermediateStateNodes(iterPairs 
 }
 
 func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPairs []IterPair, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff BuildStateDiffWithoutIntermediateStateNodes total duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN BuildStateDiffWithoutIntermediateStateNodes")
+	defer timeDuration("statediff END BuildStateDiffWithoutIntermediateStateNodes", time.Now(), logger, metrics2.IndexerMetrics.BuildStateDiffWithoutIntermediateStateNodesTimer)
 	// collect a map of their leafkey to all the accounts that were touched and exist at B
 	// and a slice of all the paths for the nodes in both of the above sets
 	diffAccountsAtB, diffPathsAtB, err := sdb.createdAndUpdatedState(
@@ -371,8 +374,8 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator, watc
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
 func (sdb *StateDiffBuilder) createdAndUpdatedStateWithIntermediateNodes(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte, output types2.StateNodeSink, logger log.Logger) (types2.AccountMap, map[string]bool, error) {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff createdAndUpdatedStateWithIntermediateNodes duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN createdAndUpdatedStateWithIntermediateNodes")
+	defer timeDuration("statediff END createdAndUpdatedStateWithIntermediateNodes", time.Now(), logger, metrics2.IndexerMetrics.CreatedAndUpdatedStateWithIntermediateNodesTimer)
 	diffPathsAtB := make(map[string]bool)
 	diffAccountsAtB := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
@@ -439,8 +442,8 @@ func (sdb *StateDiffBuilder) createdAndUpdatedStateWithIntermediateNodes(a, b tr
 // deletedOrUpdatedState returns a slice of all the pathes that are emptied at B
 // and a mapping of their leafkeys to all the accounts that exist in a different state at A than B
 func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffAccountsAtB types2.AccountMap, diffPathsAtB map[string]bool, watchedAddressesLeafPaths [][]byte, intermediateStateNodes, intermediateStorageNodes bool, output types2.StateNodeSink, logger log.Logger) (types2.AccountMap, error) {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff deletedOrUpdatedState duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN deletedOrUpdatedState")
+	defer timeDuration("statediff END deletedOrUpdatedState", time.Now(), logger, metrics2.IndexerMetrics.DeletedOrUpdatedStateTimer)
 	diffAccountAtA := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
 
@@ -547,8 +550,8 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 // needs to be called before building account creations and deletions as this mutates
 // those account maps to remove the accounts which were updated
 func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.AccountMap, updatedKeys []string, intermediateStorageNodes bool, output types2.StateNodeSink, logger log.Logger) error {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff buildAccountUpdates duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN buildAccountUpdates")
+	defer timeDuration("statediff END buildAccountUpdates", time.Now(), logger, metrics2.IndexerMetrics.BuildAccountUpdatesTimer)
 	var err error
 	for _, key := range updatedKeys {
 		createdAcc := creations[key]
@@ -583,8 +586,8 @@ func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.Acc
 // buildAccountCreations returns the statediff node objects for all the accounts that exist at B but not at A
 // it also returns the code and codehash for created contract accounts
 func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, intermediateStorageNodes bool, output types2.StateNodeSink, codeOutput types2.CodeSink, logger log.Logger) error {
-	start := time.Now()
-	defer logger.Debug(fmt.Sprintf("statediff buildAccountCreations duration=%dms", time.Since(start).Milliseconds()))
+	logger.Debug("statediff BEGIN buildAccountCreations")
+	defer timeDuration("statediff END buildAccountCreations", time.Now(), logger, metrics2.IndexerMetrics.BuildAccountCreationsTimer)
 	for _, val := range accounts {
 		diff := types2.StateNode{
 			NodeType:  val.NodeType,
@@ -913,4 +916,10 @@ func isWatchedAddress(watchedAddressesLeafPaths [][]byte, valueNodePath []byte) 
 	}
 
 	return false
+}
+
+func timeDuration(msg string, start time.Time, logger log.Logger, timer metrics.Timer) {
+	since := time.Since(start)
+	timer.Update(since)
+	logger.Debug(fmt.Sprintf("%s duration=%dms", msg, since.Milliseconds()))
 }
