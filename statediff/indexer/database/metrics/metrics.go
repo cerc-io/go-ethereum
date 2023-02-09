@@ -70,21 +70,35 @@ type IndexerMetricsHandles struct {
 	TxAndRecProcessingTimer metrics.Timer
 	// State, storage, and code combined processing time
 	StateStoreCodeProcessingTimer metrics.Timer
+
+	// Fine-grained code timers
+	BuildStateDiffWithIntermediateStateNodesTimer    metrics.Timer
+	BuildStateDiffWithoutIntermediateStateNodesTimer metrics.Timer
+	CreatedAndUpdatedStateWithIntermediateNodesTimer metrics.Timer
+	DeletedOrUpdatedStateTimer                       metrics.Timer
+	BuildAccountUpdatesTimer                         metrics.Timer
+	BuildAccountCreationsTimer                       metrics.Timer
 }
 
 func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	ctx := IndexerMetricsHandles{
-		BlocksCounter:                 metrics.NewCounter(),
-		TransactionsCounter:           metrics.NewCounter(),
-		ReceiptsCounter:               metrics.NewCounter(),
-		LogsCounter:                   metrics.NewCounter(),
-		AccessListEntriesCounter:      metrics.NewCounter(),
-		FreePostgresTimer:             metrics.NewTimer(),
-		PostgresCommitTimer:           metrics.NewTimer(),
-		HeaderProcessingTimer:         metrics.NewTimer(),
-		UncleProcessingTimer:          metrics.NewTimer(),
-		TxAndRecProcessingTimer:       metrics.NewTimer(),
-		StateStoreCodeProcessingTimer: metrics.NewTimer(),
+		BlocksCounter:                                    metrics.NewCounter(),
+		TransactionsCounter:                              metrics.NewCounter(),
+		ReceiptsCounter:                                  metrics.NewCounter(),
+		LogsCounter:                                      metrics.NewCounter(),
+		AccessListEntriesCounter:                         metrics.NewCounter(),
+		FreePostgresTimer:                                metrics.NewTimer(),
+		PostgresCommitTimer:                              metrics.NewTimer(),
+		HeaderProcessingTimer:                            metrics.NewTimer(),
+		UncleProcessingTimer:                             metrics.NewTimer(),
+		TxAndRecProcessingTimer:                          metrics.NewTimer(),
+		StateStoreCodeProcessingTimer:                    metrics.NewTimer(),
+		BuildStateDiffWithIntermediateStateNodesTimer:    metrics.NewTimer(),
+		BuildStateDiffWithoutIntermediateStateNodesTimer: metrics.NewTimer(),
+		CreatedAndUpdatedStateWithIntermediateNodesTimer: metrics.NewTimer(),
+		DeletedOrUpdatedStateTimer:                       metrics.NewTimer(),
+		BuildAccountUpdatesTimer:                         metrics.NewTimer(),
+		BuildAccountCreationsTimer:                       metrics.NewTimer(),
 	}
 	subsys := "indexer"
 	reg.Register(metricName(subsys, "blocks"), ctx.BlocksCounter)
@@ -98,6 +112,12 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	reg.Register(metricName(subsys, "t_uncle_processing"), ctx.UncleProcessingTimer)
 	reg.Register(metricName(subsys, "t_tx_receipt_processing"), ctx.TxAndRecProcessingTimer)
 	reg.Register(metricName(subsys, "t_state_store_code_processing"), ctx.StateStoreCodeProcessingTimer)
+	reg.Register(metricName(subsys, "t_build_statediff_with_intermediate_state_nodes"), ctx.BuildStateDiffWithIntermediateStateNodesTimer)
+	reg.Register(metricName(subsys, "t_build_statediff_without_intermediate_state_nodes"), ctx.BuildStateDiffWithoutIntermediateStateNodesTimer)
+	reg.Register(metricName(subsys, "t_created_and_update_state_with_intermediate_nodes"), ctx.CreatedAndUpdatedStateWithIntermediateNodesTimer)
+	reg.Register(metricName(subsys, "t_deleted_or_updated_state"), ctx.DeletedOrUpdatedStateTimer)
+	reg.Register(metricName(subsys, "t_build_account_updates"), ctx.BuildAccountUpdatesTimer)
+	reg.Register(metricName(subsys, "t_build_account_creations"), ctx.BuildAccountCreationsTimer)
 
 	log.Debug("Registering statediff indexer metrics.")
 	return ctx
