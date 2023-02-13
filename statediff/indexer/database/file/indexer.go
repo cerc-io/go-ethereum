@@ -30,7 +30,6 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 
-	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
 
@@ -153,16 +152,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 
 	// Generate the block iplds
-	headerNode, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld2.FromBlockAndReceipts(block, receipts)
+	headerNode, txNodes, rctNodes, logNodes, err := ipld2.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
 
-	if len(txNodes) != len(rctNodes) || len(rctNodes) != len(rctLeafNodeCIDs) {
-		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d), and receipt trie leaf nodes (%d) to be equal", len(txNodes), len(rctNodes), len(rctLeafNodeCIDs))
-	}
-	if len(txTrieNodes) != len(rctTrieNodes) {
-		return nil, fmt.Errorf("expected number of tx trie (%d) and rct trie (%d) nodes to be equal", len(txTrieNodes), len(rctTrieNodes))
+	if len(txNodes) != len(rctNodes) {
+		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d)", len(txNodes), len(rctNodes))
 	}
 
 	// Calculate reward
@@ -212,17 +208,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 
 	// write receipts and txs
 	err = sdi.processReceiptsAndTxs(processArgs{
-		headerID:        headerID,
-		blockNumber:     block.Number(),
-		receipts:        receipts,
-		txs:             transactions,
-		rctNodes:        rctNodes,
-		rctTrieNodes:    rctTrieNodes,
-		txNodes:         txNodes,
-		txTrieNodes:     txTrieNodes,
-		logTrieNodes:    logTrieNodes,
-		logLeafNodeCIDs: logLeafNodeCIDs,
-		rctLeafNodeCIDs: rctLeafNodeCIDs,
+		headerID:    headerID,
+		blockNumber: block.Number(),
+		receipts:    receipts,
+		txs:         transactions,
+		rctNodes:    rctNodes,
+		txNodes:     txNodes,
+		logNodes:    logNodes,
 	})
 	if err != nil {
 		return nil, err
@@ -305,17 +297,13 @@ func (sdi *StateDiffIndexer) processUncles(headerID string, blockNumber *big.Int
 
 // processArgs bundles arguments to processReceiptsAndTxs
 type processArgs struct {
-	headerID        string
-	blockNumber     *big.Int
-	receipts        types.Receipts
-	txs             types.Transactions
-	rctNodes        []*ipld2.EthReceipt
-	rctTrieNodes    []*ipld2.EthRctTrie
-	txNodes         []*ipld2.EthTx
-	txTrieNodes     []*ipld2.EthTxTrie
-	logTrieNodes    [][]node.Node
-	logLeafNodeCIDs [][]cid.Cid
-	rctLeafNodeCIDs []cid.Cid
+	headerID    string
+	blockNumber *big.Int
+	receipts    types.Receipts
+	txs         types.Transactions
+	rctNodes    []*ipld2.EthReceipt
+	txNodes     []*ipld2.EthTx
+	logNodes    [][]*ipld2.EthLog
 }
 
 // processReceiptsAndTxs writes receipt and tx IPLD insert SQL stmts to a file
@@ -323,9 +311,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 	// Process receipts and txs
 	signer := types.MakeSigner(sdi.chainConfig, args.blockNumber)
 	for i, receipt := range args.receipts {
-		for _, logTrieNode := range args.logTrieNodes[i] {
-			sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), logTrieNode)
-		}
 		txNode := args.txNodes[i]
 		sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), txNode)
 
@@ -380,17 +365,13 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 		}
 
 		// index receipt
-		if !args.rctLeafNodeCIDs[i].Defined() {
-			return fmt.Errorf("invalid receipt leaf node cid")
-		}
-
 		rctModel := &models.ReceiptModel{
 			BlockNumber:  args.blockNumber.String(),
 			HeaderID:     args.headerID,
 			TxID:         txID,
 			Contract:     contract,
 			ContractHash: contractHash,
-			LeafCID:      args.rctLeafNodeCIDs[i].String(),
+			CID:          args.rctNodes[i].Cid().String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -407,17 +388,13 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 				topicSet[ti] = topic.Hex()
 			}
 
-			if !args.logLeafNodeCIDs[i][idx].Defined() {
-				return fmt.Errorf("invalid log cid")
-			}
-
 			logDataSet[idx] = &models.LogsModel{
 				BlockNumber: args.blockNumber.String(),
 				HeaderID:    args.headerID,
 				ReceiptID:   txID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),
-				LeafCID:     args.logLeafNodeCIDs[i][idx].String(),
+				CID:         args.logNodes[i][idx].Cid().String(),
 				Topic0:      topicSet[0],
 				Topic1:      topicSet[1],
 				Topic2:      topicSet[2],
@@ -425,12 +402,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 			}
 		}
 		sdi.fileWriter.upsertLogCID(logDataSet)
-	}
-
-	// publish trie nodes, these aren't indexed directly
-	for i, n := range args.txTrieNodes {
-		sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), n)
-		sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), args.rctTrieNodes[i])
 	}
 
 	return nil

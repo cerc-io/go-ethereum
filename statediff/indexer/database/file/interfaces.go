@@ -43,7 +43,6 @@ type FileWriter interface {
 	upsertReceiptCID(rct *models.ReceiptModel)
 	upsertLogCID(logs []*models.LogsModel)
 	upsertStateCID(stateNode models.StateNodeModel)
-	upsertStateAccount(stateAccount models.StateAccountModel)
 	upsertStorageCID(storageCID models.StorageNodeModel)
 	upsertIPLD(ipld models.IPLDModel)
 

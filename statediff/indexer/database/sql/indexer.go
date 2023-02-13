@@ -29,7 +29,6 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
 
-	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
 
@@ -209,17 +208,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	t = time.Now()
 	// Publish and index receipts and txs
 	err = sdi.processReceiptsAndTxs(blockTx, processArgs{
-		headerID:        headerID,
-		blockNumber:     block.Number(),
-		receipts:        receipts,
-		txs:             transactions,
-		rctNodes:        rctNodes,
-		rctTrieNodes:    rctTrieNodes,
-		txNodes:         txNodes,
-		txTrieNodes:     txTrieNodes,
-		logTrieNodes:    logTrieNodes,
-		logLeafNodeCIDs: logLeafNodeCIDs,
-		rctLeafNodeCIDs: rctLeafNodeCIDs,
+		headerID:    headerID,
+		blockNumber: block.Number(),
+		receipts:    receipts,
+		txs:         transactions,
+		rctNodes:    rctNodes,
+		txNodes:     txNodes,
+		logNodes:    logNodes,
 	})
 	if err != nil {
 		return nil, err
@@ -304,17 +299,13 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 
 // processArgs bundles arguments to processReceiptsAndTxs
 type processArgs struct {
-	headerID        string
-	blockNumber     *big.Int
-	receipts        types.Receipts
-	txs             types.Transactions
-	rctNodes        []*ipld2.EthReceipt
-	rctTrieNodes    []*ipld2.EthRctTrie
-	txNodes         []*ipld2.EthTx
-	txTrieNodes     []*ipld2.EthTxTrie
-	logTrieNodes    [][]node.Node
-	logLeafNodeCIDs [][]cid.Cid
-	rctLeafNodeCIDs []cid.Cid
+	headerID    string
+	blockNumber *big.Int
+	receipts    types.Receipts
+	txs         types.Transactions
+	rctNodes    []*ipld2.EthReceipt
+	txNodes     []*ipld2.EthTx
+	logNodes    [][]*ipld2.EthLog
 }
 
 // processReceiptsAndTxs publishes and indexes receipt and transaction IPLDs in Postgres
@@ -322,8 +313,8 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 	// Process receipts and txs
 	signer := types.MakeSigner(sdi.chainConfig, args.blockNumber)
 	for i, receipt := range args.receipts {
-		for _, logTrieNode := range args.logTrieNodes[i] {
-			tx.cacheIPLD(logTrieNode)
+		for _, logNode := range args.logNodes[i] {
+			tx.cacheIPLD(logNode)
 		}
 		txNode := args.txNodes[i]
 		tx.cacheIPLD(txNode)
@@ -382,18 +373,13 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			contractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
 		}
 
-		// index receipt
-		if !args.rctLeafNodeCIDs[i].Defined() {
-			return fmt.Errorf("invalid receipt leaf node cid")
-		}
-
 		rctModel := &models.ReceiptModel{
 			BlockNumber:  args.blockNumber.String(),
 			HeaderID:     args.headerID,
 			TxID:         txID,
 			Contract:     contract,
 			ContractHash: contractHash,
-			LeafCID:      args.rctLeafNodeCIDs[i].String(),
+			CID:          args.rctNodes[i].Cid().String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -413,17 +399,13 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 				topicSet[ti] = topic.Hex()
 			}
 
-			if !args.logLeafNodeCIDs[i][idx].Defined() {
-				return fmt.Errorf("invalid log cid")
-			}
-
 			logDataSet[idx] = &models.LogsModel{
 				BlockNumber: args.blockNumber.String(),
 				HeaderID:    args.headerID,
 				ReceiptID:   txID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),
-				LeafCID:     args.logLeafNodeCIDs[i][idx].String(),
+				CID:         args.logNodes[i][idx].Cid().String(),
 				Topic0:      topicSet[0],
 				Topic1:      topicSet[1],
 				Topic2:      topicSet[2],
@@ -434,12 +416,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 		if err := sdi.dbWriter.upsertLogCID(tx.dbtx, logDataSet); err != nil {
 			return err
 		}
-	}
-
-	// publish trie nodes, these aren't indexed directly
-	for i, n := range args.txTrieNodes {
-		tx.cacheIPLD(n)
-		tx.cacheIPLD(args.rctTrieNodes[i])
 	}
 
 	return nil
