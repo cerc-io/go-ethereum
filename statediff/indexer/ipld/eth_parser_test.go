@@ -92,7 +92,7 @@ func loadBlockData(t *testing.T) []testCase {
 func TestFromBlockAndReceipts(t *testing.T) {
 	testCases := loadBlockData(t)
 	for _, tc := range testCases {
-		_, _, _, _, _, _, _, _, _, err := FromBlockAndReceipts(tc.block, tc.receipts)
+		_, _, _, _, err := FromBlockAndReceipts(tc.block, tc.receipts)
 		if err != nil {
 			t.Fatalf("error generating IPLDs from block and receipts, err %v, kind %s, block hash %s", err, tc.kind, tc.block.Hash())
 		}
@@ -101,8 +101,7 @@ func TestFromBlockAndReceipts(t *testing.T) {
 
 func TestProcessLogs(t *testing.T) {
 	logs := []*types.Log{mocks.MockLog1, mocks.MockLog2}
-	nodes, cids, _, err := processLogs(logs)
+	nodes, err := processLogs(logs)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(nodes), len(logs))
-	require.Equal(t, len(logs), len(cids))
 }

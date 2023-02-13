@@ -104,16 +104,13 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	}
 
 	// Generate the block iplds
-	headerNode, txNodes, txTrieNodes, rctNodes, rctTrieNodes, logTrieNodes, logLeafNodeCIDs, rctLeafNodeCIDs, err := ipld2.FromBlockAndReceipts(block, receipts)
+	headerNode, txNodes, rctNodes, logNodes, err := ipld2.FromBlockAndReceipts(block, receipts)
 	if err != nil {
 		return nil, fmt.Errorf("error creating IPLD nodes from block and receipts: %v", err)
 	}
 
-	if len(txNodes) != len(rctNodes) || len(rctNodes) != len(rctLeafNodeCIDs) {
-		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d), and receipt trie leaf nodes (%d) to be equal", len(txNodes), len(rctNodes), len(rctLeafNodeCIDs))
-	}
-	if len(txTrieNodes) != len(rctTrieNodes) {
-		return nil, fmt.Errorf("expected number of tx trie (%d) and rct trie (%d) nodes to be equal", len(txTrieNodes), len(rctTrieNodes))
+	if len(txNodes) != len(rctNodes) {
+		return nil, fmt.Errorf("expected number of transactions (%d), receipts (%d)", len(txNodes), len(rctNodes))
 	}
 
 	// Calculate reward
