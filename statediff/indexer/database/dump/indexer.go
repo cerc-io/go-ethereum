@@ -191,7 +191,6 @@ func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, he
 	headerID := header.Hash().String()
 	mod := models.HeaderModel{
 		CID:             headerNode.Cid().String(),
-		MhKey:           shared.MultihashKeyFromCID(headerNode.Cid()),
 		ParentHash:      header.ParentHash.String(),
 		BlockNumber:     header.Number.String(),
 		BlockHash:       headerID,
@@ -238,7 +237,6 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 			BlockNumber: blockNumber.String(),
 			HeaderID:    headerID,
 			CID:         unclesCID.String(),
-			MhKey:       shared.MultihashKeyFromCID(unclesCID),
 			ParentHash:  uncle.ParentHash.String(),
 			BlockHash:   uncle.Hash().String(),
 			Reward:      uncleReward.String(),
@@ -299,9 +297,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			Src:         shared.HandleZeroAddr(from),
 			TxHash:      trxID,
 			Index:       int64(i),
-			Data:        trx.Data(),
 			CID:         txNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(txNode.Cid()),
 			Type:        trx.Type(),
 			Value:       val,
 		}
@@ -346,8 +342,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			Contract:     contract,
 			ContractHash: contractHash,
 			LeafCID:      args.rctLeafNodeCIDs[i].String(),
-			LeafMhKey:    shared.MultihashKeyFromCID(args.rctLeafNodeCIDs[i]),
-			LogRoot:      args.rctNodes[i].LogRoot.String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -376,9 +370,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 				ReceiptID:   trxID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),
-				Data:        l.Data,
 				LeafCID:     args.logLeafNodeCIDs[i][idx].String(),
-				LeafMhKey:   shared.MultihashKeyFromCID(args.logLeafNodeCIDs[i][idx]),
 				Topic0:      topicSet[0],
 				Topic1:      topicSet[1],
 				Topic2:      topicSet[2],
@@ -417,11 +409,10 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         shared.RemovedNodeStateCID,
-			MhKey:       shared.RemovedNodeMhKey,
-			NodeType:    stateNode.NodeType.Int(),
+			Removed:     true,
 		}
 	} else {
-		stateCIDStr, stateMhKey, err := tx.cacheRaw(ipld2.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
+		stateCIDStr, _, err := tx.cacheRaw(ipld2.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
 		if err != nil {
 			return fmt.Errorf("error generating and cacheing state node IPLD: %v", err)
 		}
@@ -431,8 +422,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         stateCIDStr,
-			MhKey:       stateMhKey,
-			NodeType:    stateNode.NodeType.Int(),
+			Removed:     false,
 		}
 	}
 
@@ -480,8 +470,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 				Path:        storageNode.Path,
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
-				MhKey:       shared.RemovedNodeMhKey,
-				NodeType:    storageNode.NodeType.Int(),
+				Removed:     true,
 			}
 			if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", storageModel); err != nil {
 				return err
@@ -499,8 +488,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        storageNode.Path,
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageCIDStr,
-			MhKey:       storageMhKey,
-			NodeType:    storageNode.NodeType.Int(),
+			Removed:     false,
 		}
 		if _, err := fmt.Fprintf(sdi.dump, "%+v\r\n", storageModel); err != nil {
 			return err

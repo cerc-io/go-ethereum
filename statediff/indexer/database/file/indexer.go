@@ -247,9 +247,8 @@ func (sdi *StateDiffIndexer) processHeader(header *types.Header, headerNode node
 	}
 	headerID := header.Hash().String()
 	sdi.fileWriter.upsertHeaderCID(models.HeaderModel{
-		NodeID:          sdi.nodeID,
+		NodeIDs:         []string{sdi.nodeID},
 		CID:             headerNode.Cid().String(),
-		MhKey:           shared.MultihashKeyFromCID(headerNode.Cid()),
 		ParentHash:      header.ParentHash.String(),
 		BlockNumber:     header.Number.String(),
 		BlockHash:       headerID,
@@ -295,7 +294,6 @@ func (sdi *StateDiffIndexer) processUncles(headerID string, blockNumber *big.Int
 			BlockNumber: blockNumber.String(),
 			HeaderID:    headerID,
 			CID:         unclesCID.String(),
-			MhKey:       shared.MultihashKeyFromCID(unclesCID),
 			ParentHash:  uncle.ParentHash.String(),
 			BlockHash:   uncle.Hash().String(),
 			Reward:      uncleReward.String(),
@@ -352,9 +350,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 			Src:         shared.HandleZeroAddr(from),
 			TxHash:      txID,
 			Index:       int64(i),
-			Data:        trx.Data(),
 			CID:         txNode.Cid().String(),
-			MhKey:       shared.MultihashKeyFromCID(txNode.Cid()),
 			Type:        trx.Type(),
 			Value:       val,
 		}
@@ -395,8 +391,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 			Contract:     contract,
 			ContractHash: contractHash,
 			LeafCID:      args.rctLeafNodeCIDs[i].String(),
-			LeafMhKey:    shared.MultihashKeyFromCID(args.rctLeafNodeCIDs[i]),
-			LogRoot:      args.rctNodes[i].LogRoot.String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -423,9 +417,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 				ReceiptID:   txID,
 				Address:     l.Address.String(),
 				Index:       int64(l.Index),
-				Data:        l.Data,
 				LeafCID:     args.logLeafNodeCIDs[i][idx].String(),
-				LeafMhKey:   shared.MultihashKeyFromCID(args.logLeafNodeCIDs[i][idx]),
 				Topic0:      topicSet[0],
 				Topic1:      topicSet[1],
 				Topic2:      topicSet[2],
@@ -463,11 +455,10 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         shared.RemovedNodeStateCID,
-			MhKey:       shared.RemovedNodeMhKey,
-			NodeType:    stateNode.NodeType.Int(),
+			Removed:     true,
 		}
 	} else {
-		stateCIDStr, stateMhKey, err := sdi.fileWriter.upsertIPLDRaw(tx.BlockNumber, ipld2.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
+		stateCIDStr, _, err := sdi.fileWriter.upsertIPLDRaw(tx.BlockNumber, ipld2.MEthStateTrie, multihash.KECCAK_256, stateNode.NodeValue)
 		if err != nil {
 			return fmt.Errorf("error generating and cacheing state node IPLD: %v", err)
 		}
@@ -477,8 +468,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         stateCIDStr,
-			MhKey:       stateMhKey,
-			NodeType:    stateNode.NodeType.Int(),
+			Removed:     false,
 		}
 	}
 
@@ -524,13 +514,12 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 				Path:        storageNode.Path,
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
-				MhKey:       shared.RemovedNodeMhKey,
-				NodeType:    storageNode.NodeType.Int(),
+				Removed:     true,
 			}
 			sdi.fileWriter.upsertStorageCID(storageModel)
 			continue
 		}
-		storageCIDStr, storageMhKey, err := sdi.fileWriter.upsertIPLDRaw(tx.BlockNumber, ipld2.MEthStorageTrie, multihash.KECCAK_256, storageNode.NodeValue)
+		storageCIDStr, _, err := sdi.fileWriter.upsertIPLDRaw(tx.BlockNumber, ipld2.MEthStorageTrie, multihash.KECCAK_256, storageNode.NodeValue)
 		if err != nil {
 			return fmt.Errorf("error generating and cacheing storage node IPLD: %v", err)
 		}
@@ -541,8 +530,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Path:        storageNode.Path,
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageCIDStr,
-			MhKey:       storageMhKey,
-			NodeType:    storageNode.NodeType.Int(),
+			Removed:     false,
 		}
 		sdi.fileWriter.upsertStorageCID(storageModel)
 	}
