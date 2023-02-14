@@ -95,8 +95,6 @@ type IService interface {
 	StateDiffAt(blockNumber uint64, params Params) (*Payload, error)
 	// StateDiffFor method to get state diff object at specific block
 	StateDiffFor(blockHash common.Hash, params Params) (*Payload, error)
-	// StateTrieAt method to get state trie object at specific block
-	StateTrieAt(blockNumber uint64, params Params) (*Payload, error)
 	// StreamCodeAndCodeHash method to stream out all code and codehash pairs
 	StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- types2.CodeAndCodeHash, quitChan chan<- bool)
 	// WriteStateDiffAt method to write state diff object directly to DB
@@ -545,31 +543,6 @@ func (sds *Service) newPayload(stateObject []byte, block *types.Block, params Pa
 		payload.ReceiptsRlp = receiptBuff.Bytes()
 	}
 	return payload, nil
-}
-
-// StateTrieAt returns a state trie object payload at the specified blockheight
-// This operation cannot be performed back past the point of db pruning; it requires an archival node for historical data
-func (sds *Service) StateTrieAt(blockNumber uint64, params Params) (*Payload, error) {
-	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
-	log.Info("sending state trie", "block height", blockNumber)
-
-	// compute leaf paths of watched addresses in the params
-	params.ComputeWatchedAddressesLeafPaths()
-
-	return sds.processStateTrie(currentBlock, params)
-}
-
-func (sds *Service) processStateTrie(block *types.Block, params Params) (*Payload, error) {
-	stateNodes, err := sds.Builder.BuildStateTrieObject(block)
-	if err != nil {
-		return nil, err
-	}
-	stateTrieRlp, err := rlp.EncodeToBytes(&stateNodes)
-	if err != nil {
-		return nil, err
-	}
-	log.Info("state trie size", "at block height", block.Number().Uint64(), "rlp byte size", len(stateTrieRlp))
-	return sds.newPayload(stateTrieRlp, block, params)
 }
 
 // Subscribe is used by the API to subscribe to the service loop
