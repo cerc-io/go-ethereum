@@ -41,54 +41,31 @@ type AccountMap map[string]AccountWrapper
 
 // AccountWrapper is used to temporary associate the unpacked node with its raw values
 type AccountWrapper struct {
-	Account   *types.StateAccount
-	NodeType  NodeType
-	Path      []byte
-	NodeValue []byte
-	LeafKey   []byte
-}
-
-// NodeType for explicitly setting type of node
-type NodeType string
-
-const (
-	Unknown   NodeType = "Unknown"
-	Branch    NodeType = "Branch"
-	Extension NodeType = "Extension"
-	Leaf      NodeType = "Leaf"
-	Removed   NodeType = "Removed" // used to represent paths which have been emptied
-)
-
-func (n NodeType) Int() int {
-	switch n {
-	case Branch:
-		return 0
-	case Extension:
-		return 1
-	case Leaf:
-		return 2
-	case Removed:
-		return 3
-	default:
-		return -1
-	}
+	Account      *types.StateAccount
+	Removed      bool
+	Path         []byte
+	NodeValue    []byte
+	LeafKey      []byte
+	LeafNodeHash []byte
 }
 
 // StateNode holds the data for a single state diff node
 type StateNode struct {
-	NodeType     NodeType      `json:"nodeType"        gencodec:"required"`
+	Removed      bool          `json:"removed"         gencodec:"required"`
 	Path         []byte        `json:"path"            gencodec:"required"`
 	NodeValue    []byte        `json:"value"           gencodec:"required"`
 	StorageNodes []StorageNode `json:"storage"`
 	LeafKey      []byte        `json:"leafKey"`
+	NodeHash     []byte        `json:"hash"`
 }
 
 // StorageNode holds the data for a single storage diff node
 type StorageNode struct {
-	NodeType  NodeType `json:"nodeType"        gencodec:"required"`
-	Path      []byte   `json:"path"            gencodec:"required"`
-	NodeValue []byte   `json:"value"           gencodec:"required"`
-	LeafKey   []byte   `json:"leafKey"`
+	Removed   bool   `json:"removed"         gencodec:"required"`
+	Path      []byte `json:"path"            gencodec:"required"`
+	NodeValue []byte `json:"value"           gencodec:"required"`
+	LeafKey   []byte `json:"leafKey"`
+	NodeHash  []byte `json:"hash"`
 }
 
 // CodeAndCodeHash struct for holding codehash => code mappings
