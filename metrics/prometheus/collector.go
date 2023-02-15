@@ -85,7 +85,6 @@ func (c *collector) addTimer(name string, m metrics.Timer) {
 
 	c.buff.WriteString(fmt.Sprintf(typeGaugeTpl, mutateKey(name+"_total")))
 	c.buff.WriteString(fmt.Sprintf(keyValueTpl, mutateKey(name+"_total"), m.Total()))
-	c.buff.WriteRune('\n')
 }
 
 func (c *collector) addResettingTimer(name string, m metrics.ResettingTimer) {
