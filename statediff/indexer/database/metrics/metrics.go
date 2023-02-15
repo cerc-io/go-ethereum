@@ -89,6 +89,16 @@ type IndexerMetricsHandles struct {
 	DeletedOrUpdatedStorageTimer                     metrics.Timer
 	CreatedAndUpdatedStorageTimer                    metrics.Timer
 	BuildStorageNodesIncrementalTimer                metrics.Timer
+	BuildStateTrieObjectTimer                        metrics.Timer
+	BuildStateTrieTimer                              metrics.Timer
+	BuildStateDiffObjectTimer                        metrics.Timer
+	WriteStateDiffObjectTimer                        metrics.Timer
+	CreatedAndUpdatedStateTimer                      metrics.Timer
+	BuildStorageNodesEventualTimer                   metrics.Timer
+	BuildStorageNodesFromTrieTimer                   metrics.Timer
+	BuildRemovedAccountStorageNodesTimer             metrics.Timer
+	BuildRemovedStorageNodesFromTrieTimer            metrics.Timer
+	IsWatchedAddressTimer                            metrics.Timer
 }
 
 func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
@@ -120,6 +130,16 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 		DeletedOrUpdatedStorageTimer:                     metrics.NewTimer(),
 		CreatedAndUpdatedStorageTimer:                    metrics.NewTimer(),
 		BuildStorageNodesIncrementalTimer:                metrics.NewTimer(),
+		BuildStateTrieObjectTimer:                        metrics.NewTimer(),
+		BuildStateTrieTimer:                              metrics.NewTimer(),
+		BuildStateDiffObjectTimer:                        metrics.NewTimer(),
+		WriteStateDiffObjectTimer:                        metrics.NewTimer(),
+		CreatedAndUpdatedStateTimer:                      metrics.NewTimer(),
+		BuildStorageNodesEventualTimer:                   metrics.NewTimer(),
+		BuildStorageNodesFromTrieTimer:                   metrics.NewTimer(),
+		BuildRemovedAccountStorageNodesTimer:             metrics.NewTimer(),
+		BuildRemovedStorageNodesFromTrieTimer:            metrics.NewTimer(),
+		IsWatchedAddressTimer:                            metrics.NewTimer(),
 	}
 	subsys := "indexer"
 	reg.Register(metricName(subsys, "blocks"), ctx.BlocksCounter)
@@ -149,6 +169,16 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	reg.Register(metricName(subsys, "t_created_and_updated_storage"), ctx.CreatedAndUpdatedStorageTimer)
 	reg.Register(metricName(subsys, "t_deleted_or_updated_storage"), ctx.DeletedOrUpdatedStorageTimer)
 	reg.Register(metricName(subsys, "t_build_storage_nodes_incremental"), ctx.BuildStorageNodesIncrementalTimer)
+	reg.Register(metricName(subsys, "t_build_state_trie_object"), ctx.BuildStateTrieObjectTimer)
+	reg.Register(metricName(subsys, "t_build_state_trie"), ctx.BuildStateTrieTimer)
+	reg.Register(metricName(subsys, "t_build_statediff_object"), ctx.BuildStateDiffObjectTimer)
+	reg.Register(metricName(subsys, "t_write_statediff_object"), ctx.WriteStateDiffObjectTimer)
+	reg.Register(metricName(subsys, "t_created_and_updated_state"), ctx.CreatedAndUpdatedStateTimer)
+	reg.Register(metricName(subsys, "t_build_storage_nodes_eventual"), ctx.BuildStorageNodesEventualTimer)
+	reg.Register(metricName(subsys, "t_build_storage_nodes_from_trie"), ctx.BuildStorageNodesFromTrieTimer)
+	reg.Register(metricName(subsys, "t_build_removed_accounts_storage_nodes"), ctx.BuildRemovedAccountStorageNodesTimer)
+	reg.Register(metricName(subsys, "t_build_removed_storage_nodes_from_trie"), ctx.BuildRemovedStorageNodesFromTrieTimer)
+	reg.Register(metricName(subsys, "t_is_watched_address"), ctx.IsWatchedAddressTimer)
 
 	log.Debug("Registering statediff indexer metrics.")
 	return ctx

@@ -88,6 +88,7 @@ func NewBuilder(stateCache state.Database) Builder {
 
 // BuildStateTrieObject builds a state trie object from the provided block
 func (sdb *StateDiffBuilder) BuildStateTrieObject(current *types.Block) (types2.StateObject, error) {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildStateTrieObjectTimer)
 	currentTrie, err := sdb.StateCache.OpenTrie(current.Root())
 	if err != nil {
 		return types2.StateObject{}, fmt.Errorf("error creating trie for block %d: %v", current.Number(), err)
@@ -106,6 +107,7 @@ func (sdb *StateDiffBuilder) BuildStateTrieObject(current *types.Block) (types2.
 }
 
 func (sdb *StateDiffBuilder) buildStateTrie(it trie.NodeIterator) ([]types2.StateNode, []types2.CodeAndCodeHash, error) {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildStateTrieTimer)
 	stateNodes := make([]types2.StateNode, 0)
 	codeAndCodeHashes := make([]types2.CodeAndCodeHash, 0)
 	for it.Next(true) {
@@ -158,6 +160,7 @@ func (sdb *StateDiffBuilder) buildStateTrie(it trie.NodeIterator) ([]types2.Stat
 
 // BuildStateDiffObject builds a statediff object from two blocks and the provided parameters
 func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (types2.StateObject, error) {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildStateDiffObjectTimer)
 	var stateNodes []types2.StateNode
 	var codeAndCodeHashes []types2.CodeAndCodeHash
 	err := sdb.WriteStateDiffObject(args, params, StateNodeAppender(&stateNodes), CodeMappingAppender(&codeAndCodeHashes))
@@ -174,6 +177,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (typ
 
 // WriteStateDiffObject writes a statediff object to output callback
 func (sdb *StateDiffBuilder) WriteStateDiffObject(args Args, params Params, output types2.StateNodeSink, codeOutput types2.CodeSink) error {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.WriteStateDiffObjectTimer)
 	// Load tries for old and new states
 	oldTrie, err := sdb.StateCache.OpenTrie(args.OldStateRoot)
 	if err != nil {
@@ -317,6 +321,8 @@ func (sdb *StateDiffBuilder) BuildStateDiffWithoutIntermediateStateNodes(iterPai
 // a mapping of their leafkeys to all the accounts that exist in a different state at B than A
 // and a slice of the paths for all of the nodes included in both
 func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator, watchedAddressesLeafPaths [][]byte, logger log.Logger) (types2.AccountMap, map[string]bool, error) {
+	logger.Debug("statediff BEGIN createdAndUpdatedState")
+	defer metrics2.ReportAndUpdateDuration("statediff END createdAndUpdatedState", time.Now(), logger, metrics2.IndexerMetrics.CreatedAndUpdatedStateTimer)
 	diffPathsAtB := make(map[string]bool)
 	diffAccountsAtB := make(types2.AccountMap)
 	watchingAddresses := len(watchedAddressesLeafPaths) > 0
@@ -628,6 +634,7 @@ func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, i
 // buildStorageNodesEventual builds the storage diff node objects for a created account
 // i.e. it returns all the storage nodes at this state, since there is no previous state
 func (sdb *StateDiffBuilder) buildStorageNodesEventual(sr common.Hash, intermediateNodes bool, output types2.StorageNodeSink) error {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildStorageNodesEventualTimer)
 	if bytes.Equal(sr.Bytes(), emptyContractRoot.Bytes()) {
 		return nil
 	}
@@ -648,6 +655,7 @@ func (sdb *StateDiffBuilder) buildStorageNodesEventual(sr common.Hash, intermedi
 // buildStorageNodesFromTrie returns all the storage diff node objects in the provided node interator
 // including intermediate nodes can be turned on or off
 func (sdb *StateDiffBuilder) buildStorageNodesFromTrie(it trie.NodeIterator, intermediateNodes bool, output types2.StorageNodeSink) error {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildStorageNodesFromTrieTimer)
 	for it.Next(true) {
 		// skip value nodes
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
@@ -690,6 +698,7 @@ func (sdb *StateDiffBuilder) buildStorageNodesFromTrie(it trie.NodeIterator, int
 
 // buildRemovedAccountStorageNodes builds the "removed" diffs for all the storage nodes for a destroyed account
 func (sdb *StateDiffBuilder) buildRemovedAccountStorageNodes(sr common.Hash, intermediateNodes bool, output types2.StorageNodeSink) error {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildRemovedAccountStorageNodesTimer)
 	if bytes.Equal(sr.Bytes(), emptyContractRoot.Bytes()) {
 		return nil
 	}
@@ -710,6 +719,7 @@ func (sdb *StateDiffBuilder) buildRemovedAccountStorageNodes(sr common.Hash, int
 // buildRemovedStorageNodesFromTrie returns diffs for all the storage nodes in the provided node interator
 // including intermediate nodes can be turned on or off
 func (sdb *StateDiffBuilder) buildRemovedStorageNodesFromTrie(it trie.NodeIterator, intermediateNodes bool, output types2.StorageNodeSink) error {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.BuildRemovedStorageNodesFromTrieTimer)
 	for it.Next(true) {
 		// skip value nodes
 		if it.Leaf() || bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
@@ -908,6 +918,7 @@ func isValidPrefixPath(watchedAddressesLeafPaths [][]byte, currentPath []byte) b
 
 // isWatchedAddress is used to check if a state account corresponds to one of the addresses the builder is configured to watch
 func isWatchedAddress(watchedAddressesLeafPaths [][]byte, valueNodePath []byte) bool {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.IsWatchedAddressTimer)
 	// If we aren't watching any specific addresses, we are watching everything
 	if len(watchedAddressesLeafPaths) == 0 {
 		return true
