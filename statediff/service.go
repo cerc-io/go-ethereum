@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -861,9 +863,11 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	}
 
 	output := func(node types2.StateNode) error {
+		defer metrics.ReportAndUpdateDuration("statediff output", time.Now(), logger, metrics.IndexerMetrics.OutputTimer)
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	codeOutput := func(c types2.CodeAndCodeHash) error {
+		defer metrics.ReportAndUpdateDuration("statediff codeOutput", time.Now(), logger, metrics.IndexerMetrics.CodeOutputTimer)
 		return sds.indexer.PushCodeAndCodeHash(tx, c)
 	}
 
