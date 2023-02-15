@@ -25,6 +25,7 @@ type Timer interface {
 	Update(time.Duration)
 	UpdateSince(time.Time)
 	Variance() float64
+	Total() int64
 }
 
 // GetOrRegisterTimer returns an existing Timer or constructs and registers a
@@ -47,6 +48,7 @@ func NewCustomTimer(h Histogram, m Meter) Timer {
 	return &StandardTimer{
 		histogram: h,
 		meter:     m,
+		total:     NewCounter(),
 	}
 }
 
@@ -72,6 +74,7 @@ func NewTimer() Timer {
 	return &StandardTimer{
 		histogram: NewHistogram(NewExpDecaySample(1028, 0.015)),
 		meter:     NewMeter(),
+		total:     NewCounter(),
 	}
 }
 
@@ -134,11 +137,14 @@ func (NilTimer) UpdateSince(time.Time) {}
 // Variance is a no-op.
 func (NilTimer) Variance() float64 { return 0.0 }
 
+func (NilTimer) Total() int64 { return int64(0) }
+
 // StandardTimer is the standard implementation of a Timer and uses a Histogram
 // and Meter.
 type StandardTimer struct {
 	histogram Histogram
 	meter     Meter
+	total     Counter
 	mutex     sync.Mutex
 }
 
@@ -200,6 +206,7 @@ func (t *StandardTimer) Snapshot() Timer {
 	return &TimerSnapshot{
 		histogram: t.histogram.Snapshot().(*HistogramSnapshot),
 		meter:     t.meter.Snapshot().(*MeterSnapshot),
+		total:     t.total.Snapshot().(CounterSnapshot),
 	}
 }
 
@@ -231,14 +238,12 @@ func (t *StandardTimer) Update(d time.Duration) {
 	defer t.mutex.Unlock()
 	t.histogram.Update(int64(d))
 	t.meter.Mark(1)
+	t.total.Inc(int64(d))
 }
 
 // Record the duration of an event that started at a time and ends now.
 func (t *StandardTimer) UpdateSince(ts time.Time) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	t.histogram.Update(int64(time.Since(ts)))
-	t.meter.Mark(1)
+	t.Update(time.Since(ts))
 }
 
 // Variance returns the variance of the values in the sample.
@@ -246,10 +251,15 @@ func (t *StandardTimer) Variance() float64 {
 	return t.histogram.Variance()
 }
 
+func (t *StandardTimer) Total() int64 {
+	return t.total.Count()
+}
+
 // TimerSnapshot is a read-only copy of another Timer.
 type TimerSnapshot struct {
 	histogram *HistogramSnapshot
 	meter     *MeterSnapshot
+	total     CounterSnapshot
 }
 
 // Count returns the number of events recorded at the time the snapshot was
@@ -324,3 +334,5 @@ func (*TimerSnapshot) UpdateSince(time.Time) {
 // Variance returns the variance of the values at the time the snapshot was
 // taken.
 func (t *TimerSnapshot) Variance() float64 { return t.histogram.Variance() }
+
+func (t *TimerSnapshot) Total() int64 { return t.total.Count() }

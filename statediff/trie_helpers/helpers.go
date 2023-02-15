@@ -21,8 +21,10 @@ package trie_helpers
 
 import (
 	"fmt"
+	metrics2 "github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/types"
@@ -53,6 +55,7 @@ func CheckKeyType(elements []interface{}) (types.NodeType, error) {
 
 // ResolveNode return the state diff node pointed by the iterator.
 func ResolveNode(it trie.NodeIterator, trieDB *trie.Database) (types.StateNode, []interface{}, error) {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.ResolveNodeTimer)
 	nodePath := make([]byte, len(it.Path()))
 	copy(nodePath, it.Path())
 	node, err := trieDB.Node(it.Hash())
@@ -76,6 +79,7 @@ func ResolveNode(it trie.NodeIterator, trieDB *trie.Database) (types.StateNode, 
 
 // SortKeys sorts the keys in the account map
 func SortKeys(data types.AccountMap) []string {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.SortKeysTimer)
 	keys := make([]string, 0, len(data))
 	for key := range data {
 		keys = append(keys, key)
@@ -89,6 +93,7 @@ func SortKeys(data types.AccountMap) []string {
 // a and b must first be sorted
 // this is used to find which keys have been both "deleted" and "created" i.e. they were updated
 func FindIntersection(a, b []string) []string {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.FindIntersectionTimer)
 	lenA := len(a)
 	lenB := len(b)
 	iOfA, iOfB := 0, 0

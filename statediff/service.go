@@ -19,6 +19,7 @@ package statediff
 import (
 	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"math/big"
 	"strconv"
 	"strings"
@@ -861,9 +862,11 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	}
 
 	output := func(node types2.StateNode) error {
+		defer metrics.ReportAndUpdateDuration("statediff output", time.Now(), logger, metrics.IndexerMetrics.OutputTimer)
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	codeOutput := func(c types2.CodeAndCodeHash) error {
+		defer metrics.ReportAndUpdateDuration("statediff codeOutput", time.Now(), logger, metrics.IndexerMetrics.CodeOutputTimer)
 		return sds.indexer.PushCodeAndCodeHash(tx, c)
 	}
 

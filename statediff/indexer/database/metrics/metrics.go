@@ -17,6 +17,7 @@
 package metrics
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -78,6 +79,16 @@ type IndexerMetricsHandles struct {
 	DeletedOrUpdatedStateTimer                       metrics.Timer
 	BuildAccountUpdatesTimer                         metrics.Timer
 	BuildAccountCreationsTimer                       metrics.Timer
+	ResolveNodeTimer                                 metrics.Timer
+	SortKeysTimer                                    metrics.Timer
+	FindIntersectionTimer                            metrics.Timer
+	OutputTimer                                      metrics.Timer
+	CodeOutputTimer                                  metrics.Timer
+	DifferenceIteratorNextTimer                      metrics.Timer
+	DifferenceIteratorCounter                        metrics.Counter
+	DeletedOrUpdatedStorageTimer                     metrics.Timer
+	CreatedAndUpdatedStorageTimer                    metrics.Timer
+	BuildStorageNodesIncrementalTimer                metrics.Timer
 }
 
 func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
@@ -99,6 +110,16 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 		DeletedOrUpdatedStateTimer:                       metrics.NewTimer(),
 		BuildAccountUpdatesTimer:                         metrics.NewTimer(),
 		BuildAccountCreationsTimer:                       metrics.NewTimer(),
+		ResolveNodeTimer:                                 metrics.NewTimer(),
+		SortKeysTimer:                                    metrics.NewTimer(),
+		FindIntersectionTimer:                            metrics.NewTimer(),
+		OutputTimer:                                      metrics.NewTimer(),
+		CodeOutputTimer:                                  metrics.NewTimer(),
+		DifferenceIteratorNextTimer:                      metrics.NewTimer(),
+		DifferenceIteratorCounter:                        metrics.NewCounter(),
+		DeletedOrUpdatedStorageTimer:                     metrics.NewTimer(),
+		CreatedAndUpdatedStorageTimer:                    metrics.NewTimer(),
+		BuildStorageNodesIncrementalTimer:                metrics.NewTimer(),
 	}
 	subsys := "indexer"
 	reg.Register(metricName(subsys, "blocks"), ctx.BlocksCounter)
@@ -118,6 +139,16 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	reg.Register(metricName(subsys, "t_deleted_or_updated_state"), ctx.DeletedOrUpdatedStateTimer)
 	reg.Register(metricName(subsys, "t_build_account_updates"), ctx.BuildAccountUpdatesTimer)
 	reg.Register(metricName(subsys, "t_build_account_creations"), ctx.BuildAccountCreationsTimer)
+	reg.Register(metricName(subsys, "t_resolve_node"), ctx.ResolveNodeTimer)
+	reg.Register(metricName(subsys, "t_sort_keys"), ctx.SortKeysTimer)
+	reg.Register(metricName(subsys, "t_find_intersection"), ctx.FindIntersectionTimer)
+	reg.Register(metricName(subsys, "t_output_fn"), ctx.OutputTimer)
+	reg.Register(metricName(subsys, "t_code_output_fn"), ctx.CodeOutputTimer)
+	reg.Register(metricName(subsys, "t_difference_iterator_next"), ctx.DifferenceIteratorNextTimer)
+	reg.Register(metricName(subsys, "difference_iterator_counter"), ctx.DifferenceIteratorCounter)
+	reg.Register(metricName(subsys, "t_created_and_updated_storage"), ctx.CreatedAndUpdatedStorageTimer)
+	reg.Register(metricName(subsys, "t_deleted_or_updated_storage"), ctx.DeletedOrUpdatedStorageTimer)
+	reg.Register(metricName(subsys, "t_build_storage_nodes_incremental"), ctx.BuildStorageNodesIncrementalTimer)
 
 	log.Debug("Registering statediff indexer metrics.")
 	return ctx
@@ -188,4 +219,15 @@ func (met *dbMetricsHandles) Update(stats DbStats) {
 	met.blockedMilliseconds.Inc(stats.WaitDuration().Milliseconds())
 	met.closedMaxIdle.Inc(stats.MaxIdleClosed())
 	met.closedMaxLifetime.Inc(stats.MaxLifetimeClosed())
+}
+
+func ReportAndUpdateDuration(msg string, start time.Time, logger log.Logger, timer metrics.Timer) {
+	since := UpdateDuration(start, timer)
+	logger.Debug(fmt.Sprintf("%s duration=%dms", msg, since.Milliseconds()))
+}
+
+func UpdateDuration(start time.Time, timer metrics.Timer) time.Duration {
+	since := time.Since(start)
+	timer.Update(since)
+	return since
 }
