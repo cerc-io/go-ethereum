@@ -26,8 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -43,9 +41,11 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	ind "github.com/ethereum/go-ethereum/statediff/indexer"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
 	types2 "github.com/ethereum/go-ethereum/statediff/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/thoas/go-funk"
 )
 
@@ -794,9 +794,11 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	}
 
 	output := func(node types2.StateLeafNode) error {
+		defer metrics.ReportAndUpdateDuration("statediff output", time.Now(), logger, metrics.IndexerMetrics.OutputTimer)
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	ipldOutput := func(c types2.IPLD) error {
+		defer metrics.ReportAndUpdateDuration("statediff ipldOutput", time.Now(), logger, metrics.IndexerMetrics.CodeOutputTimer)
 		return sds.indexer.PushIPLD(tx, c)
 	}
 

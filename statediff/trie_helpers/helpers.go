@@ -22,12 +22,16 @@ package trie_helpers
 import (
 	"sort"
 	"strings"
+	"time"
+
+	metrics2 "github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/statediff/types"
 )
 
 // SortKeys sorts the keys in the account map
 func SortKeys(data types.AccountMap) []string {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.SortKeysTimer)
 	keys := make([]string, 0, len(data))
 	for key := range data {
 		keys = append(keys, key)
@@ -41,6 +45,7 @@ func SortKeys(data types.AccountMap) []string {
 // a and b must first be sorted
 // this is used to find which keys have been both "deleted" and "created" i.e. they were updated
 func FindIntersection(a, b []string) []string {
+	defer metrics2.UpdateDuration(time.Now(), metrics2.IndexerMetrics.FindIntersectionTimer)
 	lenA := len(a)
 	lenB := len(b)
 	iOfA, iOfB := 0, 0
