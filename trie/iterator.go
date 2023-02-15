@@ -20,8 +20,9 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
