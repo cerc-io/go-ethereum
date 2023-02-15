@@ -251,8 +251,8 @@ func (csw *CSVWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []
 func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.MhKey, 1, header.Coinbase)
+		header.TotalDifficulty, header.NodeIDs[0], header.Reward, header.StateRoot, header.TxRoot,
+		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase)
 	csw.rows <- tableRow{types.TableHeader, values}
 	indexerMetrics.blocks.Inc(1)
 }
@@ -260,14 +260,14 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 func (csw *CSVWriter) upsertUncleCID(uncle models.UncleModel) {
 	var values []interface{}
 	values = append(values, uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID,
-		uncle.Reward, uncle.MhKey, uncle.Index)
+		uncle.Reward, uncle.Index)
 	csw.rows <- tableRow{types.TableUncle, values}
 }
 
 func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 	var values []interface{}
 	values = append(values, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
-		transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
+		transaction.Src, transaction.Index, transaction.Type, transaction.Value)
 	csw.rows <- tableRow{types.TableTransaction, values}
 	indexerMetrics.transactions.Inc(1)
 }
@@ -281,8 +281,8 @@ func (csw *CSVWriter) upsertAccessListElement(accessListElement models.AccessLis
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	var values []interface{}
-	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
-		rct.PostState, rct.PostStatus, rct.LogRoot)
+	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.ContractHash,
+		rct.PostState, rct.PostStatus)
 	csw.rows <- tableRow{types.TableReceipt, values}
 	indexerMetrics.receipts.Inc(1)
 }
@@ -290,8 +290,8 @@ func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
 		var values []interface{}
-		values = append(values, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
-			l.Topic1, l.Topic2, l.Topic3, l.Data)
+		values = append(values, l.BlockNumber, l.HeaderID, l.CID, l.ReceiptID, l.Address, l.Index, l.Topic0,
+			l.Topic1, l.Topic2, l.Topic3)
 		csw.rows <- tableRow{types.TableLog, values}
 		indexerMetrics.logs.Inc(1)
 	}
@@ -304,16 +304,9 @@ func (csw *CSVWriter) upsertStateCID(stateNode models.StateNodeModel) {
 	}
 
 	var values []interface{}
-	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
-		stateNode.NodeType, true, stateNode.MhKey)
+	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID,
+		true, stateNode.Balance, strconv.FormatUint(stateNode.Nonce, 10), stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)
 	csw.rows <- tableRow{types.TableStateNode, values}
-}
-
-func (csw *CSVWriter) upsertStateAccount(stateAccount models.StateAccountModel) {
-	var values []interface{}
-	values = append(values, stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		strconv.FormatUint(stateAccount.Nonce, 10), stateAccount.CodeHash, stateAccount.StorageRoot)
-	csw.rows <- tableRow{types.TableStateAccount, values}
 }
 
 func (csw *CSVWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
@@ -323,8 +316,8 @@ func (csw *CSVWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 	}
 
 	var values []interface{}
-	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
-		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)
+	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageKey, storageCID.CID,
+		true, storageCID.Value, storageCID.Removed)
 	csw.rows <- tableRow{types.TableStorageNode, values}
 }
 

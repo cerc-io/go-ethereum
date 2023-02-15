@@ -92,7 +92,6 @@ type ReceiptModel struct {
 type StateNodeModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
-	Path        []byte `db:"partial_path"`
 	StateKey    string `db:"state_leaf_key"`
 	Removed     bool   `db:"removed"`
 	CID         string `db:"cid"`
@@ -108,7 +107,6 @@ type StorageNodeModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
 	StateKey    []byte `db:"state_leaf_key"`
-	Path        []byte `db:"partial_path"`
 	StorageKey  string `db:"storage_leaf_key"`
 	Removed     bool   `db:"removed"`
 	CID         string `db:"cid"`

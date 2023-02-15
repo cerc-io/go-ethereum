@@ -43,8 +43,6 @@ type AccountMap map[string]AccountWrapper
 type AccountWrapper struct {
 	Account      *types.StateAccount
 	Removed      bool
-	Path         []byte
-	NodeValue    []byte
 	LeafKey      []byte
 	LeafNodeHash []byte
 }
@@ -52,7 +50,6 @@ type AccountWrapper struct {
 // StateNode holds the data for a single state diff node
 type StateNode struct {
 	Removed      bool          `json:"removed"         gencodec:"required"`
-	Path         []byte        `json:"path"            gencodec:"required"`
 	NodeValue    []byte        `json:"value"           gencodec:"required"`
 	StorageNodes []StorageNode `json:"storage"`
 	LeafKey      []byte        `json:"leafKey"`
@@ -62,7 +59,6 @@ type StateNode struct {
 // StorageNode holds the data for a single storage diff node
 type StorageNode struct {
 	Removed   bool   `json:"removed"         gencodec:"required"`
-	Path      []byte `json:"path"            gencodec:"required"`
 	NodeValue []byte `json:"value"           gencodec:"required"`
 	LeafKey   []byte `json:"leafKey"`
 	NodeHash  []byte `json:"hash"`

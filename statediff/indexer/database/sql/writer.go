@@ -132,12 +132,12 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 }
 
 /*
-INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, partial_path, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING
 */
 func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-		stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Path, stateNode.Removed, true,
+		stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
 		stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
 	if err != nil {
 		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
@@ -146,12 +146,12 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 }
 
 /*
-INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, storage_path, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHING
 */
 func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
-		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID, storageCID.Path,
+		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID,
 		storageCID.Removed, true, storageCID.Value)
 	if err != nil {
 		return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}

@@ -161,11 +161,11 @@ const (
 	logInsert = "INSERT INTO eth.log_cids (block_number, header_id, cid, rct_id, address, index, topic0, topic1, topic2, " +
 		"topic3) VALUES ('%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s');\n"
 
-	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, partial_path, removed, diff, " +
-		"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', '\\x%x', %t, %t, '%s', %d, '\\x%x', '%s');\n"
+	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, " +
+		"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', %t, %t, '%s', %d, '\\x%x', '%s');\n"
 
-	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, partial_path, " +
-		"removed, diff, val) VALUES ('%s', '%s', '%s', '%s', '%s', '\\x%x', %t, %t, '\\x%x');\n"
+	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, " +
+		"removed, diff, val) VALUES ('%s', '%s', '%s', '%s', '%s', %t, %t, '\\x%x');\n"
 )
 
 func (sqw *SQLWriter) upsertNode(node nodeinfo.Info) {
@@ -246,13 +246,13 @@ func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 }
 
 func (sqw *SQLWriter) upsertStateCID(stateNode models.StateNodeModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Path,
+	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
 		stateNode.Removed, true, stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot))
 }
 
 func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID,
-		storageCID.Path, storageCID.Removed, true, storageCID.Value))
+		storageCID.Removed, true, storageCID.Value))
 }
 
 // LoadWatchedAddresses loads watched addresses from a file

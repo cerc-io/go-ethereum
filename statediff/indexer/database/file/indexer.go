@@ -415,7 +415,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 	}
 	// publish the state node
 	var stateModel models.StateNodeModel
-	if stateNode.NodeType == sdtypes.Removed {
+	if stateNode.Removed {
 		if atomic.LoadUint32(sdi.removedCacheFlag) == 0 {
 			atomic.StoreUint32(sdi.removedCacheFlag, 1)
 			sdi.fileWriter.upsertIPLDDirect(tx.BlockNumber, shared.RemovedNodeMhKey, []byte{})
@@ -423,7 +423,6 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		stateModel = models.StateNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
-			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         shared.RemovedNodeStateCID,
 			Removed:     true,
@@ -436,7 +435,6 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		stateModel = models.StateNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
-			Path:        stateNode.Path,
 			StateKey:    common.BytesToHash(stateNode.LeafKey).String(),
 			CID:         stateCIDStr,
 			Removed:     false,
