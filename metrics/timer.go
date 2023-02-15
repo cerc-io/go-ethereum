@@ -137,6 +137,7 @@ func (NilTimer) UpdateSince(time.Time) {}
 // Variance is a no-op.
 func (NilTimer) Variance() float64 { return 0.0 }
 
+// Total is a no-op.
 func (NilTimer) Total() int64 { return int64(0) }
 
 // StandardTimer is the standard implementation of a Timer and uses a Histogram
@@ -251,6 +252,9 @@ func (t *StandardTimer) Variance() float64 {
 	return t.histogram.Variance()
 }
 
+// Total returns the total time the timer has run in nanoseconds.
+// This differs from Sum in that it is a simple counter, not based
+// on a histogram Sample.
 func (t *StandardTimer) Total() int64 {
 	return t.total.Count()
 }
@@ -335,4 +339,5 @@ func (*TimerSnapshot) UpdateSince(time.Time) {
 // taken.
 func (t *TimerSnapshot) Variance() float64 { return t.histogram.Variance() }
 
+// Total returns the total time the timer has run in nanoseconds.
 func (t *TimerSnapshot) Total() int64 { return t.total.Count() }
