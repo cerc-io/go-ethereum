@@ -19,13 +19,14 @@ package statediff
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"math/big"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"

@@ -21,10 +21,11 @@ package trie_helpers
 
 import (
 	"fmt"
-	metrics2 "github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"sort"
 	"strings"
 	"time"
+
+	metrics2 "github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/types"
