@@ -581,7 +581,6 @@ func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.Acc
 		delete(deletions, key)
 	}
 
-	logger.Debug("Counts")
 	return nil
 }
 
