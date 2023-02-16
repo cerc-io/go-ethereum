@@ -17,105 +17,8 @@
 package ipld
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"io/ioutil"
-
-	"github.com/multiformats/go-multihash"
-
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 )
-
-// FromBlockRLP takes an RLP message representing
-// an ethereum block header or body (header, ommers and txs)
-// to return it as a set of IPLD nodes for further processing.
-func FromBlockRLP(r io.Reader) (*EthHeader, []*EthTx, error) {
-	// We may want to use this stream several times
-	rawdata, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Let's try to decode the received element as a block body
-	var decodedBlock types.Block
-	err = rlp.Decode(bytes.NewBuffer(rawdata), &decodedBlock)
-	if err != nil {
-		if err.Error()[:41] != "rlp: expected input list for types.Header" {
-			return nil, nil, err
-		}
-
-		// Maybe it is just a header... (body sans ommers and txs)
-		var decodedHeader types.Header
-		err := rlp.Decode(bytes.NewBuffer(rawdata), &decodedHeader)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		c, err := RawdataToCid(MEthHeader, rawdata, multihash.KECCAK_256)
-		if err != nil {
-			return nil, nil, err
-		}
-		// It was a header
-		return &EthHeader{
-			Header:  &decodedHeader,
-			cid:     c,
-			rawdata: rawdata,
-		}, nil, nil
-	}
-
-	// This is a block body (header + ommers + txs)
-	// We'll extract the header bits here
-	headerRawData := getRLP(decodedBlock.Header())
-	c, err := RawdataToCid(MEthHeader, headerRawData, multihash.KECCAK_256)
-	if err != nil {
-		return nil, nil, err
-	}
-	ethBlock := &EthHeader{
-		Header:  decodedBlock.Header(),
-		cid:     c,
-		rawdata: headerRawData,
-	}
-
-	// Process the found eth-tx objects
-	ethTxNodes, err := processTransactions(decodedBlock.Transactions())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return ethBlock, ethTxNodes, nil
-}
-
-// FromBlockJSON takes the output of an ethereum client JSON API
-// (i.e. parity or geth) and returns a set of IPLD nodes.
-func FromBlockJSON(r io.Reader) (*EthHeader, []*EthTx, error) {
-	var obj objJSONHeader
-	dec := json.NewDecoder(r)
-	err := dec.Decode(&obj)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	headerRawData := getRLP(&obj.Result.Header)
-	c, err := RawdataToCid(MEthHeader, headerRawData, multihash.KECCAK_256)
-	if err != nil {
-		return nil, nil, err
-	}
-	ethBlock := &EthHeader{
-		Header:  &obj.Result.Header,
-		cid:     c,
-		rawdata: headerRawData,
-	}
-
-	// Process the found eth-tx objects
-	ethTxNodes, err := processTransactions(obj.Result.Transactions)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return ethBlock, ethTxNodes, nil
-}
 
 // FromBlockAndReceipts takes a block and processes it
 // to return it a set of IPLD nodes for further processing.
@@ -133,7 +36,7 @@ func FromBlockAndReceipts(block *types.Block, receipts []*types.Receipt) (*EthHe
 	}
 
 	// Process the receipts and logs
-	rctNodes, logNodes, err := processReceiptsAndLogs(receipts, block.Header().ReceiptHash[:])
+	rctNodes, logNodes, err := processReceiptsAndLogs(receipts)
 
 	return headerNode, txNodes, rctNodes, logNodes, err
 }
@@ -155,7 +58,7 @@ func processTransactions(txs []*types.Transaction) ([]*EthTx, error) {
 
 // processReceiptsAndLogs will take in receipts
 // to return IPLD node slices for eth-rct and eth-log
-func processReceiptsAndLogs(rcts []*types.Receipt, expectedRctRoot []byte) ([]*EthReceipt, [][]*EthLog, error) {
+func processReceiptsAndLogs(rcts []*types.Receipt) ([]*EthReceipt, [][]*EthLog, error) {
 	// Pre allocating memory.
 	ethRctNodes := make([]*EthReceipt, len(rcts))
 	ethLogNodes := make([][]*EthLog, len(rcts))
