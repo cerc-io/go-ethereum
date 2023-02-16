@@ -46,8 +46,6 @@ type Config struct {
 
 // Params contains config parameters for the state diff builder
 type Params struct {
-	IntermediateStateNodes    bool
-	IntermediateStorageNodes  bool
 	IncludeBlock              bool
 	IncludeReceipts           bool
 	IncludeTD                 bool
