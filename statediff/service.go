@@ -863,7 +863,11 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	}
 
 	output := func(node types2.StateNode) error {
-		defer metrics.ReportAndUpdateDuration("statediff output", time.Now(), logger, metrics.IndexerMetrics.OutputTimer)
+		defer func() {
+			// This is very noisy so we log at Trace.
+			since := metrics.UpdateDuration(time.Now(), metrics.IndexerMetrics.OutputTimer)
+			logger.Trace(fmt.Sprintf("statediff output duration=%dms", since.Milliseconds()))
+		}()
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	codeOutput := func(c types2.CodeAndCodeHash) error {
