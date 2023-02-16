@@ -136,7 +136,7 @@ func (tt *txTrie) getNodes() ([]*EthTxTrie, error) {
 			return nil, err
 		}
 		tn := &TrieNode{
-			cid:     keccak256ToCid(MEthTxTrie, k),
+			cid:     Keccak256ToCid(MEthTxTrie, k),
 			rawdata: rawdata,
 		}
 		out = append(out, &EthTxTrie{TrieNode: tn})

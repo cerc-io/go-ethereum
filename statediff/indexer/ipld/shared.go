@@ -69,9 +69,9 @@ func RawdataToCid(codec uint64, rawdata []byte, multiHash uint64) (cid.Cid, erro
 	return c, nil
 }
 
-// keccak256ToCid takes a keccak256 hash and returns its cid based on
+// Keccak256ToCid takes a keccak256 hash and returns its cid based on
 // the codec given.
-func keccak256ToCid(codec uint64, h []byte) cid.Cid {
+func Keccak256ToCid(codec uint64, h []byte) cid.Cid {
 	buf, err := mh.Encode(h, mh.KECCAK_256)
 	if err != nil {
 		panic(err)

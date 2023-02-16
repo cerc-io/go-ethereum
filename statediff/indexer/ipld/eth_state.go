@@ -64,6 +64,10 @@ func FromStateTrieRLP(raw []byte) (*EthStateTrie, error) {
 	return DecodeEthStateTrie(c, raw)
 }
 
+func FromStateTrieRLPAndHash(raw, hash []byte) (*EthStateTrie, error) {
+	c, err := Keccak256ToCid(MEthStateTrie, hash)
+}
+
 /*
   OUTPUT
 */

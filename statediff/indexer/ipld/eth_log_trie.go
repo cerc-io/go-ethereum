@@ -118,7 +118,7 @@ func (rt *logTrie) getNodeFromDB(key []byte) (*EthLogTrie, error) {
 		return nil, err
 	}
 	tn := &TrieNode{
-		cid:     keccak256ToCid(MEthLogTrie, key),
+		cid:     Keccak256ToCid(MEthLogTrie, key),
 		rawdata: rawdata,
 	}
 	return &EthLogTrie{TrieNode: tn}, nil

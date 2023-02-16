@@ -143,7 +143,7 @@ func decodeCompactKey(i []interface{}) (string, []interface{}, error) {
 func parseTrieNodeExtension(i []interface{}, codec uint64) ([]interface{}, error) {
 	return []interface{}{
 		i[0].([]byte),
-		keccak256ToCid(codec, i[1].([]byte)),
+		Keccak256ToCid(codec, i[1].([]byte)),
 	}, nil
 }
 
@@ -163,7 +163,7 @@ func parseTrieNodeBranch(i []interface{}, codec uint64) ([]interface{}, error) {
 		case 0:
 			out = append(out, nil)
 		case 32:
-			out = append(out, keccak256ToCid(codec, v))
+			out = append(out, Keccak256ToCid(codec, v))
 		default:
 			return nil, fmt.Errorf("unrecognized object: %v", v)
 		}

@@ -105,11 +105,11 @@ func (as *EthAccountSnapshot) Resolve(p []string) (interface{}, []string, error)
 	case "balance":
 		return as.Balance, nil, nil
 	case "codeHash":
-		return &node.Link{Cid: keccak256ToCid(RawBinary, as.CodeHash)}, nil, nil
+		return &node.Link{Cid: Keccak256ToCid(RawBinary, as.CodeHash)}, nil, nil
 	case "nonce":
 		return as.Nonce, nil, nil
 	case "root":
-		return &node.Link{Cid: keccak256ToCid(MEthStorageTrie, as.Root)}, nil, nil
+		return &node.Link{Cid: Keccak256ToCid(MEthStorageTrie, as.Root)}, nil, nil
 	default:
 		return nil, nil, ErrInvalidLink
 	}
@@ -167,9 +167,9 @@ func (as *EthAccountSnapshot) Size() (uint64, error) {
 func (as *EthAccountSnapshot) MarshalJSON() ([]byte, error) {
 	out := map[string]interface{}{
 		"balance":  as.Balance,
-		"codeHash": keccak256ToCid(RawBinary, as.CodeHash),
+		"codeHash": Keccak256ToCid(RawBinary, as.CodeHash),
 		"nonce":    as.Nonce,
-		"root":     keccak256ToCid(MEthStorageTrie, as.Root),
+		"root":     Keccak256ToCid(MEthStorageTrie, as.Root),
 	}
 	return json.Marshal(out)
 }

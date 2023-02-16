@@ -167,7 +167,7 @@ func (rt *rctTrie) getNodeFromDB(key []byte) (*EthRctTrie, error) {
 		return nil, err
 	}
 	tn := &TrieNode{
-		cid:     keccak256ToCid(MEthTxReceiptTrie, key),
+		cid:     Keccak256ToCid(MEthTxReceiptTrie, key),
 		rawdata: rawdata,
 	}
 
