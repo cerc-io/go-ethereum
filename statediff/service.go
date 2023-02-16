@@ -44,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
 	types2 "github.com/ethereum/go-ethereum/statediff/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/thoas/go-funk"
 )
 
@@ -59,12 +58,10 @@ const (
 
 var writeLoopParams = ParamsWithMutex{
 	Params: Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
-		IncludeBlock:             true,
-		IncludeReceipts:          true,
-		IncludeTD:                true,
-		IncludeCode:              true,
+		IncludeBlock:    true,
+		IncludeReceipts: true,
+		IncludeTD:       true,
+		IncludeCode:     true,
 	},
 }
 
@@ -95,15 +92,13 @@ type IService interface {
 	StateDiffAt(blockNumber uint64, params Params) (*Payload, error)
 	// StateDiffFor method to get state diff object at specific block
 	StateDiffFor(blockHash common.Hash, params Params) (*Payload, error)
-	// StreamCodeAndCodeHash method to stream out all code and codehash pairs
-	StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- types2.CodeAndCodeHash, quitChan chan<- bool)
 	// WriteStateDiffAt method to write state diff object directly to DB
 	WriteStateDiffAt(blockNumber uint64, params Params) JobID
 	// WriteStateDiffFor method to write state diff object directly to DB
 	WriteStateDiffFor(blockHash common.Hash, params Params) error
 	// WriteLoop event loop for progressively processing and writing diffs directly to DB
 	WriteLoop(chainEventCh chan core.ChainEvent)
-	// Method to change the addresses being watched in write loop params
+	// WatchAddress method to change the addresses being watched in write loop params
 	WatchAddress(operation types2.OperationType, args []types2.WatchAddressArg) error
 
 	// SubscribeWriteStatus method to subscribe to receive state diff processing output
@@ -705,45 +700,6 @@ func sendNonBlockingQuit(id rpc.ID, sub Subscription) {
 	}
 }
 
-// StreamCodeAndCodeHash subscription method for extracting all the codehash=>code mappings that exist in the trie at the provided height
-func (sds *Service) StreamCodeAndCodeHash(blockNumber uint64, outChan chan<- types2.CodeAndCodeHash, quitChan chan<- bool) {
-	current := sds.BlockChain.GetBlockByNumber(blockNumber)
-	log.Info("sending code and codehash", "block height", blockNumber)
-	currentTrie, err := sds.BlockChain.StateCache().OpenTrie(current.Root())
-	if err != nil {
-		log.Error("error creating trie for block", "block height", current.Number(), "err", err)
-		close(quitChan)
-		return
-	}
-	it := currentTrie.NodeIterator([]byte{})
-	leafIt := trie.NewIterator(it)
-	go func() {
-		defer close(quitChan)
-		for leafIt.Next() {
-			select {
-			case <-sds.QuitChan:
-				return
-			default:
-			}
-			account := new(types.StateAccount)
-			if err := rlp.DecodeBytes(leafIt.Value, account); err != nil {
-				log.Error("error decoding state account", "err", err)
-				return
-			}
-			codeHash := common.BytesToHash(account.CodeHash)
-			code, err := sds.BlockChain.StateCache().ContractCode(common.Hash{}, codeHash)
-			if err != nil {
-				log.Error("error collecting contract code", "err", err)
-				return
-			}
-			outChan <- types2.CodeAndCodeHash{
-				Hash: codeHash,
-				Code: code,
-			}
-		}
-	}()
-}
-
 // WriteStateDiffAt writes a state diff at the specific blockheight directly to the database
 // This operation cannot be performed back past the point of db pruning; it requires an archival node
 // for historical data
@@ -833,17 +789,17 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		return err
 	}
 
-	output := func(node types2.StateNode) error {
+	output := func(node types2.StateLeafNode) error {
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
-	codeOutput := func(c types2.CodeAndCodeHash) error {
+	ipldOutput := func(c types2.IPLD) error {
 		return sds.indexer.PushCodeAndCodeHash(tx, c)
 	}
 
 	err = sds.Builder.WriteStateDiffObject(types2.StateRoots{
 		NewStateRoot: block.Root(),
 		OldStateRoot: parentRoot,
-	}, params, output, codeOutput)
+	}, params, output, ipldOutput)
 	// TODO this anti-pattern needs to be sorted out eventually
 	if err := tx.Submit(err); err != nil {
 		return fmt.Errorf("batch transaction submission failed: %s", err.Error())
