@@ -74,6 +74,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/statediff"
+
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -994,6 +996,123 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
 	}
+
+	StateDiffFlag = &cli.BoolFlag{
+		Name:     "statediff",
+		Usage:    "Enables the processing of state diffs between each block",
+		Category: flags.MiscCategory,
+	}
+	StateDiffDBTypeFlag = &cli.StringFlag{
+		Name:  "statediff.db.type",
+		Usage: "Statediff database type (current options: postgres, file, dump)",
+		Value: "postgres",
+	}
+	StateDiffDBDriverTypeFlag = &cli.StringFlag{
+		Name:  "statediff.db.driver",
+		Usage: "Statediff database driver type",
+		Value: "pgx",
+	}
+	StateDiffDBDumpDst = &cli.StringFlag{
+		Name:  "statediff.dump.dst",
+		Usage: "Statediff database dump destination (default is stdout)",
+		Value: "stdout",
+	}
+	StateDiffDBHostFlag = &cli.StringFlag{
+		Name:  "statediff.db.host",
+		Usage: "Statediff database hostname/ip",
+		Value: "localhost",
+	}
+	StateDiffDBPortFlag = &cli.IntFlag{
+		Name:  "statediff.db.port",
+		Usage: "Statediff database port",
+		Value: 5432,
+	}
+	StateDiffDBNameFlag = &cli.StringFlag{
+		Name:  "statediff.db.name",
+		Usage: "Statediff database name",
+	}
+	StateDiffDBPasswordFlag = &cli.StringFlag{
+		Name:  "statediff.db.password",
+		Usage: "Statediff database password",
+	}
+	StateDiffDBUserFlag = &cli.StringFlag{
+		Name:  "statediff.db.user",
+		Usage: "Statediff database username",
+		Value: "postgres",
+	}
+	StateDiffDBMaxConnLifetime = &cli.DurationFlag{
+		Name:  "statediff.db.maxconnlifetime",
+		Usage: "Statediff database maximum connection lifetime (in seconds)",
+	}
+	StateDiffDBMaxConnIdleTime = &cli.DurationFlag{
+		Name:  "statediff.db.maxconnidletime",
+		Usage: "Statediff database maximum connection idle time (in seconds)",
+	}
+	StateDiffDBMaxConns = &cli.IntFlag{
+		Name:  "statediff.db.maxconns",
+		Usage: "Statediff database maximum connections",
+	}
+	StateDiffDBMinConns = &cli.IntFlag{
+		Name:  "statediff.db.minconns",
+		Usage: "Statediff database minimum connections",
+	}
+	StateDiffDBMaxIdleConns = &cli.IntFlag{
+		Name:  "statediff.db.maxidleconns",
+		Usage: "Statediff database maximum idle connections",
+	}
+	StateDiffDBConnTimeout = &cli.DurationFlag{
+		Name:  "statediff.db.conntimeout",
+		Usage: "Statediff database connection timeout (in seconds)",
+	}
+	StateDiffDBNodeIDFlag = &cli.StringFlag{
+		Name:  "statediff.db.nodeid",
+		Usage: "Node ID to use when writing state diffs to database",
+	}
+	StateDiffFileMode = &cli.StringFlag{
+		Name:  "statediff.file.mode",
+		Usage: "Statediff file writing mode (current options: csv, sql)",
+		Value: "csv",
+	}
+	StateDiffFileCsvDir = &cli.StringFlag{
+		Name:  "statediff.file.csvdir",
+		Usage: "Full path of output directory to write statediff data out to when operating in csv file mode",
+	}
+	StateDiffFilePath = &cli.StringFlag{
+		Name:  "statediff.file.path",
+		Usage: "Full path (including filename) to write statediff data out to when operating in sql file mode",
+	}
+	StateDiffWatchedAddressesFilePath = &cli.StringFlag{
+		Name:  "statediff.file.wapath",
+		Usage: "Full path (including filename) to write statediff watched addresses out to when operating in file mode",
+	}
+	StateDiffDBClientNameFlag = &cli.StringFlag{
+		Name:  "statediff.db.clientname",
+		Usage: "Client name to use when writing state diffs to database",
+		Value: "go-ethereum",
+	}
+	StateDiffUpsert = &cli.BoolFlag{
+		Name:  "statediff.db.upsert",
+		Usage: "Should the statediff service overwrite data existing in the database?",
+		Value: false,
+	}
+	StateDiffLogStatements = &cli.BoolFlag{
+		Name:  "statediff.db.logstatements",
+		Usage: "Should the statediff service log all database statements? (Note: pgx only)",
+		Value: false,
+	}
+	StateDiffWritingFlag = &cli.BoolFlag{
+		Name:  "statediff.writing",
+		Usage: "Activates progressive writing of state diffs to database as new block are synced",
+	}
+	StateDiffWorkersFlag = &cli.UintFlag{
+		Name:  "statediff.workers",
+		Usage: "Number of concurrent workers to use during statediff processing (default 1)",
+		Value: 1,
+	}
+	StateDiffWaitForSync = &cli.BoolFlag{
+		Name:  "statediff.waitforsync",
+		Usage: "Should the statediff service wait for geth to catch up to the head of the chain?",
+	}
 )
 
 var (
@@ -1245,6 +1364,10 @@ func setWS(ctx *cli.Context, cfg *node.Config) {
 
 	if ctx.IsSet(WSPathPrefixFlag.Name) {
 		cfg.WSPathPrefix = ctx.String(WSPathPrefixFlag.Name)
+	}
+
+	if ctx.Bool(StateDiffFlag.Name) {
+		cfg.WSModules = append(cfg.WSModules, "statediff")
 	}
 }
 
@@ -2017,6 +2140,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
+// RegisterLesEthService adds an Ethereum les client to the stack.
+func RegisterLesEthService(stack *node.Node, cfg *eth.Config) *les.LightEthereum {
+	backend, err := les.New(stack, cfg)
+	if err != nil {
+		Fatalf("Failed to register the Ethereum service: %v", err)
+	}
+	return backend
+}
+
 // RegisterEthStatsService configures the Ethereum Stats daemon and adds it to the node.
 func RegisterEthStatsService(stack *node.Node, backend ethapi.Backend, url string) {
 	if err := ethstats.New(stack, backend, backend.Engine(), url); err != nil {
@@ -2061,6 +2193,13 @@ func RegisterFullSyncTester(stack *node.Node, eth *eth.Ethereum, path string) {
 	}
 	ethcatalyst.RegisterFullSyncTester(stack, eth, &block)
 	log.Info("Registered full-sync tester", "number", block.NumberU64(), "hash", block.Hash())
+}
+
+// RegisterStateDiffService configures and registers a service to stream state diff data over RPC
+func RegisterStateDiffService(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params statediff.Config, backend ethapi.Backend) {
+	if err := statediff.New(stack, ethServ, cfg, params, backend); err != nil {
+		Fatalf("Failed to register the Statediff service: %v", err)
+	}
 }
 
 func SetupMetrics(ctx *cli.Context) {

@@ -440,6 +440,9 @@ type ChainConfig struct {
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
 
+	// Cap the maximum total difficulty (for testnet use only).
+	CappedMaximumDifficulty *big.Int `json:"cappedMaximumDifficulty,omitempty"`
+
 	// TerminalTotalDifficultyPassed is a flag specifying that the network already
 	// passed the terminal total difficulty. Its purpose is to disable legacy sync
 	// even without having seen the TTD locally (safer long term).
@@ -482,7 +485,11 @@ func (c *ChainConfig) Description() string {
 	switch {
 	case c.Ethash != nil:
 		if c.TerminalTotalDifficulty == nil {
-			banner += "Consensus: Ethash (proof-of-work)\n"
+			if nil == c.CappedMaximumDifficulty {
+				banner += "Consensus: Ethash (proof-of-work)\n"
+			} else {
+				banner += fmt.Sprintf("Consensus: Ethash (proof-of-work, capped difficulty at %d)\n", c.CappedMaximumDifficulty)
+			}
 		} else if !c.TerminalTotalDifficultyPassed {
 			banner += "Consensus: Beacon (proof-of-stake), merging from Ethash (proof-of-work)\n"
 		} else {
@@ -497,7 +504,11 @@ func (c *ChainConfig) Description() string {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
 	default:
-		banner += "Consensus: unknown\n"
+		if nil == c.CappedMaximumDifficulty {
+			banner += "Consensus: unknown\n"
+		} else {
+			banner += fmt.Sprintf("Consensus: unknown (capped difficulty at %d)\n", c.CappedMaximumDifficulty)
+		}
 	}
 	banner += "\n"
 

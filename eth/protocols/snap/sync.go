@@ -81,6 +81,7 @@ const (
 	// minTrienodeHealThrottle is the minimum divisor for throttling trie node
 	// heal requests to avoid overloading the local node and excessively expanding
 	// the state trie breadth wise.
+
 	minTrienodeHealThrottle = 1
 
 	// maxTrienodeHealThrottle is the maximum divisor for throttling trie node

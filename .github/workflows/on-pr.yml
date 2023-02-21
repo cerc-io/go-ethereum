@@ -1,0 +1,7 @@
+name: Build and test
+
+on: [pull_request]
+
+jobs:
+  run-oldtests:
+    uses: ./.github/workflows/old_tests.yml
