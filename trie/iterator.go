@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -197,7 +200,7 @@ func (it *nodeIterator) Leaf() bool {
 func (it *nodeIterator) LeafKey() []byte {
 	if len(it.stack) > 0 {
 		if _, ok := it.stack[len(it.stack)-1].node.(valueNode); ok {
-			return hexToKeybytes(it.path)
+			return hexToKeyBytes(it.path)
 		}
 	}
 	panic("not at leaf")
@@ -601,6 +604,7 @@ func (it *differenceIterator) AddResolver(resolver NodeResolver) {
 }
 
 func (it *differenceIterator) Next(bool) bool {
+	defer metrics.UpdateDuration(time.Now(), metrics.IndexerMetrics.DifferenceIteratorNextTimer)
 	// Invariants:
 	// - We always advance at least one element in b.
 	// - At the start of this function, a's path is lexically greater than b's.

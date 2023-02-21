@@ -2,15 +2,28 @@
 
 Official Golang execution layer implementation of the Ethereum protocol.
 
-[![API Reference](
-https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
-)](https://pkg.go.dev/github.com/ethereum/go-ethereum?tab=doc)
+[![API Reference](https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667)](https://pkg.go.dev/github.com/ethereum/go-ethereum?tab=doc)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ethereum/go-ethereum)](https://goreportcard.com/report/github.com/ethereum/go-ethereum)
 [![Travis](https://travis-ci.com/ethereum/go-ethereum.svg?branch=master)](https://travis-ci.com/ethereum/go-ethereum)
 [![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.gg/nthXNEv)
 
 Automated builds are available for stable releases and the unstable master branch. Binary
 archives are published at https://geth.ethereum.org/downloads/.
+
+## Vulcanize Specific
+
+This section captures components specific to vulcanize.
+
+### Branching Structure
+
+We currently follow the following branching structure.
+
+1. Create a branch: `v1.10.18-statediff-vX` --> feature/some-feature`
+2. Create a PR upstream: `feature/some-feature` --> `v1.10.18-statediff-vX`
+3. When a release is ready, create a release branch: `v1.10.18-statediff-vX` --> `v1.10.18-statediff-X.Y.Z`
+4. When `v1.10.18-statediff-vX` is stable, merge it to `statediff`.
+
+This process is subject to change.
 
 ## Building the source
 
@@ -55,10 +68,10 @@ on how you can run your own `geth` instance.
 
 Minimum:
 
-* CPU with 2+ cores
-* 4GB RAM
-* 1TB free storage space to sync the Mainnet
-* 8 MBit/sec download Internet service
+- CPU with 2+ cores
+- 4GB RAM
+- 1TB free storage space to sync the Mainnet
+- 8 MBit/sec download Internet service
 
 Recommended:
 
@@ -121,17 +134,16 @@ Specifying the `--goerli` flag, however, will reconfigure your `geth` instance a
 crossing over between the main network and test network, you should always
 use separate accounts for play and real money. Unless you manually move
 accounts, `geth` will by default correctly separate the two networks and will not make any
-accounts available between them.*
+accounts available between them._
 
 ### Full node on the Rinkeby test network
 
 Go Ethereum also supports connecting to the older proof-of-authority based test network
-called [*Rinkeby*](https://www.rinkeby.io) which is operated by members of the community.
+called [_Rinkeby_](https://www.rinkeby.io) which is operated by members of the community.
 
 ```shell
 $ geth --rinkeby console
 ```
-
 ### Configuration
 
 As an alternative to passing the numerous flags to the `geth` binary, you can also pass a
@@ -148,7 +160,7 @@ export your existing configuration:
 $ geth --your-favourite-flags dumpconfig
 ```
 
-*Note: This works only with `geth` v1.6.0 and above.*
+_Note: This works only with `geth` v1.6.0 and above._
 
 #### Docker quick start
 
@@ -288,8 +300,8 @@ that other nodes can use to connect to it and exchange peer information. Make su
 replace the displayed IP address information (most probably `[::]`) with your externally
 accessible IP to get the actual `enode` URL.
 
-*Note: You could also use a full-fledged `geth` node as a bootnode, but it's the less
-recommended way.*
+_Note: You could also use a full-fledged `geth` node as a bootnode, but it's the less
+recommended way._
 
 #### Starting up your member nodes
 
@@ -303,8 +315,8 @@ do also specify a custom `--datadir` flag.
 $ geth --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-from-above>
 ```
 
-*Note: Since your network will be completely cut off from the main and test networks, you'll
-also need to configure a miner to process transactions and create new blocks for you.*
+_Note: Since your network will be completely cut off from the main and test networks, you'll
+also need to configure a miner to process transactions and create new blocks for you._
 
 #### Running a private miner
 
@@ -338,13 +350,13 @@ and merge procedures quick and simple.
 
 Please make sure your contributions adhere to our coding guidelines:
 
- * Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting)
-   guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
- * Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary)
-   guidelines.
- * Pull requests need to be based on and opened against the `master` branch.
- * Commit messages should be prefixed with the package(s) they modify.
-   * E.g. "eth, rpc: make trace configs optional"
+- Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting)
+  guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
+- Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary)
+  guidelines.
+- Pull requests need to be based on and opened against the `master` branch.
+- Commit messages should be prefixed with the package(s) they modify.
+  - E.g. "eth, rpc: make trace configs optional"
 
 Please see the [Developers' Guide](https://geth.ethereum.org/docs/developers/geth-developer/dev-guide)
 for more details on configuring your environment, managing project dependencies, and
@@ -365,3 +377,4 @@ also included in our repository in the `COPYING.LESSER` file.
 The go-ethereum binaries (i.e. all code inside of the `cmd` directory) are licensed under the
 [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html), also
 included in our repository in the `COPYING` file.
+

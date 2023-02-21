@@ -88,6 +88,9 @@ type TxData interface {
 }
 
 // EncodeRLP implements rlp.Encoder
+// For a legacy Transaction this returns RLP([AccountNonce, GasPrice, GasLimit, Recipient, Amount, Data, V, R, S])
+// For a EIP-2718 Transaction this returns RLP(TxType || TxPayload)
+// For a EIP-2930 Transaction, TxType == 0x01 and TxPayload == RLP([ChainID, AccountNonce, GasPrice, GasLimit, Recipient, Amount, Data, AccessList, V, R, S]
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	if tx.Type() == LegacyTxType {
 		return rlp.Encode(w, tx.inner)
@@ -108,9 +111,10 @@ func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	return rlp.Encode(w, tx.inner)
 }
 
-// MarshalBinary returns the canonical encoding of the transaction.
-// For legacy transactions, it returns the RLP encoding. For EIP-2718 typed
-// transactions, it returns the type and payload.
+// MarshalBinary returns the canonical consensus encoding of the transaction.
+// For a legacy Transaction this returns RLP([AccountNonce, GasPrice, GasLimit, Recipient, Amount, Data, V, R, S])
+// For a EIP-2718 Transaction this returns TxType || TxPayload
+// For a EIP-2930 Transaction, TxType == 0x01 and TxPayload == RLP([ChainID, AccountNonce, GasPrice, GasLimit, Recipient, Amount, Data, AccessList, V, R, S]
 func (tx *Transaction) MarshalBinary() ([]byte, error) {
 	if tx.Type() == LegacyTxType {
 		return rlp.EncodeToBytes(tx.inner)
