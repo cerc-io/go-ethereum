@@ -1,0 +1,21 @@
+name: MANUAL Override Publish geth binary to release
+on:
+  workflow_dispatch:
+    inputs:
+      giteaPublishTag:
+        description: 'Package to publish TO on gitea; e.g. v1.10.25-statediff-4.2.1-alpha'
+        required: true
+      cercContainerTag:
+        description: 'Tagged Container to extract geth binary FROM'
+        required: true
+jobs:
+  build:
+    name: Manual override publish of geth binary FROM tagged release TO TAGGED package on git.vdb.to
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy ethereum binary file
+        run: docker run --rm --entrypoint cat git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{ github.event.inputs.cercContainerTag }} /usr/local/bin/geth > geth-linux-amd64
+      - name: curl
+        uses: enflo/curl-action@master
+        with:
+          curl: --user circcicd:${{ secrets.GITEA_TOKEN }} --upload-file geth-linux-amd64 https://git.vdb.to/api/packages/cerc-io/generic/go-ethereum/${{ github.event.inputs.giteaPublishTag }}/geth-linux-amd64
