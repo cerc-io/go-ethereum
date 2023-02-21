@@ -105,7 +105,7 @@ func newLocalTrie() *localTrie {
 	lt := &localTrie{}
 	lt.db = rawdb.NewMemoryDatabase()
 	lt.trieDB = trie.NewDatabase(lt.db)
-	lt.trie, err = trie.New(common.Hash{}, common.Hash{}, lt.trieDB)
+	lt.trie, err = trie.New(trie.StateTrieID(common.Hash{}), lt.trieDB)
 	if err != nil {
 		panic(err)
 	}
@@ -130,17 +130,15 @@ func (lt *localTrie) rootHash() []byte {
 
 func (lt *localTrie) commit() error {
 	// commit trie nodes to trieDB
-	ltHash, trieNodes, err := lt.trie.Commit(true)
-	if err != nil {
-		return err
-	}
+	ltHash, trieNodes := lt.trie.Commit(true)
+
 	//new trie.Commit method signature also requires Update with returned NodeSet
 	if trieNodes != nil {
 		lt.trieDB.Update(trie.NewWithNodeSet(trieNodes))
 	}
 
 	// commit trieDB to the underlying ethdb.Database
-	if err := lt.trieDB.Commit(ltHash, false, nil); err != nil {
+	if err := lt.trieDB.Commit(ltHash, false); err != nil {
 		return err
 	}
 	return nil

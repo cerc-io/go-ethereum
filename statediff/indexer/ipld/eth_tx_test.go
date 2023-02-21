@@ -4,8 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 
 	block "github.com/ipfs/go-block-format"
@@ -306,28 +304,10 @@ func TestEthTxSize(t *testing.T) {
 	size, err := tx.Size()
 	checkError(err, t)
 
-	spl := strings.Split(tx.Transaction.Size().String(), " ")
-	expectedSize, units := spl[0], spl[1]
-	floatSize, err := strconv.ParseFloat(expectedSize, 64)
-	checkError(err, t)
+	expectedSize := tx.Transaction.Size()
 
-	var byteSize uint64
-	switch units {
-	case "B":
-		byteSize = uint64(floatSize)
-	case "KB":
-		byteSize = uint64(floatSize * 1000)
-	case "MB":
-		byteSize = uint64(floatSize * 1000000)
-	case "GB":
-		byteSize = uint64(floatSize * 1000000000)
-	case "TB":
-		byteSize = uint64(floatSize * 1000000000000)
-	default:
-		t.Fatal("Unexpected size units")
-	}
-	if size != byteSize {
-		t.Fatalf("Wrong size\r\nexpected %d\r\ngot %d", byteSize, size)
+	if size != expectedSize {
+		t.Fatalf("Wrong size\r\nexpected %d\r\ngot %d", expectedSize, size)
 	}
 }
 

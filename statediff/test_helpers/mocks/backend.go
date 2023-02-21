@@ -158,6 +158,9 @@ func (backend *Backend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	panic("not implemented") // TODO: Implement
 }
 
+func (backend *Backend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
+	panic("implement me")
+}
 func (backend *Backend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	panic("not implemented") // TODO: Implement
 }

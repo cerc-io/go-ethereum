@@ -19,9 +19,6 @@ package ipld
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
@@ -191,28 +188,29 @@ func (t *EthTx) Stat() (*node.NodeStat, error) {
 
 // Size will go away. It is here to comply with the interface. It returns the byte size for the transaction
 func (t *EthTx) Size() (uint64, error) {
-	spl := strings.Split(t.Transaction.Size().String(), " ")
-	size, units := spl[0], spl[1]
-	floatSize, err := strconv.ParseFloat(size, 64)
-	if err != nil {
-		return 0, err
-	}
-	var byteSize uint64
-	switch units {
-	case "B":
-		byteSize = uint64(floatSize)
-	case "KB":
-		byteSize = uint64(floatSize * 1000)
-	case "MB":
-		byteSize = uint64(floatSize * 1000000)
-	case "GB":
-		byteSize = uint64(floatSize * 1000000000)
-	case "TB":
-		byteSize = uint64(floatSize * 1000000000000)
-	default:
-		return 0, fmt.Errorf("unreconginized units %s", units)
-	}
-	return byteSize, nil
+	return t.Transaction.Size(), nil
+	//spl := strings.Split(t.Transaction.Size().String(), " ")
+	//size, units := spl[0], spl[1]
+	//floatSize, err := strconv.ParseFloat(size, 64)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//var byteSize uint64
+	//switch units {
+	//case "B":
+	//	byteSize = uint64(floatSize)
+	//case "KB":
+	//	byteSize = uint64(floatSize * 1000)
+	//case "MB":
+	//	byteSize = uint64(floatSize * 1000000)
+	//case "GB":
+	//	byteSize = uint64(floatSize * 1000000000)
+	//case "TB":
+	//	byteSize = uint64(floatSize * 1000000000000)
+	//default:
+	//	return 0, fmt.Errorf("unreconginized units %s", units)
+	//}
+	//return byteSize, nil
 }
 
 /*

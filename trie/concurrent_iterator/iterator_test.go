@@ -24,10 +24,11 @@ func TestMakePaths(t *testing.T) {
 }
 
 func TestIterator(t *testing.T) {
-	edb, err := rawdb.NewLevelDBDatabaseWithFreezer(
-		fixt.ChainDataPath, 1024, 256, fixt.AncientDataPath,
-		"eth-pg-ipfs-state-snapshot", false,
-	)
+	kvdb, ldberr := rawdb.NewLevelDBDatabase(fixt.ChainDataPath, 1024, 256, "eth-pg-ipfs-state-snapshot", false)
+	if ldberr != nil {
+		t.Fatal(ldberr)
+	}
+	edb, err := rawdb.NewDatabaseWithFreezer(kvdb, fixt.AncientDataPath, "eth-pg-ipfs-state-snapshot", false)
 	if err != nil {
 		t.Fatal(err)
 	}

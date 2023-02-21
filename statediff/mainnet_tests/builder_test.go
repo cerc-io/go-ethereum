@@ -467,7 +467,11 @@ func loadBlockFromRLPFile(filename string) (*types.Block, []byte, error) {
 }
 
 func TestBuilderOnMainnetBlocks(t *testing.T) {
-	chain, _ := core.NewBlockChain(db, nil, params.MainnetChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
+	genesis := core.Genesis{
+		Config: params.MainnetChainConfig,
+	}
+	chain, _ := core.NewBlockChain(db, nil, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+
 	_, err := chain.InsertChain([]*types.Block{block1, block2, block3})
 	if err != nil {
 		t.Error(err)

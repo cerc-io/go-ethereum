@@ -42,8 +42,13 @@ func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big
 func MakeChain(n int, parent *types.Block, chainGen func(int, *core.BlockGen)) ([]*types.Block, *core.BlockChain) {
 	config := params.TestChainConfig
 	blocks, _ := core.GenerateChain(config, parent, ethash.NewFaker(), Testdb, n, chainGen)
-	chain, _ := core.NewBlockChain(Testdb, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
-	return blocks, chain
+
+	genesis := core.Genesis{
+		Config: params.AllEthashProtocolChanges,
+	}
+	blockchain, _ := core.NewBlockChain(Testdb, nil, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+
+	return blocks, blockchain
 }
 
 func TestSelfDestructChainGen(i int, block *core.BlockGen) {
