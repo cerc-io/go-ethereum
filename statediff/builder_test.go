@@ -36,8 +36,8 @@ import (
 
 var (
 	contractLeafKey                                        []byte
-	emptyDiffs                                             = make([]types2.StateNode, 0)
-	emptyStorage                                           = make([]types2.StorageNode, 0)
+	emptyDiffs                                             = make([]types2.StateLeafNode, 0)
+	emptyStorage                                           = make([]types2.StorageLeafNode, 0)
 	block0, block1, block2, block3, block4, block5, block6 *types.Block
 	builder                                                statediff.Builder
 	minerAddress                                           = common.HexToAddress("0x0")
@@ -526,13 +526,18 @@ func TestBuilder(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block0.Number(),
 				BlockHash:   block0.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock0LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:     false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock0LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -549,27 +554,42 @@ func TestBuilder(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block1.Number(),
 				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: minerLeafKey,
+							NodeHash: crypto.Keccak256(minerAccountAtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -588,60 +608,85 @@ func TestBuilder(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: minerLeafKey,
+							NodeHash: crypto.Keccak256(minerAccountAtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock2LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed:   false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock2LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
+								Removed:   false,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot0StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
+								Removed:   false,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot1StorageLeafNode),
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
+				IPLDs: []types2.IPLD{
 					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
+						CID: test_helpers.CodeHash,
+						Content: test_helpers.ByteCodeAfterDeployment,
 					},
 				},
 			},
@@ -659,34 +704,46 @@ func TestBuilder(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block3.Number(),
 				BlockHash:   block3.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock3LeafNode,
-						StorageNodes: emptyStorage,
+						Removed:      false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{Account: , LeafKey: test_helpers.BankLeafKey, NodeHash: crypto.Keccak256(bankAccountAtBlock3LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock3LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock3LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
+								Value: ,
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock3LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock3LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -724,10 +781,7 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 	block2 = blocks[1]
 	block3 = blocks[2]
 	blocks = append([]*types.Block{block0}, blocks...)
-	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
-	}
+	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -761,13 +815,18 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block0.Number(),
 				BlockHash:   block0.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock0LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock0LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -784,33 +843,47 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block1.Number(),
 				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block1BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: minerLeafKey,
+							NodeHash: crypto.Keccak256(minerAccountAtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -829,71 +902,94 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block2BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: minerLeafKey,
+							NodeHash: crypto.Keccak256(minerAccountAtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock2LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock2LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block2StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot0StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot1StorageLeafNode),
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
+				IPLDs: []types2.IPLD{
 					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
+						CID: test_helpers.CodeHash,
+						Content: test_helpers.ByteCodeAfterDeployment,
 					},
 				},
 			},
@@ -911,45 +1007,58 @@ func TestBuilderWithIntermediateNodes(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block3.Number(),
 				BlockHash:   block3.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block3BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock3LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock3LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock3LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock3LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block3StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock3LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock3LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1001,8 +1110,6 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 	block2 = blocks[1]
 	block3 = blocks[2]
 	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
 		WatchedAddresses:         []common.Address{test_helpers.Account1Addr, test_helpers.ContractAddr},
 	}
 	params.ComputeWatchedAddressesLeafPaths()
@@ -1054,19 +1161,23 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block1.Number(),
 				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block1BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock1LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock1LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1084,50 +1195,58 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block2BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock2LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock2LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block2StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot0StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot1StorageLeafNode),
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock2LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
+				IPLDs: []types2.IPLD{
 					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
+						CID: test_helpers.CodeHash,
+						Content: test_helpers.ByteCodeAfterDeployment,
 					},
 				},
 			},
@@ -1145,29 +1264,29 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block3.Number(),
 				BlockHash:   block3.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block3BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock3LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{Account: , LeafKey: contractLeafKey, NodeHash: crypto.Keccak256(contractAccountAtBlock3LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block3StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
 							},
 						},
 					},
@@ -1206,10 +1325,7 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 	block4 = blocks[3]
 	block5 = blocks[4]
 	block6 = blocks[5]
-	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
-	}
+	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -1229,57 +1345,66 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block4.Number(),
 				BlockHash:   block4.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block4BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock4LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock4LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock4LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock4LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block4StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: slot2StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot2StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock4LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock4LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1295,51 +1420,62 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block5.Number(),
 				BlockHash:   block5.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block5BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey:test_helpers.BankLeafKey ,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock5LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock5LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block5StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
+								Value: ,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1355,51 +1491,60 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block6.Number(),
 				BlockHash:   block6.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block6BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Removed,
-						LeafKey:   contractLeafKey,
-						NodeValue: []byte{},
-						StorageNodes: []types2.StorageNode{
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: },
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
-								NodeType:  types2.Removed,
+								Removed: true,
 								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1436,10 +1581,7 @@ func TestBuilderWithRemovedAccountAndStorageWithoutIntermediateNodes(t *testing.
 	block4 = blocks[3]
 	block5 = blocks[4]
 	block6 = blocks[5]
-	params := statediff.Params{
-		IntermediateStateNodes:   false,
-		IntermediateStorageNodes: false,
-	}
+	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -1459,46 +1601,57 @@ func TestBuilderWithRemovedAccountAndStorageWithoutIntermediateNodes(t *testing.
 			&types2.StateObject{
 				BlockNumber: block4.Number(),
 				BlockHash:   block4.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock4LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock4LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock4LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock4LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: slot2StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot2StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock4LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock4LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1514,40 +1667,53 @@ func TestBuilderWithRemovedAccountAndStorageWithoutIntermediateNodes(t *testing.
 			&types2.StateObject{
 				BlockNumber: block5.Number(),
 				BlockHash:   block5.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock5LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock5LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1563,40 +1729,51 @@ func TestBuilderWithRemovedAccountAndStorageWithoutIntermediateNodes(t *testing.
 			&types2.StateObject{
 				BlockNumber: block6.Number(),
 				BlockHash:   block6.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Removed,
-						LeafKey:   contractLeafKey,
-						NodeValue: []byte{},
-						StorageNodes: []types2.StorageNode{
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: },
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1636,8 +1813,6 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 	block5 = blocks[4]
 	block6 = blocks[5]
 	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
 		WatchedAddresses:         []common.Address{test_helpers.Account1Addr, test_helpers.Account2Addr},
 	}
 	params.ComputeWatchedAddressesLeafPaths()
@@ -1659,19 +1834,23 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block4.Number(),
 				BlockHash:   block4.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block4BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock4LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock4LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1687,19 +1866,23 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block5.Number(),
 				BlockHash:   block5.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block5BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1715,26 +1898,35 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block6.Number(),
 				BlockHash:   block6.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block6BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account2LeafKey,
+							NodeHash: crypto.Keccak256(account2AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1774,8 +1966,6 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 	block5 = blocks[4]
 	block6 = blocks[5]
 	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
 		WatchedAddresses:         []common.Address{test_helpers.Account1Addr, test_helpers.ContractAddr},
 	}
 	params.ComputeWatchedAddressesLeafPaths()
@@ -1797,41 +1987,40 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block4.Number(),
 				BlockHash:   block4.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block4BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock4LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock4LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block4StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: slot2StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot2StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
@@ -1849,44 +2038,50 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block5.Number(),
 				BlockHash:   block5.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block5BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock5LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock5LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block5StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot3StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x04'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot2StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock5LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock5LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -1902,44 +2097,48 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block6.Number(),
 				BlockHash:   block6.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block6BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Removed,
-						LeafKey:   contractLeafKey,
-						NodeValue: []byte{},
-						StorageNodes: []types2.StorageNode{
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: },
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
-								NodeType:  types2.Removed,
+								Removed: true,
 								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Removed,
+								Removed: true,
 								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: []byte{},
 							},
 						},
 					},
 					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock6LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.Account1LeafKey,
+							NodeHash: crypto.Keccak256(account1AtBlock6LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 				},
 			},
@@ -2058,10 +2257,7 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 	block0 = test_helpers.Genesis
 	block1 = blocks[0]
 	block2 = blocks[1]
-	params := statediff.Params{
-		IntermediateStateNodes:   true,
-		IntermediateStorageNodes: true,
-	}
+	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -2080,50 +2276,58 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block1.Number(),
 				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
 						NodeType:     types2.Branch,
 						NodeValue:    block01BranchRootNode,
-						StorageNodes: emptyStorage,
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock01LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock01LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x01'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock01LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock01LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{},
 								NodeType:  types2.Branch,
 								NodeValue: block01StorageBranchRootNode,
 							},
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot00StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot00StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot1StorageLeafNode),
 							},
 						},
 					},
 				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
+				IPLDs: []types2.IPLD{
 					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
+						CID: test_helpers.CodeHash,
+						Content: test_helpers.ByteCodeAfterDeployment,
 					},
 				},
 			},
@@ -2139,39 +2343,53 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock02LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock02LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x01'},
-						NodeType:  types2.Removed,
-						LeafKey:   contractLeafKey,
-						NodeValue: []byte{},
-						StorageNodes: []types2.StorageNode{
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: },
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:     []byte{},
-								NodeType: types2.Removed,
+								Removed: true,
 							},
 							{
-								Path:     []byte{'\x02'},
-								NodeType: types2.Removed,
+								Removed: true,
 								LeafKey:  slot0StorageKey.Bytes(),
 							},
 							{
-								Path:     []byte{'\x0b'},
-								NodeType: types2.Removed,
+								Removed: true,
 								LeafKey:  slot1StorageKey.Bytes(),
 							},
 						},
 					},
 					{
-						Path:      []byte{'\x00'},
-						NodeType:  types2.Removed,
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: ,
+							NodeHash: },
 						NodeValue: []byte{},
 					},
 				},
@@ -2209,10 +2427,7 @@ func TestBuilderWithMovedAccountOnlyLeafs(t *testing.T) {
 	block0 = test_helpers.Genesis
 	block1 = blocks[0]
 	block2 = blocks[1]
-	params := statediff.Params{
-		IntermediateStateNodes:   false,
-		IntermediateStorageNodes: false,
-	}
+	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
 	var tests = []struct {
@@ -2231,39 +2446,49 @@ func TestBuilderWithMovedAccountOnlyLeafs(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block1.Number(),
 				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock01LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock01LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x01'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock01LeafNode,
-						StorageNodes: []types2.StorageNode{
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: crypto.Keccak256(contractAccountAtBlock01LeafNode)},
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot00StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot00StorageLeafNode),
 							},
 							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
+								Removed: false,
 								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
+								Value: ,
+								NodeHash: crypto.Keccak256(slot1StorageLeafNode),
 							},
 						},
 					},
 				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
+				IPLDs: []types2.IPLD{
 					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
+						CID: test_helpers.CodeHash,
+						Content: test_helpers.ByteCodeAfterDeployment,
 					},
 				},
 			},
@@ -2279,35 +2504,50 @@ func TestBuilderWithMovedAccountOnlyLeafs(t *testing.T) {
 			&types2.StateObject{
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
+				Nodes: []types2.StateLeafNode{
 					{
-						Path:         []byte{},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock02LeafNode,
-						StorageNodes: emptyStorage,
+						Removed: false,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: test_helpers.BankLeafKey,
+							NodeHash: crypto.Keccak256(bankAccountAtBlock02LeafNode)},
+						StorageDiff: emptyStorage,
 					},
 					{
-						Path:      []byte{'\x01'},
-						NodeType:  types2.Removed,
-						LeafKey:   contractLeafKey,
-						NodeValue: []byte{},
-						StorageNodes: []types2.StorageNode{
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: contractLeafKey,
+							NodeHash: },
+						StorageDiff: []types2.StorageLeafNode{
 							{
-								Path:     []byte{'\x02'},
-								NodeType: types2.Removed,
+								Removed: true,
 								LeafKey:  slot0StorageKey.Bytes(),
 							},
 							{
-								Path:     []byte{'\x0b'},
-								NodeType: types2.Removed,
+								Removed: true,
 								LeafKey:  slot1StorageKey.Bytes(),
 							},
 						},
 					},
 					{
-						Path:      []byte{'\x00'},
-						NodeType:  types2.Removed,
+						Removed: true,
+						AccountWrapper: struct {
+							Account  *types.StateAccount
+							LeafKey  []byte
+							NodeHash []byte
+						}{
+							Account: ,
+							LeafKey: ,
+							NodeHash: },
 						NodeValue: []byte{},
 					},
 				},
@@ -2333,237 +2573,6 @@ func TestBuilderWithMovedAccountOnlyLeafs(t *testing.T) {
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
 			t.Logf("Test failed: %s", test.name)
 			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
-		}
-	}
-}
-
-func TestBuildStateTrie(t *testing.T) {
-	blocks, chain := test_helpers.MakeChain(3, test_helpers.Genesis, test_helpers.TestChainGen)
-	contractLeafKey = test_helpers.AddressToLeafKey(test_helpers.ContractAddr)
-	defer chain.Stop()
-	block1 = blocks[0]
-	block2 = blocks[1]
-	block3 = blocks[2]
-	builder = statediff.NewBuilder(chain.StateCache())
-
-	var tests = []struct {
-		name     string
-		block    *types.Block
-		expected *types2.StateObject
-	}{
-		{
-			"testBlock1",
-			block1,
-			&types2.StateObject{
-				BlockNumber: block1.Number(),
-				BlockHash:   block1.Hash(),
-				Nodes: []types2.StateNode{
-					{
-						Path:         []byte{},
-						NodeType:     types2.Branch,
-						NodeValue:    block1BranchRootNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock1LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock1LeafNode,
-						StorageNodes: emptyStorage,
-					},
-				},
-			},
-		},
-		{
-			"testBlock2",
-			block2,
-			&types2.StateObject{
-				BlockNumber: block2.Number(),
-				BlockHash:   block2.Hash(),
-				Nodes: []types2.StateNode{
-					{
-						Path:         []byte{},
-						NodeType:     types2.Branch,
-						NodeValue:    block2BranchRootNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock2LeafNode,
-						StorageNodes: []types2.StorageNode{
-							{
-								Path:      []byte{},
-								NodeType:  types2.Branch,
-								NodeValue: block2StorageBranchRootNode,
-							},
-							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
-								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafNode,
-							},
-							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
-								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
-							},
-						},
-					},
-					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
-					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
-					},
-				},
-			},
-		},
-		{
-			"testBlock3",
-			block3,
-			&types2.StateObject{
-				BlockNumber: block3.Number(),
-				BlockHash:   block3.Hash(),
-				Nodes: []types2.StateNode{
-					{
-						Path:         []byte{},
-						NodeType:     types2.Branch,
-						NodeValue:    block3BranchRootNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x00'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.BankLeafKey,
-						NodeValue:    bankAccountAtBlock3LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x05'},
-						NodeType:     types2.Leaf,
-						LeafKey:      minerLeafKey,
-						NodeValue:    minerAccountAtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:         []byte{'\x0e'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account1LeafKey,
-						NodeValue:    account1AtBlock2LeafNode,
-						StorageNodes: emptyStorage,
-					},
-					{
-						Path:      []byte{'\x06'},
-						NodeType:  types2.Leaf,
-						LeafKey:   contractLeafKey,
-						NodeValue: contractAccountAtBlock3LeafNode,
-						StorageNodes: []types2.StorageNode{
-							{
-								Path:      []byte{},
-								NodeType:  types2.Branch,
-								NodeValue: block3StorageBranchRootNode,
-							},
-							{
-								Path:      []byte{'\x02'},
-								NodeType:  types2.Leaf,
-								LeafKey:   slot0StorageKey.Bytes(),
-								NodeValue: slot0StorageLeafNode,
-							},
-							{
-								Path:      []byte{'\x0b'},
-								NodeType:  types2.Leaf,
-								LeafKey:   slot1StorageKey.Bytes(),
-								NodeValue: slot1StorageLeafNode,
-							},
-							{
-								Path:      []byte{'\x0c'},
-								NodeType:  types2.Leaf,
-								LeafKey:   slot3StorageKey.Bytes(),
-								NodeValue: slot3StorageLeafNode,
-							},
-						},
-					},
-					{
-						Path:         []byte{'\x0c'},
-						NodeType:     types2.Leaf,
-						LeafKey:      test_helpers.Account2LeafKey,
-						NodeValue:    account2AtBlock3LeafNode,
-						StorageNodes: emptyStorage,
-					},
-				},
-				CodeAndCodeHashes: []types2.CodeAndCodeHash{
-					{
-						Hash: test_helpers.CodeHash,
-						Code: test_helpers.ByteCodeAfterDeployment,
-					},
-				},
-			},
-		},
-	}
-
-	for _, test := range tests {
-		diff, err := builder.BuildStateTrieObject(test.block)
-		if err != nil {
-			t.Error(err)
-		}
-		receivedStateTrieRlp, err := rlp.EncodeToBytes(&diff)
-		if err != nil {
-			t.Error(err)
-		}
-		expectedStateTrieRlp, err := rlp.EncodeToBytes(test.expected)
-		if err != nil {
-			t.Error(err)
-		}
-		sort.Slice(receivedStateTrieRlp, func(i, j int) bool { return receivedStateTrieRlp[i] < receivedStateTrieRlp[j] })
-		sort.Slice(expectedStateTrieRlp, func(i, j int) bool { return expectedStateTrieRlp[i] < expectedStateTrieRlp[j] })
-		if !bytes.Equal(receivedStateTrieRlp, expectedStateTrieRlp) {
-			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state trie: %+v\r\n\r\n\r\nexpected state trie: %+v", diff, test.expected)
 		}
 	}
 }
