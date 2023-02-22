@@ -43,10 +43,10 @@ func MakeChain(n int, parent *types.Block, chainGen func(int, *core.BlockGen)) (
 	config := params.TestChainConfig
 	blocks, _ := core.GenerateChain(config, parent, ethash.NewFaker(), Testdb, n, chainGen)
 
-	genesis := core.Genesis{
-		Config: params.AllEthashProtocolChanges,
-	}
-	blockchain, _ := core.NewBlockChain(Testdb, nil, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+	//genesis := core.Genesis{
+	//	Config: params.AllEthashProtocolChanges,
+	//}
+	blockchain, _ := core.NewBlockChain(Testdb, nil, nil, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 
 	return blocks, blockchain
 }

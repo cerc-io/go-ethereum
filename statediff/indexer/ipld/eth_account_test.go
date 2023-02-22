@@ -8,9 +8,7 @@ import (
 	"testing"
 )
 
-/*
-  Block INTERFACE
-*/
+// Block INTERFACE
 func init() {
 	if os.Getenv("MODE") != "statediff" {
 		fmt.Println("Skipping statediff test")
@@ -54,7 +52,7 @@ func TestAccountSnapshotLoggable(t *testing.T) {
 }
 
 /*
-  Node INTERFACE
+Node INTERFACE
 */
 func TestAccountSnapshotResolve(t *testing.T) {
 	eas := prepareEthAccountSnapshot(t)
@@ -284,7 +282,7 @@ func TestAccountSnapshotMarshalJSON(t *testing.T) {
 }
 
 /*
-  AUXILIARS
+AUXILIARS
 */
 func prepareEthAccountSnapshot(t *testing.T) *EthAccountSnapshot {
 	fi, err := os.Open("test_data/eth-state-trie-rlp-c9070d")

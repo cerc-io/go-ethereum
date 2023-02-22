@@ -19,11 +19,10 @@ package ipld
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
-
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // EthRctTrie (eth-tx-trie codec 0x92) represents
@@ -58,7 +57,7 @@ func DecodeEthRctTrie(c cid.Cid, b []byte) (*EthRctTrie, error) {
 }
 
 // decodeEthRctTrieLeaf parses a eth-rct-trie leaf
-//from decoded RLP elements
+// from decoded RLP elements
 func decodeEthRctTrieLeaf(i []interface{}) ([]interface{}, error) {
 	r := new(types.Receipt)
 	if err := r.UnmarshalBinary(i[1].([]byte)); err != nil {

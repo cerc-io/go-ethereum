@@ -476,7 +476,6 @@ func (s *Sync) children(req *nodeRequest, object node) ([]*nodeRequest, error) {
 					owner, inner = ResolvePath(child.path)
 				)
 				if rawdb.HasTrieNode(s.database, owner, inner, chash, s.scheme) {
-
 					return
 				}
 				// Locally unknown node, schedule for retrieval

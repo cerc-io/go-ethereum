@@ -9,11 +9,6 @@ import (
 	node "github.com/ipfs/go-ipld-format"
 )
 
-/*
-  INPUT
-  OUTPUT
-*/
-
 func TestStateTrieNodeEvenExtensionParsing(t *testing.T) {
 	fi, err := os.Open("test_data/eth-state-trie-rlp-eb2f5f")
 	checkError(err, t)
@@ -117,7 +112,7 @@ func TestStateTrieNodeOddLeafParsing(t *testing.T) {
 }
 
 /*
-  Block INTERFACE
+Block INTERFACE
 */
 func TestStateTrieBlockElements(t *testing.T) {
 	fi, err := os.Open("test_data/eth-state-trie-rlp-d7f897")

@@ -33,7 +33,7 @@ const (
 )
 
 // TrieNode is the general abstraction for
-//ethereum IPLD trie nodes.
+// ethereum IPLD trie nodes.
 type TrieNode struct {
 	// leaf, extension or branch
 	nodeKind string

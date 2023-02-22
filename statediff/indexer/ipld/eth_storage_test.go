@@ -8,11 +8,6 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-/*
-  INPUT
-  OUTPUT
-*/
-
 func TestStorageTrieNodeExtensionParsing(t *testing.T) {
 	fi, err := os.Open("test_data/eth-storage-trie-rlp-113049")
 	checkError(err, t)
@@ -89,9 +84,6 @@ func TestStateTrieNodeBranchParsing(t *testing.T) {
 	}
 }
 
-/*
-  Block INTERFACE
-*/
 func TestStorageTrieBlockElements(t *testing.T) {
 	fi, err := os.Open("test_data/eth-storage-trie-rlp-ffbcad")
 	checkError(err, t)

@@ -34,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff"
 	"github.com/ethereum/go-ethereum/statediff/test_helpers"
@@ -467,10 +466,10 @@ func loadBlockFromRLPFile(filename string) (*types.Block, []byte, error) {
 }
 
 func TestBuilderOnMainnetBlocks(t *testing.T) {
-	genesis := core.Genesis{
-		Config: params.MainnetChainConfig,
-	}
-	chain, _ := core.NewBlockChain(db, nil, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+	//genesis := core.Genesis{
+	//	Config: params.MainnetChainConfig,
+	//}
+	chain, _ := core.NewBlockChain(db, nil, nil, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 
 	_, err := chain.InsertChain([]*types.Block{block1, block2, block3})
 	if err != nil {

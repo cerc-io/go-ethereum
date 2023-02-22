@@ -377,11 +377,9 @@ func TestEThBlockTree(t *testing.T) {
 	}
 }
 
-/*
-  The two functions above: TestEthBlockResolveNonLinkFields and
-  TestEthBlockResolveLinkFields did all the heavy lifting. Then, we will
-  just test two use cases.
-*/
+// The two functions above: TestEthBlockResolveNonLinkFields and
+// TestEthBlockResolveLinkFields did all the heavy lifting. Then, we will
+// just test two use cases.
 func TestEthBlockResolveLinksBadLink(t *testing.T) {
 	ethBlock := prepareDecodedEthBlock("test_data/eth-block-header-rlp-999999", t)
 
@@ -421,8 +419,8 @@ func TestEthBlockResolveLinksGoodLink(t *testing.T) {
 }
 
 /*
-  These functions below should go away
-  We are working on test coverage anyways...
+These functions below should go away
+We are working on test coverage anyways...
 */
 func TestEthBlockCopy(t *testing.T) {
 	ethBlock := prepareDecodedEthBlock("test_data/eth-block-header-rlp-999999", t)

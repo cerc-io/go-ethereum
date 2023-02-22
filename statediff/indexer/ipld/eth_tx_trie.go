@@ -58,7 +58,7 @@ func DecodeEthTxTrie(c cid.Cid, b []byte) (*EthTxTrie, error) {
 }
 
 // decodeEthTxTrieLeaf parses a eth-tx-trie leaf
-//from decoded RLP elements
+// from decoded RLP elements
 func decodeEthTxTrieLeaf(i []interface{}) ([]interface{}, error) {
 	t := new(types.Transaction)
 	if err := t.UnmarshalBinary(i[1].([]byte)); err != nil {

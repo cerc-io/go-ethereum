@@ -19,12 +19,12 @@ package ipld
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ipfs/go-cid"
-	node "github.com/ipfs/go-ipld-format"
-	mh "github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ipfs/go-cid"
+	node "github.com/ipfs/go-ipld-format"
+	mh "github.com/multiformats/go-multihash"
 )
 
 // EthTx (eth-tx codec 0x93) represents an ethereum transaction
