@@ -4,7 +4,7 @@ on:
     types: [published]
 jobs:
   run-tests:
-    uses: ./.github/workflows/tests.yml
+    uses: ./.github/workflows/old_tests.yml
   build:
     name: Run docker build and publish
     needs: run-tests
