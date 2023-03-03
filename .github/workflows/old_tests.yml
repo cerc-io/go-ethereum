@@ -121,7 +121,6 @@ jobs:
         run: |
           COUNT=0
           ATTEMPTS=15
-          docker ps
           sleep 30;
           docker logs local_go-ethereum_1
           docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum ps aux 
