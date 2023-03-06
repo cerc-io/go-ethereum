@@ -37,6 +37,28 @@ jobs:
       - name: Run unit tests
         run: |
           make test
+          
+
+  geth-unit-race-test:
+    name: Run geth unit test with race flag
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.18"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: |      
+          go run build/ci.go test -race
 
   statediff-unit-test:
     name: Run state diff unit test
@@ -121,7 +143,6 @@ jobs:
         run: |
           COUNT=0
           ATTEMPTS=15
-          sleep 30;
           docker logs local_go-ethereum_1
           docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum ps aux 
           until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
