@@ -82,17 +82,15 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 		}
 	}()
 	for _, item := range tx.cache {
-		switch item.(type) {
+		switch item := item.(type) {
 		case *copyFrom:
-			copy := item.(*copyFrom)
-			log.Trace("statediff lazy_tx : COPY", "table", copy.tableName, "rows", len(copy.rows))
-			_, err := base.CopyFrom(ctx, copy.tableName, copy.columnNames, copy.rows)
+			log.Trace("statediff lazy_tx : COPY", "table", item.tableName, "rows", len(item.rows))
+			_, err := base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
 			if err != nil {
 				return err
 			}
 		case cachedStmt:
-			stmt := item.(cachedStmt)
-			_, err := base.Exec(ctx, stmt.sql, stmt.args...)
+			_, err := base.Exec(ctx, item.sql, item.args...)
 			if err != nil {
 				return err
 			}
