@@ -34,7 +34,6 @@ func homeDir() string {
 }
 
 func TestPathExpansion(t *testing.T) {
-	user, _ := user.Current()
 	var tests map[string]string
 
 	if runtime.GOOS == "windows" {
