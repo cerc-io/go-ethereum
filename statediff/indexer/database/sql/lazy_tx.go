@@ -8,7 +8,7 @@ import (
 )
 
 // Changing this to 1 would make sure only sequential COPYs were combined.
-const COPY_FROM_CHECK_LIMIT = 100
+const copyFromCheckLimit = 100
 
 type DelayedTx struct {
 	cache []interface{}
@@ -52,7 +52,7 @@ func (tx *DelayedTx) findPrevCopyFrom(tableName []string, columnNames []string, 
 }
 
 func (tx *DelayedTx) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
-	if prevCopy := tx.findPrevCopyFrom(tableName, columnNames, COPY_FROM_CHECK_LIMIT); nil != prevCopy {
+	if prevCopy := tx.findPrevCopyFrom(tableName, columnNames, copyFromCheckLimit); nil != prevCopy {
 		log.Trace("statediff lazy_tx : Appending rows to COPY", "table", tableName,
 			"current", len(prevCopy.rows), "append", len(rows))
 		prevCopy.appendRows(rows)
