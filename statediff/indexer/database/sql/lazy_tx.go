@@ -2,8 +2,9 @@ package sql
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/log"
 	"reflect"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type DelayedTx struct {
