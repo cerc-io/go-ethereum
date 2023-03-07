@@ -33,6 +33,7 @@ pipeline {
                 GOMODCACHE = "/tmp/go/pkg/mod"
                 GOWORK=""
                 //GOFLAGS=""
+                HOME="${WORKSPACE}"
 
             }
             steps {
