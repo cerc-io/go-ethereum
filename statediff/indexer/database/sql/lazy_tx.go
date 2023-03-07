@@ -54,7 +54,6 @@ func (tx *DelayedTx) Exec(ctx context.Context, sql string, args ...interface{}) 
 }
 
 func (tx *DelayedTx) Commit(ctx context.Context) error {
-
 	base, err := tx.db.Begin(ctx)
 	if err != nil {
 		return err
