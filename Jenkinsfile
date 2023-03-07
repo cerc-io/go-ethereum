@@ -37,9 +37,10 @@ pipeline {
 
             }
             steps {
-                echo 'Testing ...'
-                //sh '/usr/local/go/bin/go test -p 1 -v ./...'
+                echo 'Testing geth units...'
                 sh 'make test'
+                echo 'Testing statediffing geth...'
+                sh 'make statedifftest'
             }
         }
         stage('Packaging') {
