@@ -18,6 +18,7 @@ package sql
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
@@ -147,11 +148,26 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	if stateNode.StateKey != nullHash.String() {
 		stateKey = stateNode.StateKey
 	}
-	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-		stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
-		stateNode.MhKey)
-	if err != nil {
-		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+	if w.db.UseCopyFrom() {
+		var row []interface{}
+		blockNum, _ := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		row = append(row, blockNum, stateNode.HeaderID, stateKey, stateNode.CID,
+			stateNode.Path, stateNode.NodeType, true, stateNode.MhKey)
+
+		var rows [][]interface{}
+		rows = append(rows, row)
+
+		_, err := tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(), rows)
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", stateNode}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
+			stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
+			stateNode.MhKey)
+		if err != nil {
+			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+		}
 	}
 	return nil
 }
@@ -179,11 +195,26 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 	if storageCID.StorageKey != nullHash.String() {
 		storageKey = storageCID.StorageKey
 	}
-	_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
-		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
-		storageCID.NodeType, true, storageCID.MhKey)
-	if err != nil {
-		return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
+	if w.db.UseCopyFrom() {
+		var row []interface{}
+		blockNum, _ := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		row = append(row, blockNum, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
+			storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)
+
+		var rows [][]interface{}
+		rows = append(rows, row)
+
+		_, err := tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(), rows)
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", storageCID}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
+			storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
+			storageCID.NodeType, true, storageCID.MhKey)
+		if err != nil {
+			return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
+		}
 	}
 	return nil
 }

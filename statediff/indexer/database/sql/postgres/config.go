@@ -81,6 +81,9 @@ type Config struct {
 
 	// toggle on/off upserts
 	Upsert bool
+
+	// toggle on/off CopyFrom
+	CopyFrom bool
 }
 
 // Type satisfies interfaces.Config

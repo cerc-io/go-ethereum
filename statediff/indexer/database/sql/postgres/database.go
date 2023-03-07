@@ -121,3 +121,19 @@ func (db *DB) InsertKnownGapsStm() string {
 			ON CONFLICT (starting_block_number) DO UPDATE SET (ending_block_number, processing_key) = ($2, $4)
 			WHERE eth_meta.known_gaps.ending_block_number <= $2`
 }
+
+func (db *DB) StateTableName() []string {
+	return []string{"eth", "state_cids"}
+}
+
+func (db *DB) StorageTableName() []string {
+	return []string{"eth", "storage_cids"}
+}
+
+func (db *DB) StateColumnNames() []string {
+	return []string{"block_number", "header_id", "state_leaf_key", "cid", "state_path", "node_type", "diff", "mh_key"}
+}
+
+func (db *DB) StorageColumnNames() []string {
+	return []string{"block_number", "header_id", "state_path", "storage_leaf_key", "cid", "storage_path", "node_type", "diff", "mh_key"}
+}
