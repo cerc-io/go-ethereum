@@ -53,7 +53,7 @@ func (tx *DelayedTx) findPrevCopyFrom(tableName []string, columnNames []string, 
 
 func (tx *DelayedTx) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
 	if prevCopy := tx.findPrevCopyFrom(tableName, columnNames, COPY_FROM_CHECK_LIMIT); nil != prevCopy {
-		log.Info("statediff lazy_tx : Appending rows to COPY", "table", tableName,
+		log.Trace("statediff lazy_tx : Appending rows to COPY", "table", tableName,
 			"current", len(prevCopy.rows), "append", len(rows))
 		prevCopy.appendRows(rows)
 	} else {
@@ -85,7 +85,7 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 		switch item.(type) {
 		case *copyFrom:
 			copy := item.(*copyFrom)
-			log.Info("statediff lazy_tx : COPY", "table", copy.tableName, "rows", len(copy.rows))
+			log.Trace("statediff lazy_tx : COPY", "table", copy.tableName, "rows", len(copy.rows))
 			_, err := base.CopyFrom(ctx, copy.tableName, copy.columnNames, copy.rows)
 			if err != nil {
 				return err
