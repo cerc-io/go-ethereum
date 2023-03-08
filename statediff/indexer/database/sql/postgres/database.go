@@ -137,3 +137,18 @@ func (db *DB) StateColumnNames() []string {
 func (db *DB) StorageColumnNames() []string {
 	return []string{"block_number", "header_id", "state_path", "storage_leaf_key", "cid", "storage_path", "node_type", "diff", "mh_key"}
 }
+
+func (db *DB) LogsTableName() []string {
+	return []string{"eth", "log_cids"}
+}
+
+func (db *DB) LogsColumnNames() []string {
+	return []string{"block_number", "header_id", "leaf_cid", "leaf_mh_key", "rct_id", "address", "index", "topic0", "topic1", "topic2", "topic3", "log_data"}
+}
+
+func (db *DB) AccountTableName() []string {
+	return []string{"eth", "state_accounts"}
+}
+func (db *DB) AccountColumnNames() []string {
+	return []string{"block_number", "header_id", "state_path", "balance", "nonce", "code_hash", "storage_root"}
+}

@@ -30,7 +30,7 @@ import (
 )
 
 func setupPGXIndexer(t *testing.T) {
-	db, err = postgres.SetupPGXDB()
+	db, err = postgres.SetupPGXDB(postgres.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

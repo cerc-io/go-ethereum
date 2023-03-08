@@ -50,10 +50,14 @@ type Statements interface {
 	InsertTxStm() string
 	InsertAccessListElementStm() string
 	InsertRctStm() string
+	LogsTableName() []string
+	LogsColumnNames() []string
 	InsertLogStm() string
 	StateTableName() []string
 	StateColumnNames() []string
 	InsertStateStm() string
+	AccountTableName() []string
+	AccountColumnNames() []string
 	InsertAccountStm() string
 	StorageTableName() []string
 	StorageColumnNames() []string
