@@ -89,7 +89,7 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
 
-		value, err := strconv.ParseInt(transaction.Value, 10, 64)
+		value, err := strconv.ParseFloat(transaction.Value, 64)
 		if err != nil {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
@@ -317,6 +317,8 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 }
 
 func (w *Writer) useCopyForTx(tx Tx) bool {
+	// Using COPY instead of INSERT only makes much sense if also using a DelayedTx, so that operations
+	// can be collected over time and then all submitted within in a single TX.
 	if _, ok := tx.(*DelayedTx); ok {
 		return w.db.UseCopyFrom()
 	}
