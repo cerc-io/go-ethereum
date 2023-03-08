@@ -122,33 +122,49 @@ func (db *DB) InsertKnownGapsStm() string {
 			WHERE eth_meta.known_gaps.ending_block_number <= $2`
 }
 
-func (db *DB) StateTableName() []string {
-	return []string{"eth", "state_cids"}
+func (db *DB) AccountTableName() []string {
+	return []string{"eth", "state_accounts"}
+}
+func (db *DB) AccountColumnNames() []string {
+	return []string{"block_number", "header_id", "state_path", "balance", "nonce", "code_hash", "storage_root"}
 }
 
-func (db *DB) StorageTableName() []string {
-	return []string{"eth", "storage_cids"}
+func (db *DB) LogTableName() []string {
+	return []string{"eth", "log_cids"}
+}
+
+func (db *DB) LogColumnNames() []string {
+	return []string{"block_number", "header_id", "leaf_cid", "leaf_mh_key", "rct_id", "address", "index", "topic0", "topic1", "topic2", "topic3", "log_data"}
+}
+
+func (db *DB) RctTableName() []string {
+	return []string{"eth", "receipt_cids"}
+}
+
+func (db *DB) RctColumnNames() []string {
+	return []string{"block_number", "header_id", "tx_id", "leaf_cid", "contract", "contract_hash", "leaf_mh_key", "post_state", "post_status", "log_root"}
+}
+
+func (db *DB) StateTableName() []string {
+	return []string{"eth", "state_cids"}
 }
 
 func (db *DB) StateColumnNames() []string {
 	return []string{"block_number", "header_id", "state_leaf_key", "cid", "state_path", "node_type", "diff", "mh_key"}
 }
 
+func (db *DB) StorageTableName() []string {
+	return []string{"eth", "storage_cids"}
+}
+
 func (db *DB) StorageColumnNames() []string {
 	return []string{"block_number", "header_id", "state_path", "storage_leaf_key", "cid", "storage_path", "node_type", "diff", "mh_key"}
 }
 
-func (db *DB) LogsTableName() []string {
-	return []string{"eth", "log_cids"}
+func (db *DB) TxTableName() []string {
+	return []string{"eth", "transaction_cids"}
 }
 
-func (db *DB) LogsColumnNames() []string {
-	return []string{"block_number", "header_id", "leaf_cid", "leaf_mh_key", "rct_id", "address", "index", "topic0", "topic1", "topic2", "topic3", "log_data"}
-}
-
-func (db *DB) AccountTableName() []string {
-	return []string{"eth", "state_accounts"}
-}
-func (db *DB) AccountColumnNames() []string {
-	return []string{"block_number", "header_id", "state_path", "balance", "nonce", "code_hash", "storage_root"}
+func (db *DB) TxColumnNames() []string {
+	return []string{"block_number", "header_id", "tx_hash", "cid", "dst", "src", "index", "mh_key", "tx_data", "tx_type", "value"}
 }

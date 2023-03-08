@@ -50,21 +50,27 @@ type Statements interface {
 	InsertTxStm() string
 	InsertAccessListElementStm() string
 	InsertRctStm() string
-	LogsTableName() []string
-	LogsColumnNames() []string
 	InsertLogStm() string
-	StateTableName() []string
-	StateColumnNames() []string
 	InsertStateStm() string
-	AccountTableName() []string
-	AccountColumnNames() []string
 	InsertAccountStm() string
-	StorageTableName() []string
-	StorageColumnNames() []string
 	InsertStorageStm() string
 	InsertIPLDStm() string
 	InsertIPLDsStm() string
 	InsertKnownGapsStm() string
+
+	// Table/column descriptions for use with CopyFrom and similar commands.
+	AccountTableName() []string
+	AccountColumnNames() []string
+	LogTableName() []string
+	LogColumnNames() []string
+	RctTableName() []string
+	RctColumnNames() []string
+	StateTableName() []string
+	StateColumnNames() []string
+	StorageTableName() []string
+	StorageColumnNames() []string
+	TxTableName() []string
+	TxColumnNames() []string
 }
 
 // Tx interface to accommodate different concrete SQL transaction types
