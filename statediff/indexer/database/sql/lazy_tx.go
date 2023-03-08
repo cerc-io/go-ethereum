@@ -41,20 +41,20 @@ func (tx *DelayedTx) QueryRow(ctx context.Context, sql string, args ...interface
 	return tx.db.QueryRow(ctx, sql, args...)
 }
 
-func (tx *DelayedTx) findPrevCopyFrom(tableName []string, columnNames []string, limit int) *copyFrom {
+func (tx *DelayedTx) findPrevCopyFrom(tableName []string, columnNames []string, limit int) (*copyFrom, int) {
 	for pos, count := len(tx.cache)-1, 0; pos >= 0 && count < limit; pos, count = pos-1, count+1 {
 		prevCopy, ok := tx.cache[pos].(*copyFrom)
 		if ok && prevCopy.matches(tableName, columnNames) {
-			return prevCopy
+			return prevCopy, count
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 func (tx *DelayedTx) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
-	if prevCopy := tx.findPrevCopyFrom(tableName, columnNames, copyFromCheckLimit); nil != prevCopy {
-		log.Trace("statediff lazy_tx : Appending rows to COPY", "table", tableName,
-			"current", len(prevCopy.rows), "append", len(rows))
+	if prevCopy, distance := tx.findPrevCopyFrom(tableName, columnNames, copyFromCheckLimit); nil != prevCopy {
+		log.Trace("statediff lazy_tx : Appending to COPY", "table", tableName,
+			"current", len(prevCopy.rows), "new", len(rows), "distance", distance)
 		prevCopy.appendRows(rows)
 	} else {
 		tx.cache = append(tx.cache, &copyFrom{tableName, columnNames, rows})
@@ -84,9 +84,9 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 	for _, item := range tx.cache {
 		switch item := item.(type) {
 		case *copyFrom:
-			log.Trace("statediff lazy_tx : COPY", "table", item.tableName, "rows", len(item.rows))
 			_, err := base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
 			if err != nil {
+				log.Error("COPY error", "table", item.tableName, "err", err)
 				return err
 			}
 		case cachedStmt:

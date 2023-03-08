@@ -150,14 +150,18 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	}
 	if w.db.UseCopyFrom() {
 		var row []interface{}
-		blockNum, _ := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", stateNode}
+		}
+
 		row = append(row, blockNum, stateNode.HeaderID, stateKey, stateNode.CID,
 			stateNode.Path, stateNode.NodeType, true, stateNode.MhKey)
 
 		var rows [][]interface{}
 		rows = append(rows, row)
 
-		_, err := tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(), rows)
+		_, err = tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(), rows)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
@@ -197,16 +201,20 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 	}
 	if w.db.UseCopyFrom() {
 		var row []interface{}
-		blockNum, _ := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.storage_cids", err, "COPY", storageCID}
+		}
+
 		row = append(row, blockNum, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
 			storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)
 
 		var rows [][]interface{}
 		rows = append(rows, row)
 
-		_, err := tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(), rows)
+		_, err = tx.CopyFrom(w.db.Context(), w.db.StorageTableName(), w.db.StorageColumnNames(), rows)
 		if err != nil {
-			return insertError{"eth.state_cids", err, "COPY", storageCID}
+			return insertError{"eth.storage_cids", err, "COPY", storageCID}
 		}
 	} else {
 		_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
