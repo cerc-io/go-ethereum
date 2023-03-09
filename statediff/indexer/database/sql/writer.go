@@ -94,7 +94,7 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.TxTableName(), w.db.TxColumnNames(),
-			toRows(toValues(blockNum, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
+			toRows(toRow(blockNum, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 				transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, int(transaction.Type), value)))
 		if err != nil {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
@@ -138,7 +138,7 @@ func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.RctTableName(), w.db.RctColumnNames(),
-			toRows(toValues(blockNum, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash,
+			toRows(toRow(blockNum, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash,
 				rct.LeafMhKey, rct.PostState, int(rct.PostStatus), rct.LogRoot)))
 		if err != nil {
 			return insertError{"eth.receipt_cids", err, "COPY", rct}
@@ -163,16 +163,13 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 	if w.useCopyForTx(tx) {
 		var rows [][]interface{}
 		for _, log := range logs {
-			var row []interface{}
 			blockNum, err := strconv.ParseInt(log.BlockNumber, 10, 64)
 			if err != nil {
 				return insertError{"eth.log_cids", err, "COPY", log}
 			}
 
-			row = append(row, blockNum, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID, log.Address,
-				log.Index, log.Topic0, log.Topic1, log.Topic2, log.Topic3, log.Data)
-
-			rows = append(rows, row)
+			rows = append(rows, toRow(blockNum, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID,
+				log.Address, log.Index, log.Topic0, log.Topic1, log.Topic2, log.Topic3, log.Data))
 		}
 		if nil != rows && len(rows) >= 0 {
 			_, err := tx.CopyFrom(w.db.Context(), w.db.LogTableName(), w.db.LogColumnNames(), rows)
@@ -211,7 +208,7 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(),
-			toRows(toValues(blockNum, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
+			toRows(toRow(blockNum, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
 				stateNode.NodeType, true, stateNode.MhKey)))
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
@@ -243,7 +240,7 @@ func (w *Writer) upsertStateAccount(tx Tx, stateAccount models.StateAccountModel
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.AccountTableName(), w.db.AccountColumnNames(),
-			toRows(toValues(blockNum, stateAccount.HeaderID, stateAccount.StatePath, balance, stateAccount.Nonce,
+			toRows(toRow(blockNum, stateAccount.HeaderID, stateAccount.StatePath, balance, stateAccount.Nonce,
 				stateAccount.CodeHash, stateAccount.StorageRoot)))
 		if err != nil {
 			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
@@ -275,7 +272,7 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.StorageTableName(), w.db.StorageColumnNames(),
-			toRows(toValues(blockNum, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
+			toRows(toRow(blockNum, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
 				storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)))
 		if err != nil {
 			return insertError{"eth.storage_cids", err, "COPY", storageCID}
@@ -300,12 +297,14 @@ func (w *Writer) useCopyForTx(tx Tx) bool {
 	return false
 }
 
-func toValues(args ...interface{}) []interface{} {
+// combine args into a row
+func toRow(args ...interface{}) []interface{} {
 	var row []interface{}
 	row = append(row, args...)
 	return row
 }
 
+// combine row (or rows) into a slice of rows for CopyFrom
 func toRows(rows ...[]interface{}) [][]interface{} {
 	return rows
 }
