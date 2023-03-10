@@ -63,6 +63,11 @@ type Database struct {
 	fn string      // filename for reporting
 	db *leveldb.DB // LevelDB instance
 
+	getTimer    metrics.Timer // Timer/counter for measuring time and invocations of Get().
+	putTimer    metrics.Timer // Timer/counter for measuring time and invocations of Put().
+	deleteTimer metrics.Timer // Timer/counter for measuring time and invocations of Delete().
+	hasTimer    metrics.Timer // Timer/counter for measuring time and invocations of Has().
+
 	compTimeMeter       metrics.Meter // Meter for measuring the total time spent in database compaction
 	compReadMeter       metrics.Meter // Meter for measuring the data read during compaction
 	compWriteMeter      metrics.Meter // Meter for measuring the data written during compaction
@@ -146,6 +151,11 @@ func NewCustom(file string, namespace string, customize func(options *opt.Option
 	ldb.seekCompGauge = metrics.NewRegisteredGauge(namespace+"compact/seek", nil)
 	ldb.manualMemAllocGauge = metrics.NewRegisteredGauge(namespace+"memory/manualalloc", nil)
 
+	ldb.getTimer = metrics.NewRegisteredTimer(namespace+"db/get/time", nil)
+	ldb.putTimer = metrics.NewRegisteredTimer(namespace+"db/put/time", nil)
+	ldb.deleteTimer = metrics.NewRegisteredTimer(namespace+"db/delete/time", nil)
+	ldb.hasTimer = metrics.NewRegisteredTimer(namespace+"db/has/time", nil)
+
 	// Start up the metrics gathering and return
 	go ldb.meter(metricsGatheringInterval)
 	return ldb, nil
@@ -184,11 +194,13 @@ func (db *Database) Close() error {
 
 // Has retrieves if a key is present in the key-value store.
 func (db *Database) Has(key []byte) (bool, error) {
+	defer func(start time.Time) { db.hasTimer.UpdateSince(start) }(time.Now())
 	return db.db.Has(key, nil)
 }
 
 // Get retrieves the given key if it's present in the key-value store.
 func (db *Database) Get(key []byte) ([]byte, error) {
+	defer func(start time.Time) { db.getTimer.UpdateSince(start) }(time.Now())
 	dat, err := db.db.Get(key, nil)
 	if err != nil {
 		return nil, err
@@ -198,11 +210,13 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 
 // Put inserts the given value into the key-value store.
 func (db *Database) Put(key []byte, value []byte) error {
+	defer func(start time.Time) { db.putTimer.UpdateSince(start) }(time.Now())
 	return db.db.Put(key, value, nil)
 }
 
 // Delete removes the key from the key-value store.
 func (db *Database) Delete(key []byte) error {
+	defer func(start time.Time) { db.deleteTimer.UpdateSince(start) }(time.Now())
 	return db.db.Delete(key, nil)
 }
 
