@@ -31,6 +31,7 @@ type Database interface {
 
 // Driver interface has all the methods required by a driver implementation to support the sql indexer
 type Driver interface {
+	UseCopyFrom() bool
 	QueryRow(ctx context.Context, sql string, args ...interface{}) ScannableRow
 	Exec(ctx context.Context, sql string, args ...interface{}) (Result, error)
 	Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error
@@ -53,12 +54,25 @@ type Statements interface {
 	InsertStorageStm() string
 	InsertIPLDStm() string
 	InsertIPLDsStm() string
+
+	// Table/column descriptions for use with CopyFrom and similar commands.
+	LogTableName() []string
+	LogColumnNames() []string
+	RctTableName() []string
+	RctColumnNames() []string
+	StateTableName() []string
+	StateColumnNames() []string
+	StorageTableName() []string
+	StorageColumnNames() []string
+	TxTableName() []string
+	TxColumnNames() []string
 }
 
 // Tx interface to accommodate different concrete SQL transaction types
 type Tx interface {
 	QueryRow(ctx context.Context, sql string, args ...interface{}) ScannableRow
 	Exec(ctx context.Context, sql string, args ...interface{}) (Result, error)
+	CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error)
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
 }

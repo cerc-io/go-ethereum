@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	coresql "database/sql"
+	"errors"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -130,6 +131,12 @@ func (driver *SQLXDriver) Context() context.Context {
 	return driver.ctx
 }
 
+// HasCopy satisfies sql.Database
+func (driver *SQLXDriver) UseCopyFrom() bool {
+	// sqlx does not currently support COPY.
+	return false
+}
+
 type sqlxStatsWrapper struct {
 	stats coresql.DBStats
 }
@@ -196,4 +203,8 @@ func (t sqlxTxWrapper) Commit(ctx context.Context) error {
 // Rollback satisfies sql.Tx
 func (t sqlxTxWrapper) Rollback(ctx context.Context) error {
 	return t.tx.Rollback()
+}
+
+func (t sqlxTxWrapper) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
+	return 0, errors.New("Unsupported Operation")
 }

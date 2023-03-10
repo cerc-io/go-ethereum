@@ -180,6 +180,7 @@ var (
 		utils.StateDiffWatchedAddressesFilePath,
 		utils.StateDiffUpsert,
 		utils.StateDiffLogStatements,
+		utils.StateDiffCopyFrom,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
