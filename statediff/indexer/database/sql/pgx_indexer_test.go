@@ -29,8 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 )
 
-func setupPGXIndexer(t *testing.T) {
-	db, err = postgres.SetupPGXDB()
+func setupPGXIndexer(t *testing.T, config postgres.Config) {
+	db, err = postgres.SetupPGXDB(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,12 +39,16 @@ func setupPGXIndexer(t *testing.T) {
 }
 
 func setupPGX(t *testing.T) {
-	setupPGXIndexer(t)
+	setupPGXWithConfig(t, postgres.DefaultConfig)
+}
+
+func setupPGXWithConfig(t *testing.T, config postgres.Config) {
+	setupPGXIndexer(t, config)
 	test.SetupTestData(t, ind)
 }
 
 func setupPGXNonCanonical(t *testing.T) {
-	setupPGXIndexer(t)
+	setupPGXIndexer(t, postgres.DefaultConfig)
 	test.SetupTestDataNonCanonical(t, ind)
 }
 
@@ -96,6 +100,20 @@ func TestPGXIndexer(t *testing.T) {
 		defer checkTxClosure(t, 1, 0, 1)
 
 		test.TestPublishAndIndexStorageIPLDs(t, db)
+	})
+
+	t.Run("Publish and index with CopyFrom enabled.", func(t *testing.T) {
+		config := postgres.DefaultConfig
+		config.CopyFrom = true
+
+		setupPGXWithConfig(t, config)
+		defer tearDown(t)
+		defer checkTxClosure(t, 1, 0, 1)
+
+		test.TestPublishAndIndexStateIPLDs(t, db)
+		test.TestPublishAndIndexStorageIPLDs(t, db)
+		test.TestPublishAndIndexReceiptIPLDs(t, db)
+		test.TestPublishAndIndexLogIPLDs(t, db)
 	})
 }
 
@@ -151,7 +169,7 @@ func TestPGXIndexerNonCanonical(t *testing.T) {
 }
 
 func TestPGXWatchAddressMethods(t *testing.T) {
-	setupPGXIndexer(t)
+	setupPGXIndexer(t, postgres.DefaultConfig)
 	defer tearDown(t)
 	defer checkTxClosure(t, 1, 0, 1)
 

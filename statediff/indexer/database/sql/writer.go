@@ -18,6 +18,7 @@ package sql
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
@@ -81,11 +82,30 @@ INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, sr
 ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertTxStm(),
-		transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst, transaction.Src,
-		transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
-	if err != nil {
-		return insertError{"eth.transaction_cids", err, w.db.InsertTxStm(), transaction}
+	if w.useCopyForTx(tx) {
+		blockNum, err := strconv.ParseInt(transaction.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.transaction_cids", err, "COPY", transaction}
+		}
+
+		value, err := strconv.ParseFloat(transaction.Value, 64)
+		if err != nil {
+			return insertError{"eth.transaction_cids", err, "COPY", transaction}
+		}
+
+		_, err = tx.CopyFrom(w.db.Context(), w.db.TxTableName(), w.db.TxColumnNames(),
+			toRows(toRow(blockNum, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
+				transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, int(transaction.Type), value)))
+		if err != nil {
+			return insertError{"eth.transaction_cids", err, "COPY", transaction}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertTxStm(),
+			transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst, transaction.Src,
+			transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
+		if err != nil {
+			return insertError{"eth.transaction_cids", err, w.db.InsertTxStm(), transaction}
+		}
 	}
 	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 	return nil
@@ -111,11 +131,25 @@ INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, leaf_cid, contract
 ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertRctStm(),
-		rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey, rct.PostState,
-		rct.PostStatus, rct.LogRoot)
-	if err != nil {
-		return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
+	if w.useCopyForTx(tx) {
+		blockNum, err := strconv.ParseInt(rct.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.receipt_cids", err, "COPY", rct}
+		}
+
+		_, err = tx.CopyFrom(w.db.Context(), w.db.RctTableName(), w.db.RctColumnNames(),
+			toRows(toRow(blockNum, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash,
+				rct.LeafMhKey, rct.PostState, int(rct.PostStatus), rct.LogRoot)))
+		if err != nil {
+			return insertError{"eth.receipt_cids", err, "COPY", rct}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertRctStm(),
+			rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey, rct.PostState,
+			rct.PostStatus, rct.LogRoot)
+		if err != nil {
+			return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
+		}
 	}
 	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 	return nil
@@ -126,14 +160,34 @@ INSERT INTO eth.log_cids (block_number, header_id, leaf_cid, leaf_mh_key, rct_id
 ON CONFLICT (rct_id, index, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
-	for _, log := range logs {
-		_, err := tx.Exec(w.db.Context(), w.db.InsertLogStm(),
-			log.BlockNumber, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
-			log.Topic2, log.Topic3, log.Data)
-		if err != nil {
-			return insertError{"eth.log_cids", err, w.db.InsertLogStm(), *log}
+	if w.useCopyForTx(tx) {
+		var rows [][]interface{}
+		for _, log := range logs {
+			blockNum, err := strconv.ParseInt(log.BlockNumber, 10, 64)
+			if err != nil {
+				return insertError{"eth.log_cids", err, "COPY", log}
+			}
+
+			rows = append(rows, toRow(blockNum, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID,
+				log.Address, log.Index, log.Topic0, log.Topic1, log.Topic2, log.Topic3, log.Data))
 		}
-		metrics.IndexerMetrics.LogsCounter.Inc(1)
+		if nil != rows && len(rows) >= 0 {
+			_, err := tx.CopyFrom(w.db.Context(), w.db.LogTableName(), w.db.LogColumnNames(), rows)
+			if err != nil {
+				return insertError{"eth.log_cids", err, "COPY", rows}
+			}
+			metrics.IndexerMetrics.LogsCounter.Inc(int64(len(rows)))
+		}
+	} else {
+		for _, log := range logs {
+			_, err := tx.Exec(w.db.Context(), w.db.InsertLogStm(),
+				log.BlockNumber, log.HeaderID, log.LeafCID, log.LeafMhKey, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
+				log.Topic2, log.Topic3, log.Data)
+			if err != nil {
+				return insertError{"eth.log_cids", err, w.db.InsertLogStm(), *log}
+			}
+			metrics.IndexerMetrics.LogsCounter.Inc(1)
+		}
 	}
 	return nil
 }
@@ -147,11 +201,25 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	if stateNode.StateKey != nullHash.String() {
 		stateKey = stateNode.StateKey
 	}
-	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-		stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
-		stateNode.MhKey)
-	if err != nil {
-		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+	if w.useCopyForTx(tx) {
+		blockNum, err := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", stateNode}
+		}
+
+		_, err = tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(),
+			toRows(toRow(blockNum, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
+				stateNode.NodeType, true, stateNode.MhKey)))
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", stateNode}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
+			stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path, stateNode.NodeType, true,
+			stateNode.MhKey)
+		if err != nil {
+			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+		}
 	}
 	return nil
 }
@@ -161,11 +229,29 @@ INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, no
 ON CONFLICT (header_id, state_path, block_number) DO NOTHING
 */
 func (w *Writer) upsertStateAccount(tx Tx, stateAccount models.StateAccountModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertAccountStm(),
-		stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot)
-	if err != nil {
-		return insertError{"eth.state_accounts", err, w.db.InsertAccountStm(), stateAccount}
+	if w.useCopyForTx(tx) {
+		blockNum, err := strconv.ParseInt(stateAccount.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
+		}
+		balance, err := strconv.ParseFloat(stateAccount.Balance, 64)
+		if err != nil {
+			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
+		}
+
+		_, err = tx.CopyFrom(w.db.Context(), w.db.AccountTableName(), w.db.AccountColumnNames(),
+			toRows(toRow(blockNum, stateAccount.HeaderID, stateAccount.StatePath, balance, stateAccount.Nonce,
+				stateAccount.CodeHash, stateAccount.StorageRoot)))
+		if err != nil {
+			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertAccountStm(),
+			stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
+			stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot)
+		if err != nil {
+			return insertError{"eth.state_accounts", err, w.db.InsertAccountStm(), stateAccount}
+		}
 	}
 	return nil
 }
@@ -179,13 +265,48 @@ func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) err
 	if storageCID.StorageKey != nullHash.String() {
 		storageKey = storageCID.StorageKey
 	}
-	_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
-		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
-		storageCID.NodeType, true, storageCID.MhKey)
-	if err != nil {
-		return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
+	if w.useCopyForTx(tx) {
+		blockNum, err := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.storage_cids", err, "COPY", storageCID}
+		}
+
+		_, err = tx.CopyFrom(w.db.Context(), w.db.StorageTableName(), w.db.StorageColumnNames(),
+			toRows(toRow(blockNum, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
+				storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)))
+		if err != nil {
+			return insertError{"eth.storage_cids", err, "COPY", storageCID}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
+			storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID, storageCID.Path,
+			storageCID.NodeType, true, storageCID.MhKey)
+		if err != nil {
+			return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
+		}
 	}
 	return nil
+}
+
+func (w *Writer) useCopyForTx(tx Tx) bool {
+	// Using COPY instead of INSERT only makes much sense if also using a DelayedTx, so that operations
+	// can be collected over time and then all submitted within in a single TX.
+	if _, ok := tx.(*DelayedTx); ok {
+		return w.db.UseCopyFrom()
+	}
+	return false
+}
+
+// combine args into a row
+func toRow(args ...interface{}) []interface{} {
+	var row []interface{}
+	row = append(row, args...)
+	return row
+}
+
+// combine row (or rows) into a slice of rows for CopyFrom
+func toRows(rows ...[]interface{}) [][]interface{} {
+	return rows
 }
 
 type insertError struct {

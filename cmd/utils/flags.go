@@ -1100,6 +1100,13 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Usage: "Should the statediff service log all database statements? (Note: pgx only)",
 		Value: false,
 	}
+
+	StateDiffCopyFrom = &cli.BoolFlag{
+		Name:  "statediff.db.copyfrom",
+		Usage: "Should the statediff service use COPY FROM for multiple inserts? (Note: pgx only)",
+		Value: false,
+	}
+
 	StateDiffWritingFlag = &cli.BoolFlag{
 		Name:  "statediff.writing",
 		Usage: "Activates progressive writing of state diffs to database as new block are synced",

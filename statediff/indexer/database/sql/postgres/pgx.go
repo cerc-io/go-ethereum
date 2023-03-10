@@ -38,6 +38,7 @@ type PGXDriver struct {
 	pool     *pgxpool.Pool
 	nodeInfo node.Info
 	nodeID   string
+	config   Config
 }
 
 // NewPGXDriver returns a new pgx driver
@@ -51,7 +52,7 @@ func NewPGXDriver(ctx context.Context, config Config, node node.Info) (*PGXDrive
 	if err != nil {
 		return nil, ErrDBConnectionFailed(err)
 	}
-	pg := &PGXDriver{ctx: ctx, pool: dbPool, nodeInfo: node}
+	pg := &PGXDriver{ctx: ctx, pool: dbPool, nodeInfo: node, config: config}
 	nodeErr := pg.createNode()
 	if nodeErr != nil {
 		return &PGXDriver{}, ErrUnableToSetNode(nodeErr)
@@ -161,6 +162,11 @@ func (pgx *PGXDriver) Context() context.Context {
 	return pgx.ctx
 }
 
+// HasCopy satisfies sql.Database
+func (pgx *PGXDriver) UseCopyFrom() bool {
+	return pgx.config.CopyFrom
+}
+
 type resultWrapper struct {
 	ct pgconn.CommandTag
 }
@@ -238,4 +244,8 @@ func (t pgxTxWrapper) Commit(ctx context.Context) error {
 // Rollback satisfies sql.Tx
 func (t pgxTxWrapper) Rollback(ctx context.Context) error {
 	return t.tx.Rollback(ctx)
+}
+
+func (t pgxTxWrapper) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
+	return t.tx.CopyFrom(ctx, tableName, columnNames, pgx.CopyFromRows(rows))
 }

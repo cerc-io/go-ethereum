@@ -248,6 +248,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 				if ctx.IsSet(utils.StateDiffLogStatements.Name) {
 					pgConfig.LogStatements = ctx.Bool(utils.StateDiffLogStatements.Name)
 				}
+				if ctx.IsSet(utils.StateDiffCopyFrom.Name) {
+					pgConfig.CopyFrom = ctx.Bool(utils.StateDiffCopyFrom.Name)
+				}
 				indexerConfig = pgConfig
 			case shared.DUMP:
 				dumpTypeStr := ctx.String(utils.StateDiffDBDumpDst.Name)
