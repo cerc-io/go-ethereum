@@ -1281,8 +1281,6 @@ func runRandTest(rt randTest) bool {
 	return true
 }
 
-// Just space changes
-
 func TestRandom(t *testing.T) {
 	if err := quick.Check(runRandTest, nil); err != nil {
 		if cerr, ok := err.(*quick.CheckError); ok {
