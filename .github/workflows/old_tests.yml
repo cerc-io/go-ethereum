@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || '37da42481357102a4e02156ad3b178cc5d1f9a42'}}
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'e62830c982d4dfc5f3c1c2b12c1754a7e9b538f1'}}
   ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'be345e0733d2c025e4082c5154e441317ae94cf7' }}
   GOPATH: /tmp/go
 
@@ -127,11 +127,13 @@ jobs:
           until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
           [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
           cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
+          echo "Address length: `wc ./STATEFUL_TEST_DEPLOYED_ADDRESS`"
           sleep 15;
 
       - name: Create a new transaction.
         shell: bash
         run: |
+          docker logs local_go-ethereum_1
           docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
           echo $?
 
