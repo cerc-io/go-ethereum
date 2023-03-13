@@ -127,11 +127,13 @@ jobs:
           until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
           [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
           cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
+          echo "Address length: `wc -l ./STATEFUL_TEST_DEPLOYED_ADDRESS`"
           sleep 15;
 
       - name: Create a new transaction.
         shell: bash
         run: |
+          docker logs local_go-ethereum_1
           docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
           echo $?
 
