@@ -1281,11 +1281,13 @@ func runRandTest(rt randTest) bool {
 	return true
 }
 
-//func TestRandom(t *testing.T) {
-//	if err := quick.Check(runRandTest, nil); err != nil {
-//		if cerr, ok := err.(*quick.CheckError); ok {
-//			t.Fatalf("random test iteration %d failed: %s", cerr.Count, spew.Sdump(cerr.In))
-//		}
-//		t.Fatal(err)
-//	}
-//}
+// Just space changes
+
+func TestRandom(t *testing.T) {
+	if err := quick.Check(runRandTest, nil); err != nil {
+		if cerr, ok := err.(*quick.CheckError); ok {
+			t.Fatalf("random test iteration %d failed: %s", cerr.Count, spew.Sdump(cerr.In))
+		}
+		t.Fatal(err)
+	}
+}
