@@ -62,5 +62,5 @@ func Keccak256ToCid(codec uint64, h []byte) cid.Cid {
 		panic(err)
 	}
 
-	return cid.NewCidV1(codec, mh.Multihash(buf))
+	return cid.NewCidV1(codec, buf)
 }

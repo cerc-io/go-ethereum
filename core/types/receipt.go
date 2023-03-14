@@ -69,7 +69,6 @@ type Receipt struct {
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
-	LogRoot          common.Hash `json:"logRoot"`
 }
 
 type receiptMarshaling struct {
