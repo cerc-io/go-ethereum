@@ -68,7 +68,7 @@ type Database struct {
 	deleteTimer      metrics.Timer   // Timer/counter for measuring time and invocations of Delete().
 	hasTimer         metrics.Timer   // Timer/counter for measuring time and invocations of Has().
 	batchWriteTimer  metrics.Timer   // Timer/counter for measuring time and invocations of batch writes.
-	batchItemCounter metrics.Counter // Counter for measuring number of batch written items.
+	batchItemCounter metrics.Counter // Counter for measuring number of batched items written.
 
 	compTimeMeter       metrics.Meter // Meter for measuring the total time spent in database compaction
 	compReadMeter       metrics.Meter // Meter for measuring the data read during compaction
