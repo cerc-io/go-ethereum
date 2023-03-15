@@ -191,21 +191,16 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 		if watchingAddresses && !isValidPrefixPath(watchedAddressesLeafPaths, it.Path()) {
 			continue
 		}
-
-		println("\r\n\r\n\r\nHERE\r\n\r\n\r\n")
 		// index values by leaf key
 		if it.Leaf() {
-			println("\r\n\r\n\r\nTHERE\r\n\r\n\r\n")
 			// if it is a "value" node, we will index the value by leaf key
 			accountW, err := sdb.processStateValueNode(it, watchedAddressesLeafPaths)
 			if err != nil {
-				fmt.Printf("\r\n\r\n\r\nerr: %s\r\n\r\n\r\n", err.Error())
 				return nil, err
 			}
 			if accountW == nil {
 				continue
 			}
-			fmt.Printf("accountW: %+v\r\n\r\n", accountW)
 			// for now, just add it to diffAccountsAtB
 			// we will compare to diffAccountsAtA to determine which diffAccountsAtB
 			// were creations and which were updates and also identify accounts that were removed going A->B
@@ -240,9 +235,7 @@ func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watched
 	// so we need to map all changed accounts at B to their leafkey, since account can change pathes but not leafkey
 	var account types.StateAccount
 	accountRLP := make([]byte, len(it.LeafBlob()))
-	fmt.Printf("\r\n\r\naccountRLP: %+v\r\n\r\n", it.LeafBlob())
 	copy(accountRLP, it.LeafBlob())
-	fmt.Printf("\r\n\r\naccountRLP: %+v\r\n\r\n", accountRLP)
 	if err := rlp.DecodeBytes(accountRLP, &account); err != nil {
 		return nil, fmt.Errorf("error decoding account for leaf value at leaf key %x\nerror: %v", it.LeafKey(), err)
 	}
@@ -581,7 +574,6 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedStorage(a, b trie.NodeIterator, dif
 // isValidPrefixPath is used to check if a node at currentPath is a parent | ancestor to one of the addresses the builder is configured to watch
 func isValidPrefixPath(watchedAddressesLeafPaths [][]byte, currentPath []byte) bool {
 	for _, watchedAddressPath := range watchedAddressesLeafPaths {
-		fmt.Printf("\r\n\r\nwatchedAddressPath: %x\r\ncurrentPath: %x\r\n\r\n", watchedAddressPath, currentPath)
 		if bytes.HasPrefix(watchedAddressPath, currentPath) {
 			return true
 		}
