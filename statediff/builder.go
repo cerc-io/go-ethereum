@@ -39,7 +39,6 @@ import (
 )
 
 var (
-	nullHashBytes     = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")
 	emptyNode, _      = rlp.EncodeToBytes(&[]byte{})
 	emptyContractRoot = crypto.Keccak256Hash(emptyNode)
 	nullCodeHash      = crypto.Keccak256Hash([]byte{}).Bytes()
@@ -193,24 +192,26 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 			continue
 		}
 
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
-
+		println("\r\n\r\n\r\nHERE\r\n\r\n\r\n")
 		// index values by leaf key
 		if it.Leaf() {
+			println("\r\n\r\n\r\nTHERE\r\n\r\n\r\n")
 			// if it is a "value" node, we will index the value by leaf key
 			accountW, err := sdb.processStateValueNode(it, watchedAddressesLeafPaths)
 			if err != nil {
+				fmt.Printf("\r\n\r\n\r\nerr: %s\r\n\r\n\r\n", err.Error())
 				return nil, err
 			}
+			if accountW == nil {
+				continue
+			}
+			fmt.Printf("accountW: %+v\r\n\r\n", accountW)
 			// for now, just add it to diffAccountsAtB
 			// we will compare to diffAccountsAtA to determine which diffAccountsAtB
 			// were creations and which were updates and also identify accounts that were removed going A->B
-			diffAccountsAtB[common.Bytes2Hex(accountW.LeafKey)] = accountW
+			diffAccountsAtB[common.Bytes2Hex(accountW.LeafKey)] = *accountW
 		} else { // trie nodes will be written to blockstore only
-			// reminder that this includes leaf nodes, since the geth iteratio.Leaf() actually signifies a "value" node
+			// reminder that this includes leaf nodes, since the geth iterator.Leaf() actually signifies a "value" node
 			nodeVal := make([]byte, len(it.NodeBlob()))
 			copy(nodeVal, it.NodeBlob())
 			nodeHash := make([]byte, len(it.Hash().Bytes()))
@@ -227,21 +228,23 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 }
 
 // reminder: it.Leaf() == true when the iterator is positioned at a "value node" which is not something that actually exists in an MMPT
-func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watchedAddressesLeafPaths [][]byte) (types2.AccountWrapper, error) {
+func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watchedAddressesLeafPaths [][]byte) (*types2.AccountWrapper, error) {
 	// skip if it is not a watched address
 	nodePath := make([]byte, len(it.Path()))
 	copy(nodePath, it.Path())
 	if !isWatchedAddress(watchedAddressesLeafPaths, nodePath) {
-		return types2.AccountWrapper{}, nil
+		return nil, nil
 	}
 
 	// created vs updated is important for leaf nodes since we need to diff their storage
 	// so we need to map all changed accounts at B to their leafkey, since account can change pathes but not leafkey
 	var account types.StateAccount
-	accountRLP := make([]byte, 0)
+	accountRLP := make([]byte, len(it.LeafBlob()))
+	fmt.Printf("\r\n\r\naccountRLP: %+v\r\n\r\n", it.LeafBlob())
 	copy(accountRLP, it.LeafBlob())
+	fmt.Printf("\r\n\r\naccountRLP: %+v\r\n\r\n", accountRLP)
 	if err := rlp.DecodeBytes(accountRLP, &account); err != nil {
-		return types2.AccountWrapper{}, fmt.Errorf("error decoding account for leaf value at leaf key %x\nerror: %v", it.LeafKey(), err)
+		return nil, fmt.Errorf("error decoding account for leaf value at leaf key %x\nerror: %v", it.LeafKey(), err)
 	}
 	leafKey := make([]byte, len(it.LeafKey()))
 	copy(leafKey, it.LeafKey())
@@ -250,10 +253,10 @@ func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watched
 	// it should be in the fastcache since it necessarily was recently accessed to reach the current node
 	parentNodeRLP, err := sdb.StateCache.TrieDB().Node(it.Parent())
 	if err != nil {
-		return types2.AccountWrapper{}, err
+		return nil, err
 	}
 
-	return types2.AccountWrapper{
+	return &types2.AccountWrapper{
 		LeafKey: leafKey,
 		Account: &account,
 		CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(parentNodeRLP)).String(),
@@ -274,18 +277,16 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 			continue
 		}
 
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
-
 		if it.Leaf() {
 			accountW, err := sdb.processStateValueNode(it, watchedAddressesLeafPaths)
 			if err != nil {
 				return nil, err
 			}
+			if accountW == nil {
+				continue
+			}
 			leafKey := common.Bytes2Hex(accountW.LeafKey)
-			diffAccountAtA[leafKey] = accountW
+			diffAccountAtA[leafKey] = *accountW
 			// if this node's leaf key did not show up in diffAccountsAtB
 			// that means the account was deleted
 			// in that case, emit an empty "removed" diff state node
@@ -412,11 +413,6 @@ func (sdb *StateDiffBuilder) buildStorageNodesEventual(sr common.Hash, output ty
 func (sdb *StateDiffBuilder) buildStorageNodesFromTrie(it trie.NodeIterator, output types2.StorageNodeSink,
 	ipldOutput types2.IPLDSink) error {
 	for it.Next(true) {
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
-
 		if it.Leaf() {
 			storageLeafNode, err := sdb.processStorageValueNode(it)
 			if err != nil {
@@ -485,10 +481,6 @@ func (sdb *StateDiffBuilder) buildRemovedAccountStorageNodes(sr common.Hash, out
 // buildRemovedStorageNodesFromTrie returns diffs for all the storage nodes in the provided node interator
 func (sdb *StateDiffBuilder) buildRemovedStorageNodesFromTrie(it trie.NodeIterator, output types2.StorageNodeSink) error {
 	for it.Next(true) {
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
 		if it.Leaf() { // only leaf values are indexed, don't need to demarcate removed intermediate nodes
 			leafKey := make([]byte, len(it.LeafKey()))
 			copy(leafKey, it.LeafKey())
@@ -538,10 +530,6 @@ func (sdb *StateDiffBuilder) createdAndUpdatedStorage(a, b trie.NodeIterator, ou
 	diffSlotsAtB := make(map[string]bool)
 	it, _ := trie.NewDifferenceIterator(a, b)
 	for it.Next(true) {
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
 		if it.Leaf() {
 			storageLeafNode, err := sdb.processStorageValueNode(it)
 			if err != nil {
@@ -570,10 +558,6 @@ func (sdb *StateDiffBuilder) createdAndUpdatedStorage(a, b trie.NodeIterator, ou
 func (sdb *StateDiffBuilder) deletedOrUpdatedStorage(a, b trie.NodeIterator, diffSlotsAtB map[string]bool, output types2.StorageNodeSink) error {
 	it, _ := trie.NewDifferenceIterator(b, a)
 	for it.Next(true) {
-		// skip null nodes
-		if bytes.Equal(nullHashBytes, it.Hash().Bytes()) {
-			continue
-		}
 		if it.Leaf() {
 			leafKey := make([]byte, len(it.LeafKey()))
 			copy(leafKey, it.LeafKey())
@@ -597,6 +581,7 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedStorage(a, b trie.NodeIterator, dif
 // isValidPrefixPath is used to check if a node at currentPath is a parent | ancestor to one of the addresses the builder is configured to watch
 func isValidPrefixPath(watchedAddressesLeafPaths [][]byte, currentPath []byte) bool {
 	for _, watchedAddressPath := range watchedAddressesLeafPaths {
+		fmt.Printf("\r\n\r\nwatchedAddressPath: %x\r\ncurrentPath: %x\r\n\r\n", watchedAddressPath, currentPath)
 		if bytes.HasPrefix(watchedAddressPath, currentPath) {
 			return true
 		}
