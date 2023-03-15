@@ -23,6 +23,8 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
+
 	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -252,9 +254,9 @@ func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watched
 	}
 
 	return types2.AccountWrapper{
-		LeafKey:  leafKey,
-		Account:  &account,
-		NodeHash: crypto.Keccak256(parentNodeRLP),
+		LeafKey: leafKey,
+		Account: &account,
+		CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(parentNodeRLP)).String(),
 	}, nil
 }
 
@@ -290,8 +292,12 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 			// include empty "removed" diff storage nodes for all the storage slots
 			if _, ok := diffAccountsAtB[leafKey]; !ok {
 				diff := types2.StateLeafNode{
-					AccountWrapper: accountW,
-					Removed:        true,
+					AccountWrapper: types2.AccountWrapper{
+						Account: nil,
+						LeafKey: accountW.LeafKey,
+						CID:     shared.RemovedNodeStateCID,
+					},
+					Removed: true,
 				}
 
 				var storageDiff []types2.StorageLeafNode
@@ -359,7 +365,7 @@ func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, o
 				return fmt.Errorf("failed building eventual storage diffs for node with leaf key %x\r\nerror: %v", val.LeafKey, err)
 			}
 			diff.StorageDiff = storageDiff
-			// emit codehash => code mappings for cod
+			// emit codehash => code mappings for contract
 			codeHash := common.BytesToHash(val.Account.CodeHash)
 			code, err := sdb.StateCache.ContractCode(common.Hash{}, codeHash)
 			if err != nil {
@@ -451,9 +457,9 @@ func (sdb *StateDiffBuilder) processStorageValueNode(it trie.NodeIterator) (type
 	}
 
 	return types2.StorageLeafNode{
-		LeafKey:  leafKey,
-		Value:    value,
-		NodeHash: crypto.Keccak256(parentNodeRLP),
+		LeafKey: leafKey,
+		Value:   value,
+		CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(parentNodeRLP)).String(),
 	}, nil
 }
 
@@ -487,6 +493,7 @@ func (sdb *StateDiffBuilder) buildRemovedStorageNodesFromTrie(it trie.NodeIterat
 			leafKey := make([]byte, len(it.LeafKey()))
 			copy(leafKey, it.LeafKey())
 			if err := output(types2.StorageLeafNode{
+				CID:     shared.RemovedNodeStorageCID,
 				Removed: true,
 				LeafKey: leafKey,
 			}); err != nil {
@@ -575,6 +582,7 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedStorage(a, b trie.NodeIterator, dif
 			// in that case, emit an empty "removed" diff storage node
 			if _, ok := diffSlotsAtB[common.Bytes2Hex(leafKey)]; !ok {
 				if err := output(types2.StorageLeafNode{
+					CID:     shared.RemovedNodeStorageCID,
 					Removed: true,
 					LeafKey: leafKey,
 				}); err != nil {
