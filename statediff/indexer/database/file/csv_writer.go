@@ -27,7 +27,6 @@ import (
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -226,10 +225,10 @@ func (csw *CSVWriter) upsertIPLDDirect(blockNumber, key string, value []byte) {
 	})
 }
 
-func (csw *CSVWriter) upsertIPLDNode(blockNumber string, i node.Node) {
+func (csw *CSVWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	csw.upsertIPLD(models.IPLDModel{
 		BlockNumber: blockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	})
 }

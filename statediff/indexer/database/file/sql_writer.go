@@ -26,7 +26,6 @@ import (
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/thoas/go-funk"
 
@@ -184,10 +183,10 @@ func (sqw *SQLWriter) upsertIPLDDirect(blockNumber, key string, value []byte) {
 	})
 }
 
-func (sqw *SQLWriter) upsertIPLDNode(blockNumber string, i node.Node) {
+func (sqw *SQLWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	sqw.upsertIPLD(models.IPLDModel{
 		BlockNumber: blockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	})
 }
