@@ -102,11 +102,6 @@ func (api *PublicStateDiffAPI) StateDiffFor(ctx context.Context, blockHash commo
 	return api.sds.StateDiffFor(blockHash, params)
 }
 
-// StateTrieAt returns a state trie payload at the specific blockheight
-func (api *PublicStateDiffAPI) StateTrieAt(ctx context.Context, blockNumber uint64, params Params) (*Payload, error) {
-	return api.sds.StateTrieAt(blockNumber, params)
-}
-
 // StreamCodeAndCodeHash writes all of the codehash=>code pairs out to a websocket channel
 func (api *PublicStateDiffAPI) StreamCodeAndCodeHash(ctx context.Context, blockNumber uint64) (*rpc.Subscription, error) {
 	// ensure that the RPC connection supports subscriptions
