@@ -41,9 +41,9 @@ type AccountMap map[string]AccountWrapper
 
 // AccountWrapper is used to temporary associate the unpacked node with its raw values
 type AccountWrapper struct {
-	Account  *types.StateAccount
-	LeafKey  []byte
-	NodeHash []byte
+	Account *types.StateAccount
+	LeafKey []byte
+	CID     string
 }
 
 // StateLeafNode holds the data for a single state diff leaf node
@@ -55,16 +55,22 @@ type StateLeafNode struct {
 
 // StorageLeafNode holds the data for a single storage diff node leaf node
 type StorageLeafNode struct {
-	Removed  bool
-	Value    []byte
-	LeafKey  []byte
-	NodeHash []byte
+	Removed bool
+	Value   []byte
+	LeafKey []byte
+	CID     string
 }
 
 // IPLD holds a cid:content pair, e.g. for codehash to code mappings or for intermediate node IPLD objects
 type IPLD struct {
 	CID     string
 	Content []byte
+}
+
+// CodeAndCodeHash struct to hold codehash => code mappings
+type CodeAndCodeHash struct {
+	Hash common.Hash
+	Code []byte
 }
 
 type StateNodeSink func(node StateLeafNode) error
