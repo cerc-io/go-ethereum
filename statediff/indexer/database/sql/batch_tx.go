@@ -23,7 +23,6 @@ import (
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 	"github.com/lib/pq"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -100,11 +99,11 @@ func (tx *BatchTx) cacheDirect(key string, value []byte) {
 	}
 }
 
-func (tx *BatchTx) cacheIPLD(i node.Node) {
+func (tx *BatchTx) cacheIPLD(i ipld.IPLD) {
 	tx.cacheWg.Add(1)
 	tx.iplds <- models.IPLDModel{
 		BlockNumber: tx.BlockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	}
 }
