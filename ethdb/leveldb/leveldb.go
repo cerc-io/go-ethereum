@@ -63,10 +63,12 @@ type Database struct {
 	fn string      // filename for reporting
 	db *leveldb.DB // LevelDB instance
 
-	getTimer    metrics.Timer // Timer/counter for measuring time and invocations of Get().
-	putTimer    metrics.Timer // Timer/counter for measuring time and invocations of Put().
-	deleteTimer metrics.Timer // Timer/counter for measuring time and invocations of Delete().
-	hasTimer    metrics.Timer // Timer/counter for measuring time and invocations of Has().
+	getTimer         metrics.Timer   // Timer/counter for measuring time and invocations of Get().
+	putTimer         metrics.Timer   // Timer/counter for measuring time and invocations of Put().
+	deleteTimer      metrics.Timer   // Timer/counter for measuring time and invocations of Delete().
+	hasTimer         metrics.Timer   // Timer/counter for measuring time and invocations of Has().
+	batchWriteTimer  metrics.Timer   // Timer/counter for measuring time and invocations of batch writes.
+	batchItemCounter metrics.Counter // Counter for measuring number of batched items written.
 
 	compTimeMeter      metrics.Meter // Meter for measuring the total time spent in database compaction
 	compReadMeter      metrics.Meter // Meter for measuring the data read during compaction
@@ -153,6 +155,8 @@ func NewCustom(file string, namespace string, customize func(options *opt.Option
 	ldb.putTimer = metrics.NewRegisteredTimer(namespace+"db/put/time", nil)
 	ldb.deleteTimer = metrics.NewRegisteredTimer(namespace+"db/delete/time", nil)
 	ldb.hasTimer = metrics.NewRegisteredTimer(namespace+"db/has/time", nil)
+	ldb.batchWriteTimer = metrics.NewRegisteredTimer(namespace+"db/batch_write/time", nil)
+	ldb.batchItemCounter = metrics.NewRegisteredCounter(namespace+"db/batch_item/count", nil)
 
 	// Start up the metrics gathering and return
 	go ldb.meter(metricsGatheringInterval)
@@ -230,16 +234,20 @@ func (db *Database) Delete(key []byte) error {
 // database until a final write is called.
 func (db *Database) NewBatch() ethdb.Batch {
 	return &batch{
-		db: db.db,
-		b:  new(leveldb.Batch),
+		db:          db.db,
+		b:           new(leveldb.Batch),
+		writeTimer:  &db.batchWriteTimer,
+		itemCounter: &db.batchItemCounter,
 	}
 }
 
 // NewBatchWithSize creates a write-only database batch with pre-allocated buffer.
 func (db *Database) NewBatchWithSize(size int) ethdb.Batch {
 	return &batch{
-		db: db.db,
-		b:  leveldb.MakeBatch(size),
+		db:          db.db,
+		b:           leveldb.MakeBatch(size),
+		writeTimer:  &db.batchWriteTimer,
+		itemCounter: &db.batchItemCounter,
 	}
 }
 
@@ -490,9 +498,11 @@ func (db *Database) meter(refresh time.Duration) {
 // batch is a write-only leveldb batch that commits changes to its host database
 // when Write is called. A batch cannot be used concurrently.
 type batch struct {
-	db   *leveldb.DB
-	b    *leveldb.Batch
-	size int
+	db          *leveldb.DB
+	b           *leveldb.Batch
+	size        int
+	writeTimer  *metrics.Timer
+	itemCounter *metrics.Counter
 }
 
 // Put inserts the given value into the batch for later committing.
@@ -516,6 +526,12 @@ func (b *batch) ValueSize() int {
 
 // Write flushes any accumulated data to disk.
 func (b *batch) Write() error {
+	if nil != *b.writeTimer {
+		defer func(start time.Time) { (*b.writeTimer).UpdateSince(start) }(time.Now())
+	}
+	if nil != *b.itemCounter {
+		(*b.itemCounter).Inc(int64(b.size))
+	}
 	return b.db.Write(b.b, nil)
 }
 
