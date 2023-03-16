@@ -209,6 +209,25 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 			// reminder that this includes leaf nodes, since the geth iterator.Leaf() actually signifies a "value" node
 			nodeVal := make([]byte, len(it.NodeBlob()))
 			copy(nodeVal, it.NodeBlob())
+			if len(watchedAddressesLeafPaths) > 0 {
+				var elements []interface{}
+				if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
+					return nil, err
+				}
+				ok, err := isLeaf(elements)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					nodePath := make([]byte, len(it.Path()))
+					copy(nodePath, it.Path())
+					partialPath := trie.CompactToHex(elements[0].([]byte))
+					valueNodePath := append(nodePath, partialPath...)
+					if !isWatchedAddress(watchedAddressesLeafPaths, valueNodePath) {
+						continue
+					}
+				}
+			}
 			nodeHash := make([]byte, len(it.Hash().Bytes()))
 			copy(nodeHash, it.Hash().Bytes())
 			if err := output(types2.IPLD{
@@ -225,9 +244,8 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 // reminder: it.Leaf() == true when the iterator is positioned at a "value node" which is not something that actually exists in an MMPT
 func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watchedAddressesLeafPaths [][]byte) (*types2.AccountWrapper, error) {
 	// skip if it is not a watched address
-	nodePath := make([]byte, len(it.Path()))
-	copy(nodePath, it.Path())
-	if !isWatchedAddress(watchedAddressesLeafPaths, nodePath) {
+	// If we aren't watching any specific addresses, we are watching everything
+	if len(watchedAddressesLeafPaths) > 0 && !isWatchedAddress(watchedAddressesLeafPaths, it.Path()) {
 		return nil, nil
 	}
 
@@ -584,11 +602,6 @@ func isValidPrefixPath(watchedAddressesLeafPaths [][]byte, currentPath []byte) b
 
 // isWatchedAddress is used to check if a state account corresponds to one of the addresses the builder is configured to watch
 func isWatchedAddress(watchedAddressesLeafPaths [][]byte, valueNodePath []byte) bool {
-	// If we aren't watching any specific addresses, we are watching everything
-	if len(watchedAddressesLeafPaths) == 0 {
-		return true
-	}
-
 	for _, watchedAddressPath := range watchedAddressesLeafPaths {
 		if bytes.Equal(watchedAddressPath, valueNodePath) {
 			return true
@@ -596,4 +609,26 @@ func isWatchedAddress(watchedAddressesLeafPaths [][]byte, valueNodePath []byte) 
 	}
 
 	return false
+}
+
+// isLeaf checks if the node we are at is a leaf
+func isLeaf(elements []interface{}) (bool, error) {
+	if len(elements) > 2 {
+		return false, nil
+	}
+	if len(elements) < 2 {
+		return false, fmt.Errorf("node cannot be less than two elements in length")
+	}
+	switch elements[0].([]byte)[0] / 16 {
+	case '\x00':
+		return false, nil
+	case '\x01':
+		return false, nil
+	case '\x02':
+		return true, nil
+	case '\x03':
+		return true, nil
+	default:
+		return false, fmt.Errorf("unknown hex prefix")
+	}
 }
