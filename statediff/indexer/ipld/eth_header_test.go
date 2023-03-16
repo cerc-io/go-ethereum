@@ -3,7 +3,7 @@ package ipld
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -495,7 +495,7 @@ func prepareStoredEthBlock(filepath string, t *testing.T) *block.BasicBlock {
 	fi, err := os.Open(filepath)
 	checkError(err, t)
 
-	b, err := ioutil.ReadAll(fi)
+	b, err := io.ReadAll(fi)
 	checkError(err, t)
 
 	c, err := RawdataToCid(MEthHeader, b, multihash.KECCAK_256)

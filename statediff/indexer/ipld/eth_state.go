@@ -19,13 +19,11 @@ package ipld
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ipfs/go-cid"
 	node "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multihash"
-
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // EthStateTrie (eth-state-trie, codec 0x96), represents
@@ -44,7 +42,7 @@ var _ node.Node = (*EthStateTrie)(nil)
 // FromStateTrieRLPFile takes the RLP representation of an ethereum
 // state trie node to return it as an IPLD node for further processing.
 func FromStateTrieRLPFile(r io.Reader) (*EthStateTrie, error) {
-	raw, err := ioutil.ReadAll(r)
+	raw, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
