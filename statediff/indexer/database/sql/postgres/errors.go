@@ -26,13 +26,13 @@ const (
 )
 
 func ErrDBConnectionFailed(connectErr error) error {
-	return formatError(DbConnectionFailedMsg, connectErr.Error())
+	return formatError(DbConnectionFailedMsg, connectErr)
 }
 
 func ErrUnableToSetNode(setErr error) error {
-	return formatError(SettingNodeFailedMsg, setErr.Error())
+	return formatError(SettingNodeFailedMsg, setErr)
 }
 
-func formatError(msg, err string) error {
-	return fmt.Errorf("%s: %s", msg, err)
+func formatError(msg string, err error) error {
+	return fmt.Errorf("%s: %w", msg, err)
 }

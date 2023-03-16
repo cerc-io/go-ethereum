@@ -35,12 +35,11 @@ type SQLXDriver struct {
 	nodeID   string
 }
 
-// NewSQLXDriver returns a new sqlx driver for Postgres
-// it initializes the connection pool and creates the node info table
-func NewSQLXDriver(ctx context.Context, config Config, node node.Info) (*SQLXDriver, error) {
+// ConnectSQLX initializes and returns a SQLX connection pool for postgres
+func ConnectSQLX(ctx context.Context, config Config) (*sqlx.DB, error) {
 	db, err := sqlx.ConnectContext(ctx, "postgres", config.DbConnectionString())
 	if err != nil {
-		return &SQLXDriver{}, ErrDBConnectionFailed(err)
+		return nil, ErrDBConnectionFailed(err)
 	}
 	if config.MaxConns > 0 {
 		db.SetMaxOpenConns(config.MaxConns)
@@ -49,9 +48,19 @@ func NewSQLXDriver(ctx context.Context, config Config, node node.Info) (*SQLXDri
 		db.SetConnMaxLifetime(config.MaxConnLifetime)
 	}
 	db.SetMaxIdleConns(config.MaxIdle)
+	return db, nil
+}
+
+// NewSQLXDriver returns a new sqlx driver for Postgres
+// it initializes the connection pool and creates the node info table
+func NewSQLXDriver(ctx context.Context, config Config, node node.Info) (*SQLXDriver, error) {
+	db, err := ConnectSQLX(ctx, config)
+	if err != nil {
+		return nil, err
+	}
 	driver := &SQLXDriver{ctx: ctx, db: db, nodeInfo: node}
 	if err := driver.createNode(); err != nil {
-		return &SQLXDriver{}, ErrUnableToSetNode(err)
+		return nil, err
 	}
 	return driver, nil
 }
