@@ -49,7 +49,7 @@ func ResolveDriverType(str string) (DriverType, error) {
 var DefaultConfig = Config{
 	Hostname:     "localhost",
 	Port:         8077,
-	DatabaseName: "vulcanize_testing",
+	DatabaseName: "cerc_testing",
 	Username:     "vdbm",
 	Password:     "password",
 }
