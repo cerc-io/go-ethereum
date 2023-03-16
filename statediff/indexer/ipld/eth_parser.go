@@ -21,15 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-
-	"github.com/ipfs/go-cid"
-	node "github.com/ipfs/go-ipld-format"
-	"github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ipfs/go-cid"
+	node "github.com/ipfs/go-ipld-format"
+	"github.com/multiformats/go-multihash"
 )
 
 // FromBlockRLP takes an RLP message representing
@@ -37,7 +35,7 @@ import (
 // to return it as a set of IPLD nodes for further processing.
 func FromBlockRLP(r io.Reader) (*EthHeader, []*EthTx, []*EthTxTrie, error) {
 	// We may want to use this stream several times
-	rawdata, err := ioutil.ReadAll(r)
+	rawdata, err := io.ReadAll(r)
 	if err != nil {
 		return nil, nil, nil, err
 	}

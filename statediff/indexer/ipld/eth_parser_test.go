@@ -17,7 +17,7 @@
 package ipld
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -63,7 +63,7 @@ func loadBlockData(t *testing.T) []testCase {
 	fileDir := "./eip2930_test_data"
 	testCases := make([]testCase, len(blockFileNames))
 	for i, blockFileName := range blockFileNames {
-		blockRLP, err := ioutil.ReadFile(filepath.Join(fileDir, blockFileName))
+		blockRLP, err := os.ReadFile(filepath.Join(fileDir, blockFileName))
 		if err != nil {
 			t.Fatalf("failed to load blockRLP from file, err %v", err)
 		}
@@ -72,7 +72,7 @@ func loadBlockData(t *testing.T) []testCase {
 			t.Fatalf("failed to decode blockRLP, err %v", err)
 		}
 		receiptsFileName := receiptsFileNames[i]
-		receiptsRLP, err := ioutil.ReadFile(filepath.Join(fileDir, receiptsFileName))
+		receiptsRLP, err := os.ReadFile(filepath.Join(fileDir, receiptsFileName))
 		if err != nil {
 			t.Fatalf("failed to load receiptsRLP from file, err %s", err)
 		}

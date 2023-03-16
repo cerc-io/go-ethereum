@@ -19,7 +19,7 @@ package statediff_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/big"
 	"os"
@@ -457,7 +457,7 @@ func loadBlockFromRLPFile(filename string) (*types.Block, []byte, error) {
 		return nil, nil, err
 	}
 	defer f.Close()
-	blockRLP, err := ioutil.ReadAll(f)
+	blockRLP, err := io.ReadAll(f)
 	if err != nil {
 		return nil, nil, err
 	}
