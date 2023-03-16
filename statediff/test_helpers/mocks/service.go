@@ -350,7 +350,7 @@ func (sds *MockStateDiffService) WatchAddress(operation sdtypes.OperationType, a
 	defer sds.writeLoopParams.Unlock()
 
 	// get the current block number
-	currentBlockNumber := sds.BlockChain.CurrentBlock().Number()
+	currentBlockNumber := sds.BlockChain.CurrentBlock().Number
 
 	switch operation {
 	case sdtypes.Add:
