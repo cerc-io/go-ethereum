@@ -1,0 +1,143 @@
+name: Tests for Geth that are used in multiple jobs.
+
+on:
+  workflow_call:
+
+env:
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'f2fd766f5400fcb9eb47b50675d2e3b1f2753702'}}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'be345e0733d2c025e4082c5154e441317ae94cf7' }}
+  GOPATH: /tmp/go
+
+jobs:
+  build:
+    name: Run docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run docker build
+        run: docker build -t cerc-io/go-ethereum .
+
+  geth-unit-test:
+    name: Run geth unit test
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: |
+          make test
+
+  statediff-unit-test:
+    name: Run state diff unit test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run docker compose
+        run: |
+          docker-compose up -d
+
+      - name: Give the migration a few seconds
+        run: sleep 30;
+
+      - name: Run unit tests
+        run: make statedifftest
+
+  private-network-test:
+    name: Start Geth in a private network.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+      - name: cerc mkdir
+        run: mkdir /home/runner/cerc
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - uses: actions/checkout@v3
+        with:
+          repository: cerc-io/ipld-eth-db
+          path: "./ipld-eth-db/"
+          ref: a4961e5e597148c0ff6dd7a34958bdf8c469a47e
+
+      - name: symlink for laconic-so
+        run: ln -sf /home/runner/work/go-ethereum/go-ethereum /home/runner/cerc/go-ethereum
+
+      - name: symlink for laconic-so
+        run: ln -sf /home/runner/work/go-ethereum/go-ethereum/ipld-eth-db /home/runner/cerc/ipld-eth-db
+
+      - name: Install stack orchestrator laconic-so
+        run: |
+          curl -L -o laconic-so https://github.com/cerc-io/stack-orchestrator/releases/latest/download/laconic-so
+          chmod +x laconic-so
+
+      - name: Checkout supporting repos in workspace
+        run: |
+          ./laconic-so setup-repositories --include cerc/ipld-eth-db
+
+      - name: Build containers from repos in workspace
+        run: |
+          ./laconic-so build-containers --include cerc/go-ethereum,cerc/go-ethereum-foundry,cerc/ipld-eth-db
+
+      - name: Start containers
+        run: |
+          docker compose -f docker-compose-cicd.yml up -d
+
+      - name: Make sure the /root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS exists within a certain time frame.
+        shell: bash
+        run: |
+          COUNT=0
+          ATTEMPTS=15
+          sleep 60
+          docker logs go-ethereum-go-ethereum-1
+          docker logs go-ethereum-ipld-eth-db-1
+          docker logs go-ethereum-migrations-1
+          docker compose -f docker-compose-cicd.yml exec go-ethereum ps aux
+          until $(docker compose -f docker-compose-cicd.yml cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
+          [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
+          cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
+          sleep 15;
+
+      - name: Create a new transaction.
+        shell: bash
+        run: |
+          docker compose -f docker-compose-cicd.yml exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
+          echo $?
+
+      - name: Make sure we see entries in the header table
+        shell: bash
+        run: |
+          rows=$(docker compose -f docker-compose-cicd.yml - exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
+          echo $rows
+          docker compose -f docker-compose-cicd.yml exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
+
+      - name: Stop containers
+        run: |
+          docker compose -f docker-compose-cicd.yml down

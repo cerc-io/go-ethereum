@@ -72,7 +72,7 @@ func NewSyncPath(path []byte) SyncPath {
 	if len(path) < 64 {
 		return SyncPath{hexToCompact(path)}
 	}
-	return SyncPath{hexToKeybytes(path[:64]), hexToCompact(path[64:])}
+	return SyncPath{hexToKeyBytes(path[:64]), hexToCompact(path[64:])}
 }
 
 // LeafCallback is a callback type invoked when a trie operation reaches a leaf
@@ -448,10 +448,10 @@ func (s *Sync) children(req *nodeRequest, object node) ([]*nodeRequest, error) {
 			if node, ok := (child.node).(valueNode); ok {
 				var paths [][]byte
 				if len(child.path) == 2*common.HashLength {
-					paths = append(paths, hexToKeybytes(child.path))
+					paths = append(paths, hexToKeyBytes(child.path))
 				} else if len(child.path) == 4*common.HashLength {
-					paths = append(paths, hexToKeybytes(child.path[:2*common.HashLength]))
-					paths = append(paths, hexToKeybytes(child.path[2*common.HashLength:]))
+					paths = append(paths, hexToKeyBytes(child.path[:2*common.HashLength]))
+					paths = append(paths, hexToKeyBytes(child.path[2*common.HashLength:]))
 				}
 				if err := req.callback(paths, child.path, node, req.hash, req.path); err != nil {
 					return nil, err
@@ -555,7 +555,7 @@ func (s *Sync) commitCodeRequest(req *codeRequest) error {
 func ResolvePath(path []byte) (common.Hash, []byte) {
 	var owner common.Hash
 	if len(path) >= 2*common.HashLength {
-		owner = common.BytesToHash(hexToKeybytes(path[:2*common.HashLength]))
+		owner = common.BytesToHash(hexToKeyBytes(path[:2*common.HashLength]))
 		path = path[2*common.HashLength:]
 	}
 	return owner, path
