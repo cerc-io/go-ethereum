@@ -39,7 +39,7 @@ type StateObject struct {
 // AccountMap is a mapping of hex encoded path => account wrapper
 type AccountMap map[string]AccountWrapper
 
-// AccountWrapper is used to temporary associate the unpacked node with its raw values
+// AccountWrapper is used to temporarily associate the unpacked node with its raw values
 type AccountWrapper struct {
 	Account *types.StateAccount
 	LeafKey []byte
