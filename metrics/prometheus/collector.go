@@ -82,6 +82,9 @@ func (c *collector) addTimer(name string, m metrics.Timer) {
 		c.writeSummaryPercentile(name, strconv.FormatFloat(pv[i], 'f', -1, 64), ps[i])
 	}
 	c.buff.WriteRune('\n')
+
+	c.buff.WriteString(fmt.Sprintf(typeGaugeTpl, mutateKey(name+"_total")))
+	c.buff.WriteString(fmt.Sprintf(keyValueTpl, mutateKey(name+"_total"), m.Total()))
 }
 
 func (c *collector) addResettingTimer(name string, m metrics.ResettingTimer) {
