@@ -27,20 +27,20 @@ type IPLDModel struct {
 
 // HeaderModel is the db model for eth.header_cids
 type HeaderModel struct {
-	BlockNumber     string   `db:"block_number"`
-	BlockHash       string   `db:"block_hash"`
-	ParentHash      string   `db:"parent_hash"`
-	CID             string   `db:"cid"`
-	TotalDifficulty string   `db:"td"`
-	NodeIDs         []string `db:"node_ids"`
-	Reward          string   `db:"reward"`
-	StateRoot       string   `db:"state_root"`
-	UnclesHash      string   `db:"uncles_hash"`
-	TxRoot          string   `db:"tx_root"`
-	RctRoot         string   `db:"receipt_root"`
-	Bloom           []byte   `db:"bloom"`
-	Timestamp       uint64   `db:"timestamp"`
-	Coinbase        string   `db:"coinbase"`
+	BlockNumber     string         `db:"block_number"`
+	BlockHash       string         `db:"block_hash"`
+	ParentHash      string         `db:"parent_hash"`
+	CID             string         `db:"cid"`
+	TotalDifficulty string         `db:"td"`
+	NodeIDs         pq.StringArray `db:"node_ids"`
+	Reward          string         `db:"reward"`
+	StateRoot       string         `db:"state_root"`
+	UnclesHash      string         `db:"uncles_hash"`
+	TxRoot          string         `db:"tx_root"`
+	RctRoot         string         `db:"receipt_root"`
+	Bloom           []byte         `db:"bloom"`
+	Timestamp       uint64         `db:"timestamp"`
+	Coinbase        string         `db:"coinbase"`
 }
 
 // UncleModel is the db model for eth.uncle_cids
@@ -65,15 +65,6 @@ type TxModel struct {
 	Src         string `db:"src"`
 	Type        uint8  `db:"tx_type"`
 	Value       string `db:"value"`
-}
-
-// AccessListElementModel is the db model for eth.access_list_entry
-type AccessListElementModel struct {
-	BlockNumber string         `db:"block_number"`
-	Index       int64          `db:"index"`
-	TxID        string         `db:"tx_id"`
-	Address     string         `db:"address"`
-	StorageKeys pq.StringArray `db:"storage_keys"`
 }
 
 // ReceiptModel is the db model for eth.receipt_cids

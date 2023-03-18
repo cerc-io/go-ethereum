@@ -19,6 +19,8 @@ package sql
 import (
 	"fmt"
 
+	"github.com/lib/pq"
+
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 )
 
@@ -40,13 +42,13 @@ func (w *Writer) Close() error {
 }
 
 /*
-INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
+INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (block_hash, block_number) DO NOTHING
 */
 func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertHeaderStm(),
-		header.BlockNumber, header.BlockHash, header.ParentHash, header.CID, header.TotalDifficulty, w.db.NodeID(),
+		header.BlockNumber, header.BlockHash, header.ParentHash, header.CID, header.TotalDifficulty, pq.StringArray([]string{w.db.NodeID()}),
 		header.Reward, header.StateRoot, header.TxRoot, header.RctRoot, header.UnclesHash, header.Bloom,
 		header.Timestamp, header.Coinbase)
 	if err != nil {

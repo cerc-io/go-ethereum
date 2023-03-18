@@ -28,7 +28,6 @@ import (
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-
 	"github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"

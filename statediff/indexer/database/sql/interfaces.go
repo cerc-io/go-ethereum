@@ -46,7 +46,6 @@ type Statements interface {
 	InsertHeaderStm() string
 	InsertUncleStm() string
 	InsertTxStm() string
-	InsertAccessListElementStm() string
 	InsertRctStm() string
 	InsertLogStm() string
 	InsertStateStm() string

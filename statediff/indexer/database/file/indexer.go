@@ -29,7 +29,7 @@ import (
 
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dshelp "github.com/ipfs/go-ipfs-ds-help"
-
+	"github.com/lib/pq"
 	"github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -238,7 +238,7 @@ func (sdi *StateDiffIndexer) processHeader(header *types.Header, headerNode ipld
 	}
 	headerID := header.Hash().String()
 	sdi.fileWriter.upsertHeaderCID(models.HeaderModel{
-		NodeIDs:         []string{sdi.nodeID},
+		NodeIDs:         pq.StringArray([]string{sdi.nodeID}),
 		CID:             headerNode.Cid().String(),
 		ParentHash:      header.ParentHash.String(),
 		BlockNumber:     header.Number.String(),

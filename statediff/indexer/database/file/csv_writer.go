@@ -250,7 +250,7 @@ func (csw *CSVWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []
 func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeIDs[0], header.Reward, header.StateRoot, header.TxRoot,
+		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase)
 	csw.rows <- tableRow{types.TableHeader, values}
 	indexerMetrics.blocks.Inc(1)

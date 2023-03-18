@@ -136,7 +136,7 @@ func (sqw *SQLWriter) flush() error {
 }
 
 const (
-	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_ids, client_name, chain_id) VALUES " +
+	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_id, client_name, chain_id) VALUES " +
 		"('%s', '%s', '%s', '%s', %d);\n"
 
 	ipldInsert = "INSERT INTO public.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
@@ -204,7 +204,7 @@ func (sqw *SQLWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []
 
 func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 	stmt := fmt.Sprintf(headerInsert, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeIDs[0], header.Reward, header.StateRoot, header.TxRoot,
+		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UnclesHash, header.Bloom, header.Timestamp, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
 	indexerMetrics.blocks.Inc(1)
@@ -219,12 +219,6 @@ func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(txInsert, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 		transaction.Src, transaction.Index, transaction.Type, transaction.Value))
 	indexerMetrics.transactions.Inc(1)
-}
-
-func (sqw *SQLWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(alInsert, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address,
-		formatPostgresStringArray(accessListElement.StorageKeys)))
-	indexerMetrics.accessListEntries.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
