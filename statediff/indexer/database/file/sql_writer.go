@@ -136,12 +136,12 @@ func (sqw *SQLWriter) flush() error {
 }
 
 const (
-	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_id, client_name, chain_id) VALUES " +
+	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_ids, client_name, chain_id) VALUES " +
 		"('%s', '%s', '%s', '%s', %d);\n"
 
 	ipldInsert = "INSERT INTO public.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
 
-	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, " +
+	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, " +
 		"state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase) VALUES " +
 		"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '\\x%x', %d, '%s');\n"
 
@@ -150,9 +150,6 @@ const (
 
 	txInsert = "INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, tx_type, " +
 		"value) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s');\n"
-
-	alInsert = "INSERT INTO eth.access_list_elements (block_number, tx_id, index, address, storage_keys) VALUES " +
-		"('%s', '%s', %d, '%s', '%s');\n"
 
 	rctInsert = "INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, contract_hash, post_state, " +
 		"post_status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d);\n"

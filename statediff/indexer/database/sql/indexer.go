@@ -347,24 +347,6 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 			return err
 		}
 
-		// index access list if this is one
-		for j, accessListElement := range trx.AccessList() {
-			storageKeys := make([]string, len(accessListElement.StorageKeys))
-			for k, storageKey := range accessListElement.StorageKeys {
-				storageKeys[k] = storageKey.Hex()
-			}
-			accessListElementModel := models.AccessListElementModel{
-				BlockNumber: args.blockNumber.String(),
-				TxID:        txID,
-				Index:       int64(j),
-				Address:     accessListElement.Address.Hex(),
-				StorageKeys: storageKeys,
-			}
-			if err := sdi.dbWriter.upsertAccessListElement(tx.dbtx, accessListElementModel); err != nil {
-				return err
-			}
-		}
-
 		// this is the contract address if this receipt is for a contract creation tx
 		contract := shared.HandleZeroAddr(receipt.ContractAddress)
 		var contractHash string

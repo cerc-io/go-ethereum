@@ -271,13 +271,6 @@ func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 	indexerMetrics.transactions.Inc(1)
 }
 
-func (csw *CSVWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
-	var values []interface{}
-	values = append(values, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address, accessListElement.StorageKeys)
-	csw.rows <- tableRow{types.TableAccessListElement, values}
-	indexerMetrics.accessListEntries.Inc(1)
-}
-
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	var values []interface{}
 	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.ContractHash,

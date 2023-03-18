@@ -61,12 +61,6 @@ func (db *DB) InsertTxStm() string {
 			ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING`
 }
 
-// InsertAccessListElementStm satisfies the sql.Statements interface
-func (db *DB) InsertAccessListElementStm() string {
-	return `INSERT INTO eth.access_list_elements (block_number, tx_id, index, address, storage_keys) VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (tx_id, index, block_number) DO NOTHING`
-}
-
 // InsertRctStm satisfies the sql.Statements interface
 func (db *DB) InsertRctStm() string {
 	return `INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

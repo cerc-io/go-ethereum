@@ -85,21 +85,6 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 }
 
 /*
-INSERT INTO eth.access_list_elements (block_number, tx_id, index, address, storage_keys) VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (tx_id, index, block_number) DO NOTHING
-*/
-func (w *Writer) upsertAccessListElement(tx Tx, accessListElement models.AccessListElementModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertAccessListElementStm(),
-		accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address,
-		accessListElement.StorageKeys)
-	if err != nil {
-		return insertError{"eth.access_list_elements", err, w.db.InsertAccessListElementStm(), accessListElement}
-	}
-	indexerMetrics.accessListEntries.Inc(1)
-	return nil
-}
-
-/*
 INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, contract_hash, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
