@@ -40,73 +40,67 @@ type DB struct {
 // Stm == Statement
 func (db *DB) InsertHeaderStm() string {
 	if db.upsert {
-		return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-			ON CONFLICT (block_hash, block_number) DO UPDATE SET (parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase) = ($3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, eth.header_cids.times_validated + 1, $16)`
+		return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			ON CONFLICT (block_hash, block_number) DO UPDATE SET (parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase) = ($3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 	}
-	return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+	return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 			ON CONFLICT (block_hash, block_number) DO NOTHING`
 }
 
 // InsertUncleStm satisfies the sql.Statements interface
 func (db *DB) InsertUncleStm() string {
-	return `INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key, index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	return `INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, index) VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (block_hash, block_number, index) DO NOTHING`
 }
 
 // InsertTxStm satisfies the sql.Statements interface
 func (db *DB) InsertTxStm() string {
-	return `INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, mh_key, tx_data, tx_type, value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	return `INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, tx_type, value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING`
 }
 
 // InsertRctStm satisfies the sql.Statements interface
 func (db *DB) InsertRctStm() string {
-	return `INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, post_status, log_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	return `INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (tx_id, header_id, block_number) DO NOTHING`
 }
 
 // InsertLogStm satisfies the sql.Statements interface
 func (db *DB) InsertLogStm() string {
-	return `INSERT INTO eth.log_cids (block_number, header_id, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, topic3, log_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	return `INSERT INTO eth.log_cids (block_number, header_id, cid, rct_id, address, index, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			ON CONFLICT (rct_id, index, header_id, block_number) DO NOTHING`
 }
 
 // InsertStateStm satisfies the sql.Statements interface
 func (db *DB) InsertStateStm() string {
 	if db.upsert {
-		return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (header_id, state_path, block_number) DO UPDATE SET (block_number, state_leaf_key, cid, node_type, diff, mh_key) = ($1, $3, $4, $6, $7, $8)`
+		return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			ON CONFLICT (header_id, state_leaf_key, block_number) DO UPDATE SET (cid, removed, diff, balance, nonce, code_hash, storage_root) = ($4, $5, $6, $7, $8, $9, $10)`
 	}
-	return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (header_id, state_path, block_number) DO NOTHING`
-}
-
-// InsertAccountStm satisfies the sql.Statements interface
-func (db *DB) InsertAccountStm() string {
-	return `INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (header_id, state_path, block_number) DO NOTHING`
+	return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING`
 }
 
 // InsertStorageStm satisfies the sql.Statements interface
 func (db *DB) InsertStorageStm() string {
 	if db.upsert {
-		return `INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			ON CONFLICT (header_id, state_path, storage_path, block_number) DO UPDATE SET (block_number, storage_leaf_key, cid, node_type, diff, mh_key) = ($1, $4, $5, $7, $8, $9)`
+		return `INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO UPDATE SET (cid, removed, diff, val) = ($4, $5, $6, $7, $8)`
 	}
-	return `INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, node_type, diff, mh_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			ON CONFLICT (header_id, state_path, storage_path, block_number) DO NOTHING`
+	return `INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHING`
 }
 
 // InsertIPLDStm satisfies the sql.Statements interface
 func (db *DB) InsertIPLDStm() string {
-	return `INSERT INTO public.blocks (block_number, key, data) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
+	return `INSERT INTO ipld.blocks (block_number, key, data) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
 }
 
 // InsertIPLDsStm satisfies the sql.Statements interface
 func (db *DB) InsertIPLDsStm() string {
-	return `INSERT INTO public.blocks (block_number, key, data) VALUES (unnest($1::BIGINT[]), unnest($2::TEXT[]), unnest($3::BYTEA[])) ON CONFLICT DO NOTHING`
+	return `INSERT INTO ipld.blocks (block_number, key, data) VALUES (unnest($1::BIGINT[]), unnest($2::TEXT[]), unnest($3::BYTEA[])) ON CONFLICT DO NOTHING`
 }
 
 // InsertKnownGapsStm satisfies the sql.Statements interface

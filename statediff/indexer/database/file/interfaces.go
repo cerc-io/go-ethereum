@@ -48,7 +48,6 @@ type FileWriter interface {
 	// Methods to upsert IPLD in different ways
 	upsertIPLDDirect(blockNumber, key string, value []byte)
 	upsertIPLDNode(blockNumber string, i ipld.IPLD)
-	upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error)
 
 	// Methods to read and write watched addresses
 	loadWatchedAddresses() ([]common.Address, error)

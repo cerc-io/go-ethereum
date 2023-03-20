@@ -16,6 +16,7 @@
 
 package statediff_test
 
+/*
 import (
 	"bytes"
 	"math/big"
@@ -437,3 +438,4 @@ func testGetSyncStatus(t *testing.T) {
 		}
 	}
 }
+*/

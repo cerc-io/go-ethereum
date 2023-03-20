@@ -22,13 +22,15 @@ import (
 	"crypto/rand"
 	"math/big"
 
+	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"github.com/ethereum/go-ethereum/statediff/test_helpers"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 	"github.com/ethereum/go-ethereum/trie"
@@ -137,17 +139,6 @@ var (
 		Address:     AnotherAddress,
 		StorageKeys: []common.Hash{common.BytesToHash(StorageLeafKey), common.BytesToHash(MockStorageLeafKey)},
 	}
-	AccessListEntry1Model = models.AccessListElementModel{
-		BlockNumber: BlockNumber.String(),
-		Index:       0,
-		Address:     Address.Hex(),
-	}
-	AccessListEntry2Model = models.AccessListElementModel{
-		BlockNumber: BlockNumber.String(),
-		Index:       1,
-		Address:     AnotherAddress.Hex(),
-		StorageKeys: []string{common.BytesToHash(StorageLeafKey).Hex(), common.BytesToHash(MockStorageLeafKey).Hex()},
-	}
 
 	// statediff data
 	storageLocation     = common.HexToHash("0")
@@ -160,22 +151,26 @@ var (
 		StoragePartialPath,
 		StorageValue,
 	})
+	StorageLeafNodeCID = ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(StorageLeafNode)).String()
 
-	nonce1             = uint64(1)
-	ContractRoot       = "0x821e2556a290c86405f8160a2d662042a431ba456b9db265c79bb837c04be5f0"
-	ContractCodeHash   = common.HexToHash("0x753f98a8d4328b15636e46f66f2cb4bc860100aa17967cc145fcd17d1d4710ea")
-	ContractLeafKey    = test_helpers.AddressToLeafKey(ContractAddress)
-	ContractAccount, _ = rlp.EncodeToBytes(&types.StateAccount{
+	nonce1           = uint64(1)
+	ContractRoot     = "0x821e2556a290c86405f8160a2d662042a431ba456b9db265c79bb837c04be5f0"
+	ContractCodeHash = common.HexToHash("0x753f98a8d4328b15636e46f66f2cb4bc860100aa17967cc145fcd17d1d4710ea")
+	ContractLeafKey  = test_helpers.AddressToLeafKey(ContractAddress)
+	ContractAccount  = &types.StateAccount{
 		Nonce:    nonce1,
 		Balance:  big.NewInt(0),
 		CodeHash: ContractCodeHash.Bytes(),
 		Root:     common.HexToHash(ContractRoot),
-	})
+	}
+	ContractAccountRLP, _ = rlp.EncodeToBytes(ContractAccount)
+
 	ContractPartialPath = common.Hex2Bytes("3114658a74d9cc9f7acf2c5cd696c3494d7c344d78bfec3add0d91ec4e8d1c45")
 	ContractLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
 		ContractPartialPath,
 		ContractAccount,
 	})
+	ContractLeafNodeCID = ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(ContractLeafNode)).String()
 
 	Contract2LeafKey = test_helpers.AddressToLeafKey(ContractAddress2)
 	storage2Location = common.HexToHash("2")
@@ -188,71 +183,104 @@ var (
 	AccountCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 	AccountLeafKey  = test_helpers.Account2LeafKey
 	RemovedLeafKey  = test_helpers.Account1LeafKey
-	Account, _      = rlp.EncodeToBytes(&types.StateAccount{
+	Account         = &types.StateAccount{
 		Nonce:    nonce0,
 		Balance:  big.NewInt(1000),
 		CodeHash: AccountCodeHash.Bytes(),
 		Root:     common.HexToHash(AccountRoot),
-	})
+	}
+	AccountRLP, _      = rlp.EncodeToBytes(Account)
 	AccountPartialPath = common.Hex2Bytes("3957f3e2f04a0764c3a0491b175f69926da61efbcc8f61fa1455fd2d2b4cdd45")
 	AccountLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
 		AccountPartialPath,
 		Account,
 	})
+	AccountLeafNodeCID = ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(AccountLeafNode)).String()
 
-	StateDiffs = []sdtypes.StateNode{
+	StateDiffs = []sdtypes.StateLeafNode{
 		{
-			Path:      []byte{'\x06'},
-			NodeType:  sdtypes.Leaf,
-			LeafKey:   ContractLeafKey,
-			NodeValue: ContractLeafNode,
-			StorageNodes: []sdtypes.StorageNode{
+			AccountWrapper: sdtypes.AccountWrapper{
+				Account: ContractAccount,
+				LeafKey: ContractLeafKey,
+				CID:     ContractLeafNodeCID,
+			},
+			Removed: false,
+			StorageDiff: []sdtypes.StorageLeafNode{
 				{
-					Path:      []byte{},
-					NodeType:  sdtypes.Leaf,
-					LeafKey:   StorageLeafKey,
-					NodeValue: StorageLeafNode,
+					Removed: false,
+					LeafKey: StorageLeafKey,
+					Value:   StorageValue,
+					CID:     StorageLeafNodeCID,
 				},
 				{
-					Path:      []byte{'\x03'},
-					NodeType:  sdtypes.Removed,
-					LeafKey:   RemovedLeafKey,
-					NodeValue: []byte{},
+					Removed: true,
+					LeafKey: RemovedLeafKey,
+					CID:     shared.RemovedNodeStorageCID,
 				},
 			},
 		},
 		{
-			Path:         []byte{'\x0c'},
-			NodeType:     sdtypes.Leaf,
-			LeafKey:      AccountLeafKey,
-			NodeValue:    AccountLeafNode,
-			StorageNodes: []sdtypes.StorageNode{},
+			AccountWrapper: sdtypes.AccountWrapper{
+				Account: Account,
+				LeafKey: AccountLeafKey,
+				CID:     AccountLeafNodeCID,
+			},
+			Removed:     false,
+			StorageDiff: []sdtypes.StorageLeafNode{},
 		},
 		{
-			Path:      []byte{'\x02'},
-			NodeType:  sdtypes.Removed,
-			LeafKey:   RemovedLeafKey,
-			NodeValue: []byte{},
+			AccountWrapper: sdtypes.AccountWrapper{
+				Account: nil,
+				LeafKey: RemovedLeafKey,
+				CID:     shared.RemovedNodeStateCID,
+			},
+			Removed:     true,
+			StorageDiff: []sdtypes.StorageLeafNode{},
 		},
 		{
-			Path:      []byte{'\x07'},
-			NodeType:  sdtypes.Removed,
-			LeafKey:   Contract2LeafKey,
-			NodeValue: []byte{},
-			StorageNodes: []sdtypes.StorageNode{
+			AccountWrapper: sdtypes.AccountWrapper{
+				Account: nil,
+				LeafKey: Contract2LeafKey,
+				CID:     shared.RemovedNodeStateCID,
+			},
+			Removed: true,
+			StorageDiff: []sdtypes.StorageLeafNode{
 				{
-					Path:      []byte{'\x0e'},
-					NodeType:  sdtypes.Removed,
-					LeafKey:   Storage2LeafKey,
-					NodeValue: []byte{},
+					Removed: true,
+					CID:     shared.RemovedNodeStorageCID,
+					LeafKey: Storage2LeafKey,
+					Value:   []byte{},
 				},
 				{
-					Path:      []byte{'\x0f'},
-					NodeType:  sdtypes.Removed,
-					LeafKey:   Storage3LeafKey,
-					NodeValue: []byte{},
+					Removed: true,
+					CID:     shared.RemovedNodeStorageCID,
+					LeafKey: Storage3LeafKey,
+					Value:   []byte{},
 				},
 			},
+		},
+	}
+
+	IPLDs = []sdtypes.IPLD{
+		{
+			CID:     ContractLeafNodeCID,
+			Content: ContractLeafNode,
+		},
+		{
+			CID:     StorageLeafNodeCID,
+			Content: StorageLeafNode,
+		},
+		{
+			CID:     shared.RemovedNodeStorageCID,
+			Content: []byte{},
+		},
+		{
+			CID:     AccountLeafNodeCID,
+			Content: AccountLeafNode,
+		},
+		{
+			CID:     shared.RemovedNodeStateCID,
+			Content: []byte{},
 		},
 	}
 
@@ -296,7 +324,7 @@ type LegacyData struct {
 	ContractLeafNode     []byte
 	AccountRoot          string
 	AccountLeafNode      []byte
-	StateDiffs           []sdtypes.StateNode
+	StateDiffs           []sdtypes.StateLeafNode
 }
 
 func NewLegacyData(config *params.ChainConfig) *LegacyData {
@@ -336,7 +364,7 @@ func NewLegacyData(config *params.ChainConfig) *LegacyData {
 		MockStorageLeafKey:   MockStorageLeafKey,
 		StorageLeafNode:      StorageLeafNode,
 		ContractLeafKey:      ContractLeafKey,
-		ContractAccount:      ContractAccount,
+		ContractAccount:      ContractAccountRLP,
 		ContractPartialPath:  ContractPartialPath,
 		ContractLeafNode:     ContractLeafNode,
 		AccountRoot:          AccountRoot,

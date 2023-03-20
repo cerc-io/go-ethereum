@@ -23,9 +23,6 @@ import (
 	"math/big"
 	"time"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
-
 	"github.com/multiformats/go-multihash"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -213,8 +210,7 @@ func (sdi *StateDiffIndexer) processUncles(tx *BatchTx, headerID string, blockNu
 	if err != nil {
 		return err
 	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(unclesCID.Hash()).String()
-	tx.cacheDirect(prefixedKey, uncleEncoding)
+	tx.cacheDirect(unclesCID.String(), uncleEncoding)
 	for i, uncle := range uncles {
 		var uncleReward *big.Int
 		// in PoA networks uncle reward is 0
@@ -290,19 +286,14 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 
 		// this is the contract address if this receipt is for a contract creation tx
 		contract := shared.HandleZeroAddr(receipt.ContractAddress)
-		var contractHash string
-		if contract != "" {
-			contractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
-		}
 
 		// index the receipt
 		rctModel := &models.ReceiptModel{
-			BlockNumber:  args.blockNumber.String(),
-			HeaderID:     args.headerID,
-			TxID:         trxID,
-			Contract:     contract,
-			ContractHash: contractHash,
-			CID:          args.rctNodes[i].Cid().String(),
+			BlockNumber: args.blockNumber.String(),
+			HeaderID:    args.headerID,
+			TxID:        trxID,
+			Contract:    contract,
+			CID:         args.rctNodes[i].Cid().String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -353,7 +344,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 	var stateModel models.StateNodeModel
 	if stateNode.Removed {
 		// short circuit if it is a Removed node
-		// this assumes the db has been initialized and a public.blocks entry for the Removed node is present
+		// this assumes the db has been initialized and a ipld.blocks entry for the Removed node is present
 		stateModel = models.StateNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
@@ -370,7 +361,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Removed:     false,
 			Balance:     stateNode.AccountWrapper.Account.Balance.String(),
 			Nonce:       stateNode.AccountWrapper.Account.Nonce,
-			CodeHash:    stateNode.AccountWrapper.Account.CodeHash,
+			CodeHash:    common.BytesToHash(stateNode.AccountWrapper.Account.CodeHash).String(),
 			StorageRoot: stateNode.AccountWrapper.Account.Root.String(),
 		}
 	}
@@ -384,11 +375,11 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 	for _, storageNode := range stateNode.StorageDiff {
 		if storageNode.Removed {
 			// short circuit if it is a Removed node
-			// this assumes the db has been initialized and a public.blocks entry for the Removed node is present
+			// this assumes the db has been initialized and a ipld.blocks entry for the Removed node is present
 			storageModel := models.StorageNodeModel{
 				BlockNumber: tx.BlockNumber,
 				HeaderID:    headerID,
-				StateKey:    stateNode.AccountWrapper.LeafKey,
+				StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).String(),
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
 				Removed:     true,
@@ -401,7 +392,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		storageModel := models.StorageNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
-			StateKey:    stateNode.AccountWrapper.LeafKey,
+			StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).String(),
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageNode.CID,
 			Removed:     false,

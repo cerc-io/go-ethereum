@@ -23,8 +23,6 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-cid"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -56,6 +54,10 @@ func SetupTestData(t *testing.T, ind interfaces.StateDiffIndexer) {
 	}()
 	for _, node := range mocks.StateDiffs {
 		err = ind.PushStateNode(tx, node, mockBlock.Hash().String())
+		require.NoError(t, err)
+	}
+	for _, node := range mocks.IPLDs {
+		err = ind.PushIPLD(tx, node)
 		require.NoError(t, err)
 	}
 
@@ -96,10 +98,8 @@ func TestPublishAndIndexHeaderIPLDs(t *testing.T, db sql.Database) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mhKey := dshelp.MultihashToDsKey(dc.Hash())
-	prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
 	var data []byte
-	err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+	err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,10 +132,8 @@ func TestPublishAndIndexTransactionIPLDs(t *testing.T, db sql.Database) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mhKey := dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
 		var data []byte
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -193,30 +191,6 @@ func TestPublishAndIndexTransactionIPLDs(t *testing.T, db sql.Database) {
 			if txRes.Value != transactions[3].Value().String() {
 				t.Fatalf("expected tx value %s got %s", transactions[3].Value().String(), txRes.Value)
 			}
-			accessListElementModels := make([]models.AccessListElementModel, 0)
-			pgStr = "SELECT cast(access_list_elements.block_number AS TEXT), access_list_elements.index, access_list_elements.tx_id, " +
-				"access_list_elements.address, access_list_elements.storage_keys FROM eth.access_list_elements " +
-				"INNER JOIN eth.transaction_cids ON (tx_id = transaction_cids.tx_hash) WHERE cid = $1 ORDER BY access_list_elements.index ASC"
-			err = db.Select(context.Background(), &accessListElementModels, pgStr, c)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(accessListElementModels) != 2 {
-				t.Fatalf("expected two access list entries, got %d", len(accessListElementModels))
-			}
-			model1 := models.AccessListElementModel{
-				BlockNumber: mocks.BlockNumber.String(),
-				Index:       accessListElementModels[0].Index,
-				Address:     accessListElementModels[0].Address,
-			}
-			model2 := models.AccessListElementModel{
-				BlockNumber: mocks.BlockNumber.String(),
-				Index:       accessListElementModels[1].Index,
-				Address:     accessListElementModels[1].Address,
-				StorageKeys: accessListElementModels[1].StorageKeys,
-			}
-			require.Equal(t, mocks.AccessListEntry1Model, model1)
-			require.Equal(t, mocks.AccessListEntry2Model, model2)
 		case trx5CID.String():
 			require.Equal(t, tx5, data)
 			txRes := new(txResult)
@@ -236,15 +210,15 @@ func TestPublishAndIndexTransactionIPLDs(t *testing.T, db sql.Database) {
 
 func TestPublishAndIndexLogIPLDs(t *testing.T, db sql.Database) {
 	rcts := make([]string, 0)
-	rctsPgStr := `SELECT receipt_cids.leaf_cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
+	rctsPgStr := `SELECT receipt_cids.cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
 			WHERE receipt_cids.tx_id = transaction_cids.tx_hash
 			AND transaction_cids.header_id = header_cids.block_hash
 			AND header_cids.block_number = $1
 			ORDER BY transaction_cids.index`
-	logsPgStr := `SELECT log_cids.index, log_cids.address, log_cids.topic0, log_cids.topic1, data FROM eth.log_cids
+	logsPgStr := `SELECT log_cids.index, log_cids.address, blocks.data, log_cids.topic0, log_cids.topic1 FROM eth.log_cids
 				INNER JOIN eth.receipt_cids ON (log_cids.rct_id = receipt_cids.tx_id)
-				INNER JOIN public.blocks ON (log_cids.leaf_mh_key = blocks.key)
-				WHERE receipt_cids.leaf_cid = $1 ORDER BY eth.log_cids.index ASC`
+				INNER JOIN ipld.blocks ON (log_cids.cid = blocks.key)
+				WHERE receipt_cids.cid = $1 ORDER BY eth.log_cids.index ASC`
 	err = db.Select(context.Background(), &rcts, rctsPgStr, mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
@@ -268,22 +242,10 @@ func TestPublishAndIndexLogIPLDs(t *testing.T, db sql.Database) {
 		expectedLogs := mocks.MockReceipts[i].Logs
 		require.Equal(t, len(expectedLogs), len(results))
 
-		var nodeElements []interface{}
 		for idx, r := range results {
-			// Attempt to decode the log leaf node.
-			err = rlp.DecodeBytes(r.Data, &nodeElements)
+			logRaw, err := rlp.EncodeToBytes(&expectedLogs[idx])
 			require.NoError(t, err)
-			if len(nodeElements) == 2 {
-				logRaw, err := rlp.EncodeToBytes(&expectedLogs[idx])
-				require.NoError(t, err)
-				// 2nd element of the leaf node contains the encoded log data.
-				require.Equal(t, nodeElements[1].([]byte), logRaw)
-			} else {
-				logRaw, err := rlp.EncodeToBytes(&expectedLogs[idx])
-				require.NoError(t, err)
-				// raw log was IPLDized
-				require.Equal(t, r.Data, logRaw)
-			}
+			require.Equal(t, r.Data, logRaw)
 		}
 	}
 }
@@ -291,7 +253,7 @@ func TestPublishAndIndexLogIPLDs(t *testing.T, db sql.Database) {
 func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 	// check receipts were properly indexed and published
 	rcts := make([]string, 0)
-	pgStr := `SELECT receipt_cids.leaf_cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
+	pgStr := `SELECT receipt_cids.cid FROM eth.receipt_cids, eth.transaction_cids, eth.header_cids
 				WHERE receipt_cids.tx_id = transaction_cids.tx_hash
 				AND transaction_cids.header_id = header_cids.block_hash
 				AND header_cids.block_number = $1 order by transaction_cids.index`
@@ -309,49 +271,41 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 	for idx, c := range rcts {
 		result := make([]models.IPLDModel, 0)
 		pgStr = `SELECT data
-					FROM eth.receipt_cids
-					INNER JOIN public.blocks ON (receipt_cids.leaf_mh_key = public.blocks.key)
-					WHERE receipt_cids.leaf_cid = $1`
+					FROM ipld.blocks
+					WHERE ipld.blocks.key = $1`
 		err = db.Select(context.Background(), &result, pgStr, c)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// Decode the receipt leaf node.
-		var nodeElements []interface{}
-		err = rlp.DecodeBytes(result[0].Data, &nodeElements)
-		require.NoError(t, err)
-
 		expectedRct, err := mocks.MockReceipts[idx].MarshalBinary()
 		require.NoError(t, err)
 
-		require.Equal(t, nodeElements[1].([]byte), expectedRct)
+		require.Equal(t, result[0].Data, expectedRct)
 
 		dc, err := cid.Decode(c)
 		if err != nil {
 			t.Fatal(err)
 		}
-		mhKey := dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
 		var data []byte
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		postStatePgStr := `SELECT post_state FROM eth.receipt_cids WHERE leaf_cid = $1`
+		postStatePgStr := `SELECT post_state FROM eth.receipt_cids WHERE cid = $1`
 		switch c {
 		case rct1CID.String():
-			require.Equal(t, rctLeaf1, data)
+			require.Equal(t, rct1, data)
 			var postStatus uint64
-			pgStr = `SELECT post_status FROM eth.receipt_cids WHERE leaf_cid = $1`
+			pgStr = `SELECT post_status FROM eth.receipt_cids WHERE cid = $1`
 			err = db.Get(context.Background(), &postStatus, pgStr, c)
 			if err != nil {
 				t.Fatal(err)
 			}
 			require.Equal(t, mocks.ExpectedPostStatus, postStatus)
 		case rct2CID.String():
-			require.Equal(t, rctLeaf2, data)
+			require.Equal(t, rct2, data)
 			var postState string
 			err = db.Get(context.Background(), &postState, postStatePgStr, c)
 			if err != nil {
@@ -359,7 +313,7 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 			}
 			require.Equal(t, mocks.ExpectedPostState1, postState)
 		case rct3CID.String():
-			require.Equal(t, rctLeaf3, data)
+			require.Equal(t, rct3, data)
 			var postState string
 			err = db.Get(context.Background(), &postState, postStatePgStr, c)
 			if err != nil {
@@ -367,7 +321,7 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 			}
 			require.Equal(t, mocks.ExpectedPostState2, postState)
 		case rct4CID.String():
-			require.Equal(t, rctLeaf4, data)
+			require.Equal(t, rct4, data)
 			var postState string
 			err = db.Get(context.Background(), &postState, postStatePgStr, c)
 			if err != nil {
@@ -375,7 +329,7 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 			}
 			require.Equal(t, mocks.ExpectedPostState3, postState)
 		case rct5CID.String():
-			require.Equal(t, rctLeaf5, data)
+			require.Equal(t, rct5, data)
 			var postState string
 			err = db.Get(context.Background(), &postState, postStatePgStr, c)
 			if err != nil {
@@ -389,9 +343,11 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 	// check that state nodes were properly indexed and published
 	stateNodes := make([]models.StateNodeModel, 0)
-	pgStr := `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
-				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
-				WHERE header_cids.block_number = $1 AND node_type != 3`
+	pgStr := `SELECT state_cids.cid, state_cids.block_number, state_cids.state_leaf_key, state_cids.removed,
+				state_cids.header_id, state_cids.balance, state_cids.nonce, state_cids.code_hash, state_cids.storage_root
+				FROM eth.state_cids
+				WHERE block_number = $1
+				AND removed = false`
 	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
@@ -403,56 +359,41 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mhKey := dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
-		if err != nil {
-			t.Fatal(err)
-		}
-		pgStr = `SELECT cast(block_number AS TEXT), header_id, state_path, cast(balance AS TEXT), nonce, code_hash, storage_root from eth.state_accounts WHERE header_id = $1 AND state_path = $2`
-		var account models.StateAccountModel
-		err = db.Get(context.Background(), &account, pgStr, stateNode.HeaderID, stateNode.Path)
+		err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
 		if stateNode.CID == state1CID.String() {
-			require.Equal(t, 2, stateNode.NodeType)
+			require.Equal(t, false, stateNode.Removed)
 			require.Equal(t, common.BytesToHash(mocks.ContractLeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x06'}, stateNode.Path)
 			require.Equal(t, mocks.ContractLeafNode, data)
-			require.Equal(t, models.StateAccountModel{
-				BlockNumber: mocks.BlockNumber.String(),
-				HeaderID:    account.HeaderID,
-				StatePath:   stateNode.Path,
-				Balance:     "0",
-				CodeHash:    mocks.ContractCodeHash.Bytes(),
-				StorageRoot: mocks.ContractRoot,
-				Nonce:       1,
-			}, account)
+			require.Equal(t, mocks.BlockNumber.String(), stateNode.BlockNumber)
+			require.Equal(t, "0", stateNode.Balance)
+			require.Equal(t, mocks.ContractCodeHash.String(), stateNode.CodeHash)
+			require.Equal(t, mocks.ContractRoot, stateNode.StorageRoot)
+			require.Equal(t, uint64(1), stateNode.Nonce)
+			require.Equal(t, mockBlock.Hash().String(), stateNode.HeaderID)
 		}
 		if stateNode.CID == state2CID.String() {
-			require.Equal(t, 2, stateNode.NodeType)
+			require.Equal(t, false, stateNode.Removed)
 			require.Equal(t, common.BytesToHash(mocks.AccountLeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x0c'}, stateNode.Path)
 			require.Equal(t, mocks.AccountLeafNode, data)
-			require.Equal(t, models.StateAccountModel{
-				BlockNumber: mocks.BlockNumber.String(),
-				HeaderID:    account.HeaderID,
-				StatePath:   stateNode.Path,
-				Balance:     "1000",
-				CodeHash:    mocks.AccountCodeHash.Bytes(),
-				StorageRoot: mocks.AccountRoot,
-				Nonce:       0,
-			}, account)
+			require.Equal(t, mocks.BlockNumber.String(), stateNode.BlockNumber)
+			require.Equal(t, "1000", stateNode.Balance)
+			require.Equal(t, mocks.AccountCodeHash.String(), stateNode.CodeHash)
+			require.Equal(t, mocks.AccountRoot, stateNode.StorageRoot)
+			require.Equal(t, uint64(0), stateNode.Nonce)
+			require.Equal(t, mockBlock.Hash().String(), stateNode.HeaderID)
 		}
 	}
 
 	// check that Removed state nodes were properly indexed and published
 	stateNodes = make([]models.StateNodeModel, 0)
-	pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.node_type, state_cids.state_path, state_cids.header_id
+	pgStr = `SELECT state_cids.cid, state_cids.state_leaf_key, state_cids.removed, state_cids.header_id,
+				state_cids.nonce, CAST(state_cids.balance as TEXT), state_cids.code_hash, state_cids.storage_root
 				FROM eth.state_cids INNER JOIN eth.header_cids ON (state_cids.header_id = header_cids.block_hash)
-				WHERE header_cids.block_number = $1 AND node_type = 3
-				ORDER BY state_path`
+				WHERE header_cids.block_number = $1 AND removed = true
+				ORDER BY state_leaf_key`
 	err = db.Select(context.Background(), &stateNodes, pgStr, mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
@@ -464,103 +405,114 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mhKey := dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
-		require.Equal(t, shared.RemovedNodeMhKey, prefixedKey)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		require.Equal(t, shared.RemovedNodeStateCID, dc.String())
+		err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if idx == 0 {
+		if idx == 1 { // TODO: ordering is non-deterministic
 			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
 			require.Equal(t, common.BytesToHash(mocks.RemovedLeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x02'}, stateNode.Path)
+			require.Equal(t, true, stateNode.Removed)
 			require.Equal(t, []byte{}, data)
 		}
-		if idx == 1 {
+		if idx == 0 {
 			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
 			require.Equal(t, common.BytesToHash(mocks.Contract2LeafKey).Hex(), stateNode.StateKey)
-			require.Equal(t, []byte{'\x07'}, stateNode.Path)
+			require.Equal(t, true, stateNode.Removed)
 			require.Equal(t, []byte{}, data)
 		}
 	}
 }
 
+/*
+type StorageNodeModel struct {
+	BlockNumber string `db:"block_number"`
+	HeaderID    string `db:"header_id"`
+	StateKey    []byte `db:"state_leaf_key"`
+	StorageKey  string `db:"storage_leaf_key"`
+	Removed     bool   `db:"removed"`
+	CID         string `db:"cid"`
+	Diff        bool   `db:"diff"`
+	Value       []byte `db:"val"`
+}
+*/
+
 func TestPublishAndIndexStorageIPLDs(t *testing.T, db sql.Database) {
 	// check that storage nodes were properly indexed
-	storageNodes := make([]models.StorageNodeWithStateKeyModel, 0)
-	pgStr := `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, storage_cids.storage_path
-				FROM eth.storage_cids, eth.state_cids, eth.header_cids
-				WHERE (storage_cids.state_path, storage_cids.header_id) = (state_cids.state_path, state_cids.header_id)
-				AND state_cids.header_id = header_cids.block_hash
-				AND header_cids.block_number = $1
-				AND storage_cids.node_type != 3
-				ORDER BY storage_path`
+	storageNodes := make([]models.StorageNodeModel, 0)
+	pgStr := `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.header_id, storage_cids.cid,
+				storage_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.removed, storage_cids.val
+				FROM eth.storage_cids
+				WHERE storage_cids.block_number = $1
+				AND storage_cids.removed = false
+				ORDER BY storage_leaf_key`
 	err = db.Select(context.Background(), &storageNodes, pgStr, mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 	require.Equal(t, 1, len(storageNodes))
-	require.Equal(t, models.StorageNodeWithStateKeyModel{
+	require.Equal(t, models.StorageNodeModel{
 		BlockNumber: mocks.BlockNumber.String(),
+		HeaderID:    mockBlock.Header().Hash().Hex(),
 		CID:         storageCID.String(),
-		NodeType:    2,
+		Removed:     false,
 		StorageKey:  common.BytesToHash(mocks.StorageLeafKey).Hex(),
 		StateKey:    common.BytesToHash(mocks.ContractLeafKey).Hex(),
-		Path:        []byte{},
+		Value:       mocks.StorageValue,
 	}, storageNodes[0])
 	var data []byte
 	dc, err := cid.Decode(storageNodes[0].CID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mhKey := dshelp.MultihashToDsKey(dc.Hash())
-	prefixedKey := blockstore.BlockPrefix.String() + mhKey.String()
-	err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+	err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 	require.Equal(t, mocks.StorageLeafNode, data)
 
 	// check that Removed storage nodes were properly indexed
-	storageNodes = make([]models.StorageNodeWithStateKeyModel, 0)
-	pgStr = `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.cid, state_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.node_type, storage_cids.storage_path
-				FROM eth.storage_cids, eth.state_cids, eth.header_cids
-				WHERE (storage_cids.state_path, storage_cids.header_id) = (state_cids.state_path, state_cids.header_id)
-				AND state_cids.header_id = header_cids.block_hash
-				AND header_cids.block_number = $1
-				AND storage_cids.node_type = 3
-				ORDER BY storage_path`
+	storageNodes = make([]models.StorageNodeModel, 0)
+	pgStr = `SELECT cast(storage_cids.block_number AS TEXT), storage_cids.header_id, storage_cids.cid,
+				storage_cids.state_leaf_key, storage_cids.storage_leaf_key, storage_cids.removed, storage_cids.val
+				FROM eth.storage_cids
+				WHERE storage_cids.block_number = $1
+				AND storage_cids.removed = true
+				ORDER BY storage_leaf_key`
 	err = db.Select(context.Background(), &storageNodes, pgStr, mocks.BlockNumber.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 	require.Equal(t, 3, len(storageNodes))
-	expectedStorageNodes := []models.StorageNodeWithStateKeyModel{
+	expectedStorageNodes := []models.StorageNodeModel{ // TODO: ordering is non-deterministic
 		{
 			BlockNumber: mocks.BlockNumber.String(),
+			HeaderID:    mockBlock.Header().Hash().Hex(),
 			CID:         shared.RemovedNodeStorageCID,
-			NodeType:    3,
-			StorageKey:  common.BytesToHash(mocks.RemovedLeafKey).Hex(),
-			StateKey:    common.BytesToHash(mocks.ContractLeafKey).Hex(),
-			Path:        []byte{'\x03'},
-		},
-		{
-			BlockNumber: mocks.BlockNumber.String(),
-			CID:         shared.RemovedNodeStorageCID,
-			NodeType:    3,
+			Removed:     true,
 			StorageKey:  common.BytesToHash(mocks.Storage2LeafKey).Hex(),
 			StateKey:    common.BytesToHash(mocks.Contract2LeafKey).Hex(),
-			Path:        []byte{'\x0e'},
+			Value:       []byte{},
 		},
 		{
 			BlockNumber: mocks.BlockNumber.String(),
+			HeaderID:    mockBlock.Header().Hash().Hex(),
 			CID:         shared.RemovedNodeStorageCID,
-			NodeType:    3,
+			Removed:     true,
 			StorageKey:  common.BytesToHash(mocks.Storage3LeafKey).Hex(),
 			StateKey:    common.BytesToHash(mocks.Contract2LeafKey).Hex(),
-			Path:        []byte{'\x0f'},
+			Value:       []byte{},
+		},
+		{
+			BlockNumber: mocks.BlockNumber.String(),
+			HeaderID:    mockBlock.Header().Hash().Hex(),
+			CID:         shared.RemovedNodeStorageCID,
+			Removed:     true,
+			StorageKey:  common.BytesToHash(mocks.RemovedLeafKey).Hex(),
+			StateKey:    common.BytesToHash(mocks.ContractLeafKey).Hex(),
+			Value:       []byte{},
 		},
 	}
 	for idx, storageNode := range storageNodes {
@@ -569,10 +521,8 @@ func TestPublishAndIndexStorageIPLDs(t *testing.T, db sql.Database) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mhKey = dshelp.MultihashToDsKey(dc.Hash())
-		prefixedKey = blockstore.BlockPrefix.String() + mhKey.String()
-		require.Equal(t, shared.RemovedNodeMhKey, prefixedKey)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		require.Equal(t, shared.RemovedNodeStorageCID, dc.String())
+		err = db.Get(context.Background(), &data, ipfsPgGet, dc.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -662,7 +612,7 @@ func SetupTestDataNonCanonical(t *testing.T, ind interfaces.StateDiffIndexer) {
 func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed headers
 	pgStr := `SELECT CAST(block_number as TEXT), block_hash, cid, cast(td AS TEXT), cast(reward AS TEXT),
-			tx_root, receipt_root, uncle_root, coinbase
+			tx_root, receipt_root, uncles_hash, coinbase
 			FROM eth.header_cids
 			ORDER BY block_number`
 	headerRes := make([]models.HeaderModel, 0)
@@ -682,7 +632,7 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			TotalDifficulty: mockBlock.Difficulty().String(),
 			TxRoot:          mockBlock.TxHash().String(),
 			RctRoot:         mockBlock.ReceiptHash().String(),
-			UncleRoot:       mockBlock.UncleHash().String(),
+			UnclesHash:      mockBlock.UncleHash().String(),
 			Coinbase:        mocks.MockHeader.Coinbase.String(),
 		},
 		{
@@ -692,7 +642,7 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			TotalDifficulty: mockNonCanonicalBlock.Difficulty().String(),
 			TxRoot:          mockNonCanonicalBlock.TxHash().String(),
 			RctRoot:         mockNonCanonicalBlock.ReceiptHash().String(),
-			UncleRoot:       mockNonCanonicalBlock.UncleHash().String(),
+			UnclesHash:      mockNonCanonicalBlock.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader.Coinbase.String(),
 		},
 		{
@@ -702,7 +652,7 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			TotalDifficulty: mockNonCanonicalBlock2.Difficulty().String(),
 			TxRoot:          mockNonCanonicalBlock2.TxHash().String(),
 			RctRoot:         mockNonCanonicalBlock2.ReceiptHash().String(),
-			UncleRoot:       mockNonCanonicalBlock2.UncleHash().String(),
+			UnclesHash:      mockNonCanonicalBlock2.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader2.Coinbase.String(),
 		},
 	}
@@ -732,8 +682,7 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 	headerRLPs := [][]byte{mocks.MockHeaderRlp, mocks.MockNonCanonicalHeaderRlp, mocks.MockNonCanonicalHeader2Rlp}
 	for i := range expectedRes {
 		var data []byte
-		prefixedKey := shared.MultihashKeyFromCID(headerCIDs[i])
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, blockNumbers[i])
+		err = db.Get(context.Background(), &data, ipfsPgGet, headerCIDs[i].String(), blockNumbers[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -744,7 +693,7 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed transactions
 	pgStr := `SELECT CAST(block_number as TEXT), header_id, tx_hash, cid, dst, src, index,
-		tx_data, tx_type, CAST(value as TEXT)
+		tx_type, CAST(value as TEXT)
 		FROM eth.transaction_cids
 		ORDER BY block_number, index`
 	txRes := make([]models.TxModel, 0)
@@ -764,7 +713,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         shared.HandleZeroAddrPointer(mockBlockTxs[0].To()),
 			Src:         mocks.SenderAddr.String(),
 			Index:       0,
-			Data:        mockBlockTxs[0].Data(),
 			Type:        mockBlockTxs[0].Type(),
 			Value:       mockBlockTxs[0].Value().String(),
 		},
@@ -776,7 +724,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         shared.HandleZeroAddrPointer(mockBlockTxs[1].To()),
 			Src:         mocks.SenderAddr.String(),
 			Index:       1,
-			Data:        mockBlockTxs[1].Data(),
 			Type:        mockBlockTxs[1].Type(),
 			Value:       mockBlockTxs[1].Value().String(),
 		},
@@ -788,7 +735,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         shared.HandleZeroAddrPointer(mockBlockTxs[2].To()),
 			Src:         mocks.SenderAddr.String(),
 			Index:       2,
-			Data:        mockBlockTxs[2].Data(),
 			Type:        mockBlockTxs[2].Type(),
 			Value:       mockBlockTxs[2].Value().String(),
 		},
@@ -800,7 +746,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         shared.HandleZeroAddrPointer(mockBlockTxs[3].To()),
 			Src:         mocks.SenderAddr.String(),
 			Index:       3,
-			Data:        mockBlockTxs[3].Data(),
 			Type:        mockBlockTxs[3].Type(),
 			Value:       mockBlockTxs[3].Value().String(),
 		},
@@ -812,7 +757,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         shared.HandleZeroAddrPointer(mockBlockTxs[4].To()),
 			Src:         mocks.SenderAddr.String(),
 			Index:       4,
-			Data:        mockBlockTxs[4].Data(),
 			Type:        mockBlockTxs[4].Type(),
 			Value:       mockBlockTxs[4].Value().String(),
 		},
@@ -829,7 +773,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         mockNonCanonicalBlockTxs[0].To().String(),
 			Src:         mocks.SenderAddr.String(),
 			Index:       0,
-			Data:        mockNonCanonicalBlockTxs[0].Data(),
 			Type:        mockNonCanonicalBlockTxs[0].Type(),
 			Value:       mockNonCanonicalBlockTxs[0].Value().String(),
 		},
@@ -841,7 +784,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         mockNonCanonicalBlockTxs[1].To().String(),
 			Src:         mocks.SenderAddr.String(),
 			Index:       1,
-			Data:        mockNonCanonicalBlockTxs[1].Data(),
 			Type:        mockNonCanonicalBlockTxs[1].Type(),
 			Value:       mockNonCanonicalBlockTxs[1].Value().String(),
 		},
@@ -858,7 +800,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         "",
 			Src:         mocks.SenderAddr.String(),
 			Index:       0,
-			Data:        mockNonCanonicalBlock2Txs[0].Data(),
 			Type:        mockNonCanonicalBlock2Txs[0].Type(),
 			Value:       mockNonCanonicalBlock2Txs[0].Value().String(),
 		},
@@ -870,7 +811,6 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 			Dst:         mockNonCanonicalBlock2Txs[1].To().String(),
 			Src:         mocks.SenderAddr.String(),
 			Index:       1,
-			Data:        mockNonCanonicalBlock2Txs[1].Data(),
 			Type:        mockNonCanonicalBlock2Txs[1].Type(),
 			Value:       mockNonCanonicalBlock2Txs[1].Value().String(),
 		},
@@ -903,13 +843,11 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 
 	// check indexed IPLD blocks
 	var data []byte
-	var prefixedKey string
 
 	txCIDs := []cid.Cid{trx1CID, trx2CID, trx3CID, trx4CID, trx5CID}
 	txRLPs := [][]byte{tx1, tx2, tx3, tx4, tx5}
 	for i, txCID := range txCIDs {
-		prefixedKey = shared.MultihashKeyFromCID(txCID)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		err = db.Get(context.Background(), &data, ipfsPgGet, txCID.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -919,7 +857,7 @@ func TestPublishAndIndexTransactionsNonCanonical(t *testing.T, db sql.Database) 
 
 func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed receipts
-	pgStr := `SELECT CAST(block_number as TEXT), header_id, tx_id, leaf_cid, leaf_mh_key, post_status, post_state, contract, contract_hash, log_root
+	pgStr := `SELECT CAST(block_number as TEXT), header_id, tx_id, cid, post_status, post_state, contract
 		FROM eth.receipt_cids
 		ORDER BY block_number`
 	rctRes := make([]models.ReceiptModel, 0)
@@ -969,33 +907,30 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 
 	for i := 0; i < len(expectedBlockRctsMap); i++ {
 		rct := rctRes[i]
-		require.Contains(t, expectedBlockRctsMap, rct.LeafCID)
-		require.Equal(t, expectedBlockRctsMap[rct.LeafCID], rct)
+		require.Contains(t, expectedBlockRctsMap, rct.CID)
+		require.Equal(t, expectedBlockRctsMap[rct.CID], rct)
 	}
 
 	for i := 0; i < len(expectedNonCanonicalBlockRctsMap); i++ {
 		rct := rctRes[len(expectedBlockRctsMap)+i]
-		require.Contains(t, expectedNonCanonicalBlockRctsMap, rct.LeafCID)
-		require.Equal(t, expectedNonCanonicalBlockRctsMap[rct.LeafCID], rct)
+		require.Contains(t, expectedNonCanonicalBlockRctsMap, rct.CID)
+		require.Equal(t, expectedNonCanonicalBlockRctsMap[rct.CID], rct)
 	}
 
 	for i := 0; i < len(expectedNonCanonicalBlock2RctsMap); i++ {
 		rct := rctRes[len(expectedBlockRctsMap)+len(expectedNonCanonicalBlockRctsMap)+i]
-		require.Contains(t, expectedNonCanonicalBlock2RctsMap, rct.LeafCID)
-		require.Equal(t, expectedNonCanonicalBlock2RctsMap[rct.LeafCID], rct)
+		require.Contains(t, expectedNonCanonicalBlock2RctsMap, rct.CID)
+		require.Equal(t, expectedNonCanonicalBlock2RctsMap[rct.CID], rct)
 	}
 
 	// check indexed rct IPLD blocks
 	var data []byte
-	var prefixedKey string
 
 	rctRLPs := [][]byte{
-		rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5,
 		nonCanonicalBlockRctLeaf1, nonCanonicalBlockRctLeaf2,
 	}
 	for i, rctCid := range append(rctCids, nonCanonicalBlockRctCids...) {
-		prefixedKey = shared.MultihashKeyFromCID(rctCid)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.BlockNumber.Uint64())
+		err = db.Get(context.Background(), &data, ipfsPgGet, rctCid.String(), mocks.BlockNumber.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1004,8 +939,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 
 	nonCanonicalBlock2RctRLPs := [][]byte{nonCanonicalBlock2RctLeaf1, nonCanonicalBlock2RctLeaf2}
 	for i, rctCid := range nonCanonicalBlock2RctCids {
-		prefixedKey = shared.MultihashKeyFromCID(rctCid)
-		err = db.Get(context.Background(), &data, ipfsPgGet, prefixedKey, mocks.Block2Number.Uint64())
+		err = db.Get(context.Background(), &data, ipfsPgGet, rctCid.String(), mocks.Block2Number.Uint64())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1015,9 +949,9 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 
 func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed logs
-	pgStr := `SELECT address, log_data, topic0, topic1, topic2, topic3, data
+	pgStr := `SELECT address, topic0, topic1, topic2, topic3
 		FROM eth.log_cids
-		INNER JOIN public.blocks ON (log_cids.block_number = blocks.block_number AND log_cids.leaf_mh_key = blocks.key)
+		INNER JOIN ipld.blocks ON (log_cids.block_number = blocks.block_number AND log_cids.cid = blocks.key)
 		WHERE log_cids.block_number = $1 AND header_id = $2 AND rct_id = $3
 		ORDER BY log_cids.index ASC`
 
@@ -1073,7 +1007,6 @@ func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 
 			expectedLog := models.LogsModel{
 				Address: log.Address.String(),
-				Data:    log.Data,
 				Topic0:  topicSet[0],
 				Topic1:  topicSet[1],
 				Topic2:  topicSet[2],
@@ -1103,11 +1036,11 @@ func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 
 func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed state nodes
-	pgStr := `SELECT state_path, state_leaf_key, node_type, cid, mh_key, diff
+	pgStr := `SELECT state_leaf_key, removed, cid, diff
 					FROM eth.state_cids
 					WHERE block_number = $1
 					AND header_id = $2
-					ORDER BY state_path`
+					ORDER BY state_leaf_key`
 
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStateCID)
 	stateNodeCIDs := []cid.Cid{state1CID, state2CID, removedNodeCID, removedNodeCID}
@@ -1116,16 +1049,14 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	expectedStateNodes := make([]models.StateNodeModel, 0)
 	for i, stateDiff := range mocks.StateDiffs {
 		expectedStateNodes = append(expectedStateNodes, models.StateNodeModel{
-			Path:     stateDiff.Path,
-			StateKey: common.BytesToHash(stateDiff.LeafKey).Hex(),
-			NodeType: stateDiff.NodeType.Int(),
+			StateKey: common.BytesToHash(stateDiff.AccountWrapper.LeafKey).Hex(),
+			Removed:  stateDiff.Removed,
 			CID:      stateNodeCIDs[i].String(),
-			MhKey:    shared.MultihashKeyFromCID(stateNodeCIDs[i]),
 			Diff:     true,
 		})
 	}
 	sort.Slice(expectedStateNodes, func(i, j int) bool {
-		if bytes.Compare(expectedStateNodes[i].Path, expectedStateNodes[j].Path) < 0 {
+		if bytes.Compare(common.Hex2Bytes(expectedStateNodes[i].StateKey), common.Hex2Bytes(expectedStateNodes[j].StateKey)) < 0 {
 			return true
 		} else {
 			return false
@@ -1136,11 +1067,9 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	expectedNonCanonicalBlock2StateNodes := make([]models.StateNodeModel, 0)
 	for i, stateDiff := range mocks.StateDiffs[:2] {
 		expectedNonCanonicalBlock2StateNodes = append(expectedNonCanonicalBlock2StateNodes, models.StateNodeModel{
-			Path:     stateDiff.Path,
-			StateKey: common.BytesToHash(stateDiff.LeafKey).Hex(),
-			NodeType: stateDiff.NodeType.Int(),
+			StateKey: common.BytesToHash(stateDiff.AccountWrapper.LeafKey).Hex(),
+			Removed:  stateDiff.Removed,
 			CID:      stateNodeCIDs[i].String(),
-			MhKey:    shared.MultihashKeyFromCID(stateNodeCIDs[i]),
 			Diff:     true,
 		})
 	}
@@ -1184,11 +1113,11 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 
 func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed storage nodes
-	pgStr := `SELECT state_path, storage_path, storage_leaf_key, node_type, cid, mh_key, diff
+	pgStr := `SELECT storage_leaf_key, state_leaf_key, removed, cid, diff, val
 					FROM eth.storage_cids
 					WHERE block_number = $1
 					AND header_id = $2
-					ORDER BY state_path, storage_path`
+					ORDER BY state_leaf_key, storage_leaf_key`
 
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStorageCID)
 	storageNodeCIDs := []cid.Cid{storageCID, removedNodeCID, removedNodeCID, removedNodeCID}
@@ -1197,21 +1126,20 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	expectedStorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex := 0
 	for _, stateDiff := range mocks.StateDiffs {
-		for _, storageNode := range stateDiff.StorageNodes {
+		for _, storageNode := range stateDiff.StorageDiff {
 			expectedStorageNodes = append(expectedStorageNodes, models.StorageNodeModel{
-				StatePath:  stateDiff.Path,
-				Path:       storageNode.Path,
+				StateKey:   common.BytesToHash(stateDiff.AccountWrapper.LeafKey).Hex(),
 				StorageKey: common.BytesToHash(storageNode.LeafKey).Hex(),
-				NodeType:   storageNode.NodeType.Int(),
+				Removed:    storageNode.Removed,
 				CID:        storageNodeCIDs[storageNodeIndex].String(),
-				MhKey:      shared.MultihashKeyFromCID(storageNodeCIDs[storageNodeIndex]),
 				Diff:       true,
+				Value:      storageNode.Value,
 			})
 			storageNodeIndex++
 		}
 	}
 	sort.Slice(expectedStorageNodes, func(i, j int) bool {
-		if bytes.Compare(expectedStorageNodes[i].Path, expectedStorageNodes[j].Path) < 0 {
+		if bytes.Compare(common.Hex2Bytes(expectedStorageNodes[i].StorageKey), common.Hex2Bytes(expectedStorageNodes[j].StorageKey)) < 0 {
 			return true
 		} else {
 			return false
@@ -1222,15 +1150,14 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	expectedNonCanonicalBlock2StorageNodes := make([]models.StorageNodeModel, 0)
 	storageNodeIndex = 0
 	for _, stateDiff := range mocks.StateDiffs[:2] {
-		for _, storageNode := range stateDiff.StorageNodes {
+		for _, storageNode := range stateDiff.StorageDiff {
 			expectedNonCanonicalBlock2StorageNodes = append(expectedNonCanonicalBlock2StorageNodes, models.StorageNodeModel{
-				StatePath:  stateDiff.Path,
-				Path:       storageNode.Path,
+				StateKey:   common.BytesToHash(stateDiff.AccountWrapper.LeafKey).Hex(),
 				StorageKey: common.BytesToHash(storageNode.LeafKey).Hex(),
-				NodeType:   storageNode.NodeType.Int(),
+				Removed:    storageNode.Removed,
 				CID:        storageNodeCIDs[storageNodeIndex].String(),
-				MhKey:      shared.MultihashKeyFromCID(storageNodeCIDs[storageNodeIndex]),
 				Diff:       true,
+				Value:      storageNode.Value,
 			})
 			storageNodeIndex++
 		}

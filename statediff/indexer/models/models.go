@@ -18,7 +18,7 @@ package models
 
 import "github.com/lib/pq"
 
-// IPLDModel is the db model for public.blocks
+// IPLDModel is the db model for ipld.blocks
 type IPLDModel struct {
 	BlockNumber string `db:"block_number"`
 	Key         string `db:"key"`
@@ -69,14 +69,13 @@ type TxModel struct {
 
 // ReceiptModel is the db model for eth.receipt_cids
 type ReceiptModel struct {
-	BlockNumber  string `db:"block_number"`
-	HeaderID     string `db:"header_id"`
-	TxID         string `db:"tx_id"`
-	CID          string `db:"cid"`
-	PostStatus   uint64 `db:"post_status"`
-	PostState    string `db:"post_state"`
-	Contract     string `db:"contract"`
-	ContractHash string `db:"contract_hash"`
+	BlockNumber string `db:"block_number"`
+	HeaderID    string `db:"header_id"`
+	TxID        string `db:"tx_id"`
+	CID         string `db:"cid"`
+	PostStatus  uint64 `db:"post_status"`
+	PostState   string `db:"post_state"`
+	Contract    string `db:"contract"`
 }
 
 // StateNodeModel is the db model for eth.state_cids
@@ -89,7 +88,7 @@ type StateNodeModel struct {
 	Diff        bool   `db:"diff"`
 	Balance     string `db:"balance"`
 	Nonce       uint64 `db:"nonce"`
-	CodeHash    []byte `db:"code_hash"`
+	CodeHash    string `db:"code_hash"`
 	StorageRoot string `db:"storage_root"`
 }
 
@@ -97,7 +96,7 @@ type StateNodeModel struct {
 type StorageNodeModel struct {
 	BlockNumber string `db:"block_number"`
 	HeaderID    string `db:"header_id"`
-	StateKey    []byte `db:"state_leaf_key"`
+	StateKey    string `db:"state_leaf_key"`
 	StorageKey  string `db:"storage_leaf_key"`
 	Removed     bool   `db:"removed"`
 	CID         string `db:"cid"`

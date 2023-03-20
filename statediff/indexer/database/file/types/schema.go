@@ -17,7 +17,7 @@
 package types
 
 var TableIPLDBlock = Table{
-	`public.blocks`,
+	`ipld.blocks`,
 	[]column{
 		{name: "block_number", dbType: bigint},
 		{name: "key", dbType: text},
@@ -44,7 +44,7 @@ var TableHeader = Table{
 		{name: "parent_hash", dbType: varchar},
 		{name: "cid", dbType: text},
 		{name: "td", dbType: numeric},
-		{name: "node_id", dbType: varchar},
+		{name: "node_ids", dbType: varchar, isArray: true},
 		{name: "reward", dbType: numeric},
 		{name: "state_root", dbType: varchar},
 		{name: "tx_root", dbType: varchar},
@@ -52,8 +52,6 @@ var TableHeader = Table{
 		{name: "uncles_hash", dbType: varchar},
 		{name: "bloom", dbType: bytea},
 		{name: "timestamp", dbType: numeric},
-		{name: "mh_key", dbType: text},
-		{name: "times_validated", dbType: integer},
 		{name: "coinbase", dbType: varchar},
 	},
 }
@@ -65,10 +63,12 @@ var TableStateNode = Table{
 		{name: "header_id", dbType: varchar},
 		{name: "state_leaf_key", dbType: varchar},
 		{name: "cid", dbType: text},
-		{name: "state_path", dbType: bytea},
-		{name: "node_type", dbType: integer},
+		{name: "removed", dbType: boolean},
 		{name: "diff", dbType: boolean},
-		{name: "mh_key", dbType: text},
+		{name: "balance", dbType: numeric},
+		{name: "nonce", dbType: bigint},
+		{name: "code_hash", dbType: varchar},
+		{name: "storage_root", dbType: varchar},
 	},
 }
 
@@ -77,13 +77,12 @@ var TableStorageNode = Table{
 	[]column{
 		{name: "block_number", dbType: bigint},
 		{name: "header_id", dbType: varchar},
-		{name: "state_path", dbType: bytea},
+		{name: "state_leaf_key", dbType: varchar},
 		{name: "storage_leaf_key", dbType: varchar},
 		{name: "cid", dbType: text},
-		{name: "storage_path", dbType: bytea},
-		{name: "node_type", dbType: integer},
+		{name: "removed", dbType: boolean},
 		{name: "diff", dbType: boolean},
-		{name: "mh_key", dbType: text},
+		{name: "val", dbType: bytea},
 	},
 }
 
@@ -96,7 +95,6 @@ var TableUncle = Table{
 		{name: "parent_hash", dbType: varchar},
 		{name: "cid", dbType: text},
 		{name: "reward", dbType: numeric},
-		{name: "mh_key", dbType: text},
 		{name: "index", dbType: integer},
 	},
 }
@@ -111,21 +109,8 @@ var TableTransaction = Table{
 		{name: "dst", dbType: varchar},
 		{name: "src", dbType: varchar},
 		{name: "index", dbType: integer},
-		{name: "mh_key", dbType: text},
-		{name: "tx_data", dbType: bytea},
 		{name: "tx_type", dbType: integer},
 		{name: "value", dbType: numeric},
-	},
-}
-
-var TableAccessListElement = Table{
-	"eth.access_list_elements",
-	[]column{
-		{name: "block_number", dbType: bigint},
-		{name: "tx_id", dbType: varchar},
-		{name: "index", dbType: integer},
-		{name: "address", dbType: varchar},
-		{name: "storage_keys", dbType: varchar, isArray: true},
 	},
 }
 
@@ -135,13 +120,10 @@ var TableReceipt = Table{
 		{name: "block_number", dbType: bigint},
 		{name: "header_id", dbType: varchar},
 		{name: "tx_id", dbType: varchar},
-		{name: "leaf_cid", dbType: text},
+		{name: "cid", dbType: text},
 		{name: "contract", dbType: varchar},
-		{name: "contract_hash", dbType: varchar},
-		{name: "leaf_mh_key", dbType: text},
 		{name: "post_state", dbType: varchar},
 		{name: "post_status", dbType: integer},
-		{name: "log_root", dbType: varchar},
 	},
 }
 
@@ -150,8 +132,7 @@ var TableLog = Table{
 	[]column{
 		{name: "block_number", dbType: bigint},
 		{name: "header_id", dbType: varchar},
-		{name: "leaf_cid", dbType: text},
-		{name: "leaf_mh_key", dbType: text},
+		{name: "cid", dbType: text},
 		{name: "rct_id", dbType: varchar},
 		{name: "address", dbType: varchar},
 		{name: "index", dbType: integer},
@@ -159,20 +140,6 @@ var TableLog = Table{
 		{name: "topic1", dbType: varchar},
 		{name: "topic2", dbType: varchar},
 		{name: "topic3", dbType: varchar},
-		{name: "log_data", dbType: bytea},
-	},
-}
-
-var TableStateAccount = Table{
-	"eth.state_accounts",
-	[]column{
-		{name: "block_number", dbType: bigint},
-		{name: "header_id", dbType: varchar},
-		{name: "state_path", dbType: bytea},
-		{name: "balance", dbType: numeric},
-		{name: "nonce", dbType: bigint},
-		{name: "code_hash", dbType: varchar},
-		{name: "storage_root", dbType: varchar},
 	},
 }
 

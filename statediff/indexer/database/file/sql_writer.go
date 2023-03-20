@@ -24,8 +24,6 @@ import (
 	"math/big"
 	"os"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/thoas/go-funk"
 
@@ -139,7 +137,7 @@ const (
 	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_id, client_name, chain_id) VALUES " +
 		"('%s', '%s', '%s', '%s', %d);\n"
 
-	ipldInsert = "INSERT INTO public.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
+	ipldInsert = "INSERT INTO ipld.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
 
 	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, " +
 		"state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase) VALUES " +
@@ -151,8 +149,8 @@ const (
 	txInsert = "INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, tx_type, " +
 		"value) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s');\n"
 
-	rctInsert = "INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, contract_hash, post_state, " +
-		"post_status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
+	rctInsert = "INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, post_state, " +
+		"post_status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
 
 	logInsert = "INSERT INTO eth.log_cids (block_number, header_id, cid, rct_id, address, index, topic0, topic1, topic2, " +
 		"topic3) VALUES ('%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s');\n"
@@ -188,23 +186,9 @@ func (sqw *SQLWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	})
 }
 
-func (sqw *SQLWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	sqw.upsertIPLD(models.IPLDModel{
-		BlockNumber: blockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	})
-	return c.String(), prefixedKey, err
-}
-
 func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 	stmt := fmt.Sprintf(headerInsert, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
+		header.TotalDifficulty, formatPostgresStringArray(header.NodeIDs), header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UnclesHash, header.Bloom, header.Timestamp, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
 	indexerMetrics.blocks.Inc(1)
@@ -222,7 +206,7 @@ func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
 }
 
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.ContractHash,
+	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
 		rct.PostState, rct.PostStatus))
 	indexerMetrics.receipts.Inc(1)
 }

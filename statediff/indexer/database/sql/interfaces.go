@@ -49,7 +49,6 @@ type Statements interface {
 	InsertRctStm() string
 	InsertLogStm() string
 	InsertStateStm() string
-	InsertAccountStm() string
 	InsertStorageStm() string
 	InsertIPLDStm() string
 	InsertIPLDsStm() string

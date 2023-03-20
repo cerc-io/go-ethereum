@@ -27,8 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/lib/pq"
 	"github.com/multiformats/go-multihash"
 
@@ -271,8 +269,7 @@ func (sdi *StateDiffIndexer) processUncles(headerID string, blockNumber *big.Int
 	if err != nil {
 		return err
 	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(unclesCID.Hash()).String()
-	sdi.fileWriter.upsertIPLDDirect(blockNumber.String(), prefixedKey, uncleEncoding)
+	sdi.fileWriter.upsertIPLDDirect(blockNumber.String(), unclesCID.String(), uncleEncoding)
 	for i, uncle := range uncles {
 		var uncleReward *big.Int
 		// in PoA networks uncle reward is 0
@@ -312,6 +309,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 	for i, receipt := range args.receipts {
 		txNode := args.txNodes[i]
 		sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), txNode)
+		sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), args.rctNodes[i])
 
 		// index tx
 		trx := args.txs[i]
@@ -342,19 +340,14 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 
 		// this is the contract address if this receipt is for a contract creation tx
 		contract := shared.HandleZeroAddr(receipt.ContractAddress)
-		var contractHash string
-		if contract != "" {
-			contractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
-		}
 
 		// index receipt
 		rctModel := &models.ReceiptModel{
-			BlockNumber:  args.blockNumber.String(),
-			HeaderID:     args.headerID,
-			TxID:         txID,
-			Contract:     contract,
-			ContractHash: contractHash,
-			CID:          args.rctNodes[i].Cid().String(),
+			BlockNumber: args.blockNumber.String(),
+			HeaderID:    args.headerID,
+			TxID:        txID,
+			Contract:    contract,
+			CID:         args.rctNodes[i].Cid().String(),
 		}
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
@@ -366,6 +359,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(args processArgs) error {
 		// index logs
 		logDataSet := make([]*models.LogsModel, len(receipt.Logs))
 		for idx, l := range receipt.Logs {
+			sdi.fileWriter.upsertIPLDNode(args.blockNumber.String(), args.logNodes[i][idx])
 			topicSet := make([]string, 4)
 			for ti, topic := range l.Topics {
 				topicSet[ti] = topic.Hex()
@@ -419,7 +413,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			Removed:     false,
 			Balance:     stateNode.AccountWrapper.Account.Balance.String(),
 			Nonce:       stateNode.AccountWrapper.Account.Nonce,
-			CodeHash:    stateNode.AccountWrapper.Account.CodeHash,
+			CodeHash:    common.BytesToHash(stateNode.AccountWrapper.Account.CodeHash).String(),
 			StorageRoot: stateNode.AccountWrapper.Account.Root.String(),
 		}
 	}
@@ -437,7 +431,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 			storageModel := models.StorageNodeModel{
 				BlockNumber: tx.BlockNumber,
 				HeaderID:    headerID,
-				StateKey:    stateNode.AccountWrapper.LeafKey,
+				StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).String(),
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
 				Removed:     true,
@@ -448,7 +442,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		storageModel := models.StorageNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
-			StateKey:    stateNode.AccountWrapper.LeafKey,
+			StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).Hex(),
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageNode.CID,
 			Removed:     false,

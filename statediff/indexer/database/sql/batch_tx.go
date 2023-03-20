@@ -21,8 +21,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/lib/pq"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -58,7 +56,7 @@ func (tx *BatchTx) flush() error {
 	_, err := tx.dbtx.Exec(tx.ctx, tx.stm, pq.Array(tx.ipldCache.BlockNumbers), pq.Array(tx.ipldCache.Keys),
 		pq.Array(tx.ipldCache.Values))
 	if err != nil {
-		log.Debug(insertError{"public.blocks", err, tx.stm,
+		log.Debug(insertError{"ipld.blocks", err, tx.stm,
 			struct {
 				blockNumbers []string
 				keys         []string
@@ -68,7 +66,7 @@ func (tx *BatchTx) flush() error {
 				tx.ipldCache.Keys,
 				tx.ipldCache.Values,
 			}}.Error())
-		return insertError{"public.blocks", err, tx.stm, "too many arguments; use debug mode for full list"}
+		return insertError{"ipld.blocks", err, tx.stm, "too many arguments; use debug mode for full list"}
 	}
 	tx.ipldCache = models.IPLDBatch{}
 	return nil
@@ -106,21 +104,6 @@ func (tx *BatchTx) cacheIPLD(i ipld.IPLD) {
 		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	}
-}
-
-func (tx *BatchTx) cacheRaw(codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	tx.cacheWg.Add(1)
-	tx.iplds <- models.IPLDModel{
-		BlockNumber: tx.BlockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	}
-	return c.String(), prefixedKey, err
 }
 
 func (tx *BatchTx) cacheRemoved(key string, value []byte) {

@@ -25,8 +25,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,10 +44,8 @@ var (
 		&types.TableStorageNode,
 		&types.TableUncle,
 		&types.TableTransaction,
-		&types.TableAccessListElement,
 		&types.TableReceipt,
 		&types.TableLog,
-		&types.TableStateAccount,
 	}
 )
 
@@ -233,20 +229,6 @@ func (csw *CSVWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	})
 }
 
-func (csw *CSVWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	csw.upsertIPLD(models.IPLDModel{
-		BlockNumber: blockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	})
-	return c.String(), prefixedKey, err
-}
-
 func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
@@ -273,7 +255,7 @@ func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	var values []interface{}
-	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.ContractHash,
+	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
 		rct.PostState, rct.PostStatus)
 	csw.rows <- tableRow{types.TableReceipt, values}
 	indexerMetrics.receipts.Inc(1)

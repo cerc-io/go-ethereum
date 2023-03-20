@@ -42,7 +42,7 @@ func (w *Writer) Close() error {
 }
 
 /*
-INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, mh_key, times_validated, coinbase)
+INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (block_hash, block_number) DO NOTHING
 */
@@ -87,12 +87,12 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 }
 
 /*
-INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, contract_hash, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertRctStm(),
-		rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.ContractHash, rct.PostState,
+		rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.PostState,
 		rct.PostStatus)
 	if err != nil {
 		return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
@@ -123,11 +123,20 @@ INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, remove
 ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING
 */
 func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
-	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-		stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
-		stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
-	if err != nil {
-		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+	if stateNode.Removed {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
+			stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
+			"0", stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
+		if err != nil {
+			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+		}
+	} else {
+		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
+			stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
+			stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
+		if err != nil {
+			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
+		}
 	}
 	return nil
 }

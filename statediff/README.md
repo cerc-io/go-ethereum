@@ -239,7 +239,7 @@ This will only work on a version 12.4 Postgres database.
 
 #### Schema overview
 
-Our Postgres schemas are built around a single IPFS backing Postgres IPLD blockstore table (`public.blocks`) that conforms with [go-ds-sql](https://github.com/ipfs/go-ds-sql/blob/master/postgres/postgres.go).
+Our Postgres schemas are built around a single IPFS backing Postgres IPLD blockstore table (`ipld.blocks`) that conforms with [go-ds-sql](https://github.com/ipfs/go-ds-sql/blob/master/postgres/postgres.go).
 All IPLD objects are stored in this table, where `key` is the blockstore-prefixed multihash key for the IPLD object and `data` contains
 the bytes for the IPLD block (in the case of all Ethereum IPLDs, this is the RLP byte encoding of the Ethereum object).
 
@@ -250,7 +250,7 @@ we create an Ethereum [advanced data layout](https://github.com/ipld/specs#schem
 indexes on top of the raw IPLDs in other Postgres tables.
 
 These secondary index tables fall under the `eth` schema and follow an `{objectType}_cids` naming convention.
-These tables provide a view into individual fields of the underlying Ethereum IPLD objects, allowing lookups on these fields, and reference the raw IPLD objects stored in `public.blocks`
+These tables provide a view into individual fields of the underlying Ethereum IPLD objects, allowing lookups on these fields, and reference the raw IPLD objects stored in `ipld.blocks`
 by foreign keys to their multihash keys.
 Additionally, these tables maintain the hash-linked nature of Ethereum objects to one another. E.g. a storage trie node entry in the `storage_cids`
 table contains a `state_id` foreign key which references the `id` for the `state_cids` entry that contains the state leaf node for the contract that storage node belongs to,

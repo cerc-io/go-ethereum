@@ -49,7 +49,7 @@ func setupSQLXNonCanonical(t *testing.T) {
 }
 
 // Test indexer for a canonical block
-func TestSQLXIndexer(t *testing.T) {
+func TestSQLXIndexerF(t *testing.T) {
 	t.Run("Publish and index header IPLDs in a single tx", func(t *testing.T) {
 		setupSQLX(t)
 		defer tearDown(t)
