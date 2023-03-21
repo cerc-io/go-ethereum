@@ -16,7 +16,10 @@
 
 package postgres
 
-import "github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+import (
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared/schema"
+)
 
 var _ sql.Database = &DB{}
 
@@ -39,73 +42,51 @@ type DB struct {
 // InsertHeaderStm satisfies the sql.Statements interface
 // Stm == Statement
 func (db *DB) InsertHeaderStm() string {
-	if db.upsert {
-		return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-			ON CONFLICT (block_hash, block_number) DO UPDATE SET (parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase) = ($3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-	}
-	return `INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-			ON CONFLICT (block_hash, block_number) DO NOTHING`
+	return schema.TableHeader.ToInsertStatement(db.upsert)
+
 }
 
 // InsertUncleStm satisfies the sql.Statements interface
 func (db *DB) InsertUncleStm() string {
-	return `INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, index) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (block_hash, block_number, index) DO NOTHING`
+	return schema.TableUncle.ToInsertStatement(db.upsert)
 }
 
 // InsertTxStm satisfies the sql.Statements interface
 func (db *DB) InsertTxStm() string {
-	return `INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, tx_type, value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING`
+	return schema.TableTransaction.ToInsertStatement(db.upsert)
+
 }
 
 // InsertRctStm satisfies the sql.Statements interface
 func (db *DB) InsertRctStm() string {
-	return `INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, post_state, post_status) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (tx_id, header_id, block_number) DO NOTHING`
+	return schema.TableReceipt.ToInsertStatement(db.upsert)
+
 }
 
 // InsertLogStm satisfies the sql.Statements interface
 func (db *DB) InsertLogStm() string {
-	return `INSERT INTO eth.log_cids (block_number, header_id, cid, rct_id, address, index, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (rct_id, index, header_id, block_number) DO NOTHING`
+	return schema.TableLog.ToInsertStatement(db.upsert)
+
 }
 
 // InsertStateStm satisfies the sql.Statements interface
 func (db *DB) InsertStateStm() string {
-	if db.upsert {
-		return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (header_id, state_leaf_key, block_number) DO UPDATE SET (cid, removed, diff, balance, nonce, code_hash, storage_root) = ($4, $5, $6, $7, $8, $9, $10)`
-	}
-	return `INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, balance, nonce, code_hash, storage_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING`
+	return schema.TableStateNode.ToInsertStatement(db.upsert)
+
 }
 
 // InsertStorageStm satisfies the sql.Statements interface
 func (db *DB) InsertStorageStm() string {
-	if db.upsert {
-		return `INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO UPDATE SET (cid, removed, diff, val) = ($4, $5, $6, $7, $8)`
-	}
-	return `INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, removed, diff, val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHING`
+	return schema.TableStorageNode.ToInsertStatement(db.upsert)
+
 }
 
 // InsertIPLDStm satisfies the sql.Statements interface
 func (db *DB) InsertIPLDStm() string {
-	return `INSERT INTO ipld.blocks (block_number, key, data) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
+	return schema.TableIPLDBlock.ToInsertStatement(db.upsert)
 }
 
 // InsertIPLDsStm satisfies the sql.Statements interface
 func (db *DB) InsertIPLDsStm() string {
 	return `INSERT INTO ipld.blocks (block_number, key, data) VALUES (unnest($1::BIGINT[]), unnest($2::TEXT[]), unnest($3::BYTEA[])) ON CONFLICT DO NOTHING`
-}
-
-// InsertKnownGapsStm satisfies the sql.Statements interface
-func (db *DB) InsertKnownGapsStm() string {
-	return `INSERT INTO eth_meta.known_gaps (starting_block_number, ending_block_number, checked_out, processing_key) VALUES ($1, $2, $3, $4)
-			ON CONFLICT (starting_block_number) DO UPDATE SET (ending_block_number, processing_key) = ($2, $4)
-			WHERE eth_meta.known_gaps.ending_block_number <= $2`
 }
