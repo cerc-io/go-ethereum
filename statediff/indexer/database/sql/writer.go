@@ -47,10 +47,22 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 ON CONFLICT (block_hash, block_number) DO NOTHING
 */
 func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
+	nodeIDs := pq.StringArray([]string{w.db.NodeID()})
 	_, err := tx.Exec(w.db.Context(), w.db.InsertHeaderStm(),
-		header.BlockNumber, header.BlockHash, header.ParentHash, header.CID, header.TotalDifficulty, pq.StringArray([]string{w.db.NodeID()}),
-		header.Reward, header.StateRoot, header.TxRoot, header.RctRoot, header.UnclesHash, header.Bloom,
-		header.Timestamp, header.Coinbase)
+		header.BlockNumber,
+		header.BlockHash,
+		header.ParentHash,
+		header.CID,
+		header.TotalDifficulty,
+		nodeIDs,
+		header.Reward,
+		header.StateRoot,
+		header.TxRoot,
+		header.RctRoot,
+		header.UnclesHash,
+		header.Bloom,
+		header.Timestamp,
+		header.Coinbase)
 	if err != nil {
 		return insertError{"eth.header_cids", err, w.db.InsertHeaderStm(), header}
 	}
@@ -64,7 +76,13 @@ ON CONFLICT (block_hash, block_number) DO NOTHING
 */
 func (w *Writer) upsertUncleCID(tx Tx, uncle models.UncleModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertUncleStm(),
-		uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID, uncle.Reward, uncle.Index)
+		uncle.BlockNumber,
+		uncle.BlockHash,
+		uncle.HeaderID,
+		uncle.ParentHash,
+		uncle.CID,
+		uncle.Reward,
+		uncle.Index)
 	if err != nil {
 		return insertError{"eth.uncle_cids", err, w.db.InsertUncleStm(), uncle}
 	}
@@ -77,8 +95,15 @@ ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertTxStm(),
-		transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst, transaction.Src,
-		transaction.Index, transaction.Type, transaction.Value)
+		transaction.BlockNumber,
+		transaction.HeaderID,
+		transaction.TxHash,
+		transaction.CID,
+		transaction.Dst,
+		transaction.Src,
+		transaction.Index,
+		transaction.Type,
+		transaction.Value)
 	if err != nil {
 		return insertError{"eth.transaction_cids", err, w.db.InsertTxStm(), transaction}
 	}
@@ -92,7 +117,12 @@ ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertRctStm(),
-		rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract, rct.PostState,
+		rct.BlockNumber,
+		rct.HeaderID,
+		rct.TxID,
+		rct.CID,
+		rct.Contract,
+		rct.PostState,
 		rct.PostStatus)
 	if err != nil {
 		return insertError{"eth.receipt_cids", err, w.db.InsertRctStm(), *rct}
@@ -108,8 +138,16 @@ ON CONFLICT (rct_id, index, header_id, block_number) DO NOTHING
 func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 	for _, log := range logs {
 		_, err := tx.Exec(w.db.Context(), w.db.InsertLogStm(),
-			log.BlockNumber, log.HeaderID, log.CID, log.ReceiptID, log.Address, log.Index, log.Topic0, log.Topic1,
-			log.Topic2, log.Topic3)
+			log.BlockNumber,
+			log.HeaderID,
+			log.CID,
+			log.ReceiptID,
+			log.Address,
+			log.Index,
+			log.Topic0,
+			log.Topic1,
+			log.Topic2,
+			log.Topic3)
 		if err != nil {
 			return insertError{"eth.log_cids", err, w.db.InsertLogStm(), *log}
 		}
@@ -123,20 +161,24 @@ INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, remove
 ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING
 */
 func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
+	balance := stateNode.Balance
 	if stateNode.Removed {
-		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-			stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
-			"0", stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
-		if err != nil {
-			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
-		}
-	} else {
-		_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
-			stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID, stateNode.Removed, true,
-			stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot)
-		if err != nil {
-			return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
-		}
+		balance = "0"
+	}
+	_, err := tx.Exec(w.db.Context(), w.db.InsertStateStm(),
+		stateNode.BlockNumber,
+		stateNode.HeaderID,
+		stateNode.StateKey,
+		stateNode.CID,
+		true,
+		balance,
+		stateNode.Nonce,
+		stateNode.CodeHash,
+		stateNode.StorageRoot,
+		stateNode.Removed,
+	)
+	if err != nil {
+		return insertError{"eth.state_cids", err, w.db.InsertStateStm(), stateNode}
 	}
 	return nil
 }
@@ -147,8 +189,15 @@ ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHI
 */
 func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) error {
 	_, err := tx.Exec(w.db.Context(), w.db.InsertStorageStm(),
-		storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID,
-		storageCID.Removed, true, storageCID.Value)
+		storageCID.BlockNumber,
+		storageCID.HeaderID,
+		storageCID.StateKey,
+		storageCID.StorageKey,
+		storageCID.CID,
+		true,
+		storageCID.Value,
+		storageCID.Removed,
+	)
 	if err != nil {
 		return insertError{"eth.storage_cids", err, w.db.InsertStorageStm(), storageCID}
 	}

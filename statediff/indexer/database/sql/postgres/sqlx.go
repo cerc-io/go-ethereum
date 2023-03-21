@@ -59,8 +59,10 @@ func NewSQLXDriver(ctx context.Context, config Config, node node.Info) (*SQLXDri
 func (driver *SQLXDriver) createNode() error {
 	_, err := driver.db.Exec(
 		createNodeStm,
-		driver.nodeInfo.GenesisBlock, driver.nodeInfo.NetworkID,
-		driver.nodeInfo.ID, driver.nodeInfo.ClientName,
+		driver.nodeInfo.GenesisBlock,
+		driver.nodeInfo.NetworkID,
+		driver.nodeInfo.ID,
+		driver.nodeInfo.ClientName,
 		driver.nodeInfo.ChainID)
 	if err != nil {
 		return ErrUnableToSetNode(err)
