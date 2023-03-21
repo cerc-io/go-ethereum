@@ -47,8 +47,6 @@ var (
 	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                      cid.Cid
 	nonCanonicalBlockRct1CID, nonCanonicalBlockRct2CID               cid.Cid
 	nonCanonicalBlock2Rct1CID, nonCanonicalBlock2Rct2CID             cid.Cid
-	nonCanonicalBlockRctLeaf1, nonCanonicalBlockRctLeaf2             []byte
-	nonCanonicalBlock2RctLeaf1, nonCanonicalBlock2RctLeaf2           []byte
 	state1CID, state2CID, storageCID                                 cid.Cid
 )
 
@@ -164,8 +162,8 @@ func init() {
 	nonCanonicalBlockRct1CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlockRct1, multihash.KECCAK_256)
 	nonCanonicalBlockRct2CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlockRct2, multihash.KECCAK_256)
 
-	nonCanonicalBlock2Rct1CID = nonCanonicalBlockRct1CID
-	nonCanonicalBlock2Rct2CID = nonCanonicalBlockRct2CID
+	nonCanonicalBlock2Rct1CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlock2Rct1, multihash.KECCAK_256)
+	nonCanonicalBlock2Rct2CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlock2Rct2, multihash.KECCAK_256)
 }
 
 // createRctModel creates a models.ReceiptModel object from a given ethereum receipt

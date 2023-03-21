@@ -439,6 +439,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
 				Removed:     true,
+				Value:       []byte{},
 			}
 			if err := sdi.dbWriter.upsertStorageCID(tx.dbtx, storageModel); err != nil {
 				return err

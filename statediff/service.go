@@ -797,7 +797,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	ipldOutput := func(c types2.IPLD) error {
-		return sds.indexer.f(tx, c)
+		return sds.indexer.PushIPLD(tx, c)
 	}
 
 	err = sds.Builder.WriteStateDiffObject(types2.StateRoots{

@@ -435,6 +435,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 				StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 				CID:         shared.RemovedNodeStorageCID,
 				Removed:     true,
+				Value:       []byte{},
 			}
 			sdi.fileWriter.upsertStorageCID(storageModel)
 			continue

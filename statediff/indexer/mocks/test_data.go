@@ -39,8 +39,7 @@ import (
 // Test variables
 var (
 	// block data
-	// TODO: Update this to `MainnetChainConfig` when `LondonBlock` is added
-	TestConfig  = params.RopstenChainConfig
+	TestConfig  = params.MainnetChainConfig
 	BlockNumber = TestConfig.LondonBlock
 
 	// canonical block at London height
@@ -216,6 +215,7 @@ var (
 					Removed: true,
 					LeafKey: RemovedLeafKey,
 					CID:     shared.RemovedNodeStorageCID,
+					Value:   []byte{},
 				},
 			},
 		},

@@ -399,7 +399,7 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 		t.Fatal(err)
 	}
 	require.Equal(t, 2, len(stateNodes))
-	for idx, stateNode := range stateNodes {
+	for _, stateNode := range stateNodes {
 		var data []byte
 		dc, err := cid.Decode(stateNode.CID)
 		if err != nil {
@@ -411,17 +411,16 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 			t.Fatal(err)
 		}
 
-		if idx == 1 { // TODO: ordering is non-deterministic
+		if common.BytesToHash(mocks.RemovedLeafKey).Hex() == stateNode.StateKey {
 			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
-			require.Equal(t, common.BytesToHash(mocks.RemovedLeafKey).Hex(), stateNode.StateKey)
 			require.Equal(t, true, stateNode.Removed)
 			require.Equal(t, []byte{}, data)
-		}
-		if idx == 0 {
+		} else if common.BytesToHash(mocks.Contract2LeafKey).Hex() == stateNode.StateKey {
 			require.Equal(t, shared.RemovedNodeStateCID, stateNode.CID)
-			require.Equal(t, common.BytesToHash(mocks.Contract2LeafKey).Hex(), stateNode.StateKey)
 			require.Equal(t, true, stateNode.Removed)
 			require.Equal(t, []byte{}, data)
+		} else {
+			t.Fatalf("unexpected stateNode.StateKey value: %s", stateNode.StateKey)
 		}
 	}
 }
@@ -927,7 +926,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 	var data []byte
 
 	rctRLPs := [][]byte{
-		nonCanonicalBlockRctLeaf1, nonCanonicalBlockRctLeaf2,
+		rct1, rct2, rct3, rct4, rct5, nonCanonicalBlockRct1, nonCanonicalBlockRct2,
 	}
 	for i, rctCid := range append(rctCids, nonCanonicalBlockRctCids...) {
 		err = db.Get(context.Background(), &data, ipfsPgGet, rctCid.String(), mocks.BlockNumber.Uint64())
@@ -937,7 +936,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 		require.Equal(t, rctRLPs[i], data)
 	}
 
-	nonCanonicalBlock2RctRLPs := [][]byte{nonCanonicalBlock2RctLeaf1, nonCanonicalBlock2RctLeaf2}
+	nonCanonicalBlock2RctRLPs := [][]byte{nonCanonicalBlock2Rct1, nonCanonicalBlock2Rct2}
 	for i, rctCid := range nonCanonicalBlock2RctCids {
 		err = db.Get(context.Background(), &data, ipfsPgGet, rctCid.String(), mocks.Block2Number.Uint64())
 		if err != nil {
@@ -949,7 +948,7 @@ func TestPublishAndIndexReceiptsNonCanonical(t *testing.T, db sql.Database) {
 
 func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 	// check indexed logs
-	pgStr := `SELECT address, topic0, topic1, topic2, topic3
+	pgStr := `SELECT address, topic0, topic1, topic2, topic3, data
 		FROM eth.log_cids
 		INNER JOIN ipld.blocks ON (log_cids.block_number = blocks.block_number AND log_cids.cid = blocks.key)
 		WHERE log_cids.block_number = $1 AND header_id = $2 AND rct_id = $3
@@ -1014,22 +1013,9 @@ func TestPublishAndIndexLogsNonCanonical(t *testing.T, db sql.Database) {
 			}
 			require.Equal(t, expectedLog, logRes[i].LogsModel)
 
-			// check indexed log IPLD block
-			var nodeElements []interface{}
-			err = rlp.DecodeBytes(logRes[i].IPLDData, &nodeElements)
+			logRaw, err := rlp.EncodeToBytes(log)
 			require.NoError(t, err)
-
-			if len(nodeElements) == 2 {
-				logRaw, err := rlp.EncodeToBytes(log)
-				require.NoError(t, err)
-				// 2nd element of the leaf node contains the encoded log data.
-				require.Equal(t, nodeElements[1].([]byte), logRaw)
-			} else {
-				logRaw, err := rlp.EncodeToBytes(log)
-				require.NoError(t, err)
-				// raw log was IPLDized
-				require.Equal(t, logRes[i].IPLDData, logRaw)
-			}
+			require.Equal(t, logRaw, logRes[i].IPLDData)
 		}
 	}
 }
@@ -1039,8 +1025,7 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	pgStr := `SELECT state_leaf_key, removed, cid, diff
 					FROM eth.state_cids
 					WHERE block_number = $1
-					AND header_id = $2
-					ORDER BY state_leaf_key`
+					AND header_id = $2`
 
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStateCID)
 	stateNodeCIDs := []cid.Cid{state1CID, state2CID, removedNodeCID, removedNodeCID}
@@ -1082,6 +1067,14 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	}
 	require.Equal(t, len(expectedStateNodes), len(stateNodes))
 
+	sort.Slice(stateNodes, func(i, j int) bool {
+		if bytes.Compare(common.Hex2Bytes(stateNodes[i].StateKey), common.Hex2Bytes(stateNodes[j].StateKey)) < 0 {
+			return true
+		} else {
+			return false
+		}
+	})
+
 	for i, expectedStateNode := range expectedStateNodes {
 		require.Equal(t, expectedStateNode, stateNodes[i])
 	}
@@ -1116,8 +1109,7 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	pgStr := `SELECT storage_leaf_key, state_leaf_key, removed, cid, diff, val
 					FROM eth.storage_cids
 					WHERE block_number = $1
-					AND header_id = $2
-					ORDER BY state_leaf_key, storage_leaf_key`
+					AND header_id = $2`
 
 	removedNodeCID, _ := cid.Decode(shared.RemovedNodeStorageCID)
 	storageNodeCIDs := []cid.Cid{storageCID, removedNodeCID, removedNodeCID, removedNodeCID}
@@ -1169,7 +1161,16 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
+
+	sort.Slice(storageNodes, func(i, j int) bool {
+		if bytes.Compare(common.Hex2Bytes(storageNodes[i].StorageKey), common.Hex2Bytes(storageNodes[j].StorageKey)) < 0 {
+			return true
+		} else {
+			return false
+		}
+	})
 
 	for i, expectedStorageNode := range expectedStorageNodes {
 		require.Equal(t, expectedStorageNode, storageNodes[i])
