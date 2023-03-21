@@ -499,6 +499,7 @@ func (sdb *StateDiffBuilder) buildRemovedStorageNodesFromTrie(it trie.NodeIterat
 				CID:     shared.RemovedNodeStorageCID,
 				Removed: true,
 				LeafKey: leafKey,
+				Value:   []byte{},
 			}); err != nil {
 				return err
 			}
@@ -580,6 +581,7 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedStorage(a, b trie.NodeIterator, dif
 					CID:     shared.RemovedNodeStorageCID,
 					Removed: true,
 					LeafKey: leafKey,
+					Value:   []byte{},
 				}); err != nil {
 					return err
 				}
