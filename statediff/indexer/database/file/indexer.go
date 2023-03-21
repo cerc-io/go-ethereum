@@ -443,7 +443,7 @@ func (sdi *StateDiffIndexer) PushStateNode(batch interfaces.Batch, stateNode sdt
 		storageModel := models.StorageNodeModel{
 			BlockNumber: tx.BlockNumber,
 			HeaderID:    headerID,
-			StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).Hex(),
+			StateKey:    common.BytesToHash(stateNode.AccountWrapper.LeafKey).String(),
 			StorageKey:  common.BytesToHash(storageNode.LeafKey).String(),
 			CID:         storageNode.CID,
 			Removed:     false,

@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/file"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/file/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql/postgres"
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared/schema"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test"
 	"github.com/ethereum/go-ethereum/statediff/indexer/test_helpers"
 )
@@ -90,7 +90,7 @@ func resetAndDumpWatchedAddressesCSVFileData(t *testing.T) {
 	test_helpers.TearDownDB(t, db)
 
 	outputFilePath := filepath.Join(dbDirectory, file.CSVTestConfig.WatchedAddressesFilePath)
-	stmt := fmt.Sprintf(pgCopyStatement, types.TableWatchedAddresses.Name, outputFilePath)
+	stmt := fmt.Sprintf(pgCopyStatement, schema.TableWatchedAddresses.Name, outputFilePath)
 
 	_, err = db.Exec(context.Background(), stmt)
 	require.NoError(t, err)

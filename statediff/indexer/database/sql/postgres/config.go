@@ -18,6 +18,8 @@ package postgres
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +33,15 @@ const (
 	PGX     DriverType = "PGX"
 	SQLX    DriverType = "SQLX"
 	Unknown DriverType = "Unknown"
+)
+
+// Env variables
+const (
+	DATABASE_NAME     = "DATABASE_NAME"
+	DATABASE_HOSTNAME = "DATABASE_HOSTNAME"
+	DATABASE_PORT     = "DATABASE_PORT"
+	DATABASE_USER     = "DATABASE_USER"
+	DATABASE_PASSWORD = "DATABASE_PASSWORD"
 )
 
 // ResolveDriverType resolves a DriverType from a provided string
@@ -49,7 +60,7 @@ func ResolveDriverType(str string) (DriverType, error) {
 var DefaultConfig = Config{
 	Hostname:     "localhost",
 	Port:         8077,
-	DatabaseName: "vulcanize_testing",
+	DatabaseName: "cerc_testing",
 	Username:     "vdbm",
 	Password:     "password",
 }
@@ -99,4 +110,27 @@ func (c Config) DbConnectionString() string {
 			c.Username, c.Hostname, c.Port, c.DatabaseName)
 	}
 	return fmt.Sprintf("postgresql://%s:%d/%s?sslmode=disable", c.Hostname, c.Port, c.DatabaseName)
+}
+
+func (c Config) WithEnv() (Config, error) {
+	if val := os.Getenv(DATABASE_NAME); val != "" {
+		c.DatabaseName = val
+	}
+	if val := os.Getenv(DATABASE_HOSTNAME); val != "" {
+		c.Hostname = val
+	}
+	if val := os.Getenv(DATABASE_PORT); val != "" {
+		port, err := strconv.Atoi(val)
+		if err != nil {
+			return c, err
+		}
+		c.Port = port
+	}
+	if val := os.Getenv(DATABASE_USER); val != "" {
+		c.Username = val
+	}
+	if val := os.Getenv(DATABASE_PASSWORD); val != "" {
+		c.Password = val
+	}
+	return c, nil
 }

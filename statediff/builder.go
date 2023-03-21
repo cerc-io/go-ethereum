@@ -102,7 +102,7 @@ func (sdb *StateDiffBuilder) BuildStateDiffObject(args Args, params Params) (typ
 	}, nil
 }
 
-// WriteStateDiffObject writes a statediff object to output callback
+// WriteStateDiffObject writes a statediff object to output sinks
 func (sdb *StateDiffBuilder) WriteStateDiffObject(args types2.StateRoots, params Params, output types2.StateNodeSink,
 	ipldOutput types2.IPLDSink) error {
 	// Load tries for old and new states
