@@ -343,8 +343,8 @@ func TestPublishAndIndexReceiptIPLDs(t *testing.T, db sql.Database) {
 func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 	// check that state nodes were properly indexed and published
 	stateNodes := make([]models.StateNodeModel, 0)
-	pgStr := `SELECT state_cids.cid, state_cids.block_number, state_cids.state_leaf_key, state_cids.removed,
-				state_cids.header_id, state_cids.balance, state_cids.nonce, state_cids.code_hash, state_cids.storage_root
+	pgStr := `SELECT state_cids.cid, CAST(state_cids.block_number as TEXT), state_cids.state_leaf_key, state_cids.removed,
+				state_cids.header_id, CAST(state_cids.balance as TEXT), state_cids.nonce, state_cids.code_hash, state_cids.storage_root
 				FROM eth.state_cids
 				WHERE block_number = $1
 				AND removed = false`
