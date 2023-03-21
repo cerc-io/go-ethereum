@@ -25,8 +25,8 @@ services:
       USE_GENESIS: "true"
       EXTRA_START_ARGS: ${extra_args}
     ports:
-      - "127.0.0.1:8545:8545"
-      - "127.0.0.1:8546:8546"
+      - "8545:8545"
+      - "8546:8546"
 
   migrations:
     restart: on-failure
@@ -49,6 +49,6 @@ services:
       POSTGRES_DB: "vulcanize_testing"
       POSTGRES_PASSWORD: "password"
     ports:
-      - "127.0.0.1:8077:5432"
+      - "8077:5432"
     volumes:
       - ./statediff/indexer/database/file:/file_indexer
