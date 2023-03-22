@@ -17,10 +17,11 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
@@ -1040,13 +1041,6 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 			Diff:     true,
 		})
 	}
-	sort.Slice(expectedStateNodes, func(i, j int) bool {
-		if bytes.Compare(common.Hex2Bytes(expectedStateNodes[i].StateKey), common.Hex2Bytes(expectedStateNodes[j].StateKey)) < 0 {
-			return true
-		} else {
-			return false
-		}
-	})
 
 	// expected state nodes in the non-canonical block at London height + 1
 	expectedNonCanonicalBlock2StateNodes := make([]models.StateNodeModel, 0)
@@ -1065,19 +1059,9 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	require.Equal(t, len(expectedStateNodes), len(stateNodes))
-
-	sort.Slice(stateNodes, func(i, j int) bool {
-		if bytes.Compare(common.Hex2Bytes(stateNodes[i].StateKey), common.Hex2Bytes(stateNodes[j].StateKey)) < 0 {
-			return true
-		} else {
-			return false
-		}
-	})
-
-	for i, expectedStateNode := range expectedStateNodes {
-		require.Equal(t, expectedStateNode, stateNodes[i])
-	}
+	assert.ElementsMatch(t, expectedStateNodes, stateNodes)
 
 	// check state nodes for non-canonical block at London height
 	stateNodes = make([]models.StateNodeModel, 0)
@@ -1086,10 +1070,7 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 		t.Fatal(err)
 	}
 	require.Equal(t, len(expectedStateNodes), len(stateNodes))
-
-	for i, expectedStateNode := range expectedStateNodes {
-		require.Equal(t, expectedStateNode, stateNodes[i])
-	}
+	assert.ElementsMatch(t, expectedStateNodes, stateNodes)
 
 	// check state nodes for non-canonical block at London height + 1
 	stateNodes = make([]models.StateNodeModel, 0)
@@ -1098,10 +1079,7 @@ func TestPublishAndIndexStateNonCanonical(t *testing.T, db sql.Database) {
 		t.Fatal(err)
 	}
 	require.Equal(t, len(expectedNonCanonicalBlock2StateNodes), len(stateNodes))
-
-	for i, expectedStateNode := range expectedNonCanonicalBlock2StateNodes {
-		require.Equal(t, expectedStateNode, stateNodes[i])
-	}
+	assert.ElementsMatch(t, expectedNonCanonicalBlock2StateNodes, stateNodes)
 }
 
 func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
@@ -1130,13 +1108,6 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 			storageNodeIndex++
 		}
 	}
-	sort.Slice(expectedStorageNodes, func(i, j int) bool {
-		if bytes.Compare(common.Hex2Bytes(expectedStorageNodes[i].StorageKey), common.Hex2Bytes(expectedStorageNodes[j].StorageKey)) < 0 {
-			return true
-		} else {
-			return false
-		}
-	})
 
 	// expected storage nodes in the non-canonical block at London height + 1
 	expectedNonCanonicalBlock2StorageNodes := make([]models.StorageNodeModel, 0)
@@ -1163,18 +1134,7 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	}
 
 	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
-
-	sort.Slice(storageNodes, func(i, j int) bool {
-		if bytes.Compare(common.Hex2Bytes(storageNodes[i].StorageKey), common.Hex2Bytes(storageNodes[j].StorageKey)) < 0 {
-			return true
-		} else {
-			return false
-		}
-	})
-
-	for i, expectedStorageNode := range expectedStorageNodes {
-		require.Equal(t, expectedStorageNode, storageNodes[i])
-	}
+	assert.ElementsMatch(t, expectedStorageNodes, storageNodes)
 
 	// check storage nodes for non-canonical block at London height
 	storageNodes = make([]models.StorageNodeModel, 0)
@@ -1182,11 +1142,9 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
 
-	for i, expectedStorageNode := range expectedStorageNodes {
-		require.Equal(t, expectedStorageNode, storageNodes[i])
-	}
+	require.Equal(t, len(expectedStorageNodes), len(storageNodes))
+	assert.ElementsMatch(t, expectedStorageNodes, storageNodes)
 
 	// check storage nodes for non-canonical block at London height + 1
 	storageNodes = make([]models.StorageNodeModel, 0)
@@ -1195,8 +1153,5 @@ func TestPublishAndIndexStorageNonCanonical(t *testing.T, db sql.Database) {
 		t.Fatal(err)
 	}
 	require.Equal(t, len(expectedNonCanonicalBlock2StorageNodes), len(storageNodes))
-
-	for i, expectedStorageNode := range expectedNonCanonicalBlock2StorageNodes {
-		require.Equal(t, expectedStorageNode, storageNodes[i])
-	}
+	assert.ElementsMatch(t, expectedNonCanonicalBlock2StorageNodes, storageNodes)
 }

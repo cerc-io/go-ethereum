@@ -181,7 +181,7 @@ func createRctModel(rct *types.Receipt, cid cid.Cid, blockNumber string) models.
 	if len(rct.PostState) == 0 {
 		rctModel.PostStatus = rct.Status
 	} else {
-		rctModel.PostState = common.Bytes2Hex(rct.PostState)
+		rctModel.PostState = common.BytesToHash(rct.PostState).String()
 	}
 
 	return rctModel
