@@ -354,7 +354,7 @@ func (sdi *StateDiffIndexer) processReceiptsAndTxs(tx *BatchTx, args processArgs
 		if len(receipt.PostState) == 0 {
 			rctModel.PostStatus = receipt.Status
 		} else {
-			rctModel.PostState = common.Bytes2Hex(receipt.PostState)
+			rctModel.PostState = common.BytesToHash(receipt.PostState).String()
 		}
 
 		if err := sdi.dbWriter.upsertReceiptCID(tx.dbtx, rctModel); err != nil {

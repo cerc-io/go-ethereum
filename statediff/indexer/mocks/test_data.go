@@ -96,9 +96,9 @@ var (
 	mockTopic21                 = common.HexToHash("0x05")
 	mockTopic22                 = common.HexToHash("0x07")
 	ExpectedPostStatus   uint64 = 1
-	ExpectedPostState1          = common.Bytes2Hex(common.HexToHash("0x1").Bytes())
-	ExpectedPostState2          = common.Bytes2Hex(common.HexToHash("0x2").Bytes())
-	ExpectedPostState3          = common.Bytes2Hex(common.HexToHash("0x3").Bytes())
+	ExpectedPostState1          = common.HexToHash("0x1").String()
+	ExpectedPostState2          = common.HexToHash("0x2").String()
+	ExpectedPostState3          = common.HexToHash("0x3").String()
 	MockLog1                    = &types.Log{
 		Address: Address,
 		Topics:  []common.Hash{mockTopic11, mockTopic12},
