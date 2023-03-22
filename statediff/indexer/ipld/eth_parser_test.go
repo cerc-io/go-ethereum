@@ -23,9 +23,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 )
 
 type kind string
@@ -100,8 +100,27 @@ func TestFromBlockAndReceipts(t *testing.T) {
 }
 
 func TestProcessLogs(t *testing.T) {
-	logs := []*types.Log{mocks.MockLog1, mocks.MockLog2}
+	logs := []*types.Log{mockLog1, mockLog2}
 	nodes, err := processLogs(logs)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(nodes), len(logs))
 }
+
+var (
+	address        = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
+	anotherAddress = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476593")
+	mockTopic11    = common.HexToHash("0x04")
+	mockTopic12    = common.HexToHash("0x06")
+	mockTopic21    = common.HexToHash("0x05")
+	mockTopic22    = common.HexToHash("0x07")
+	mockLog1       = &types.Log{
+		Address: address,
+		Topics:  []common.Hash{mockTopic11, mockTopic12},
+		Data:    []byte{},
+	}
+	mockLog2 = &types.Log{
+		Address: anotherAddress,
+		Topics:  []common.Hash{mockTopic21, mockTopic22},
+		Data:    []byte{},
+	}
+)
