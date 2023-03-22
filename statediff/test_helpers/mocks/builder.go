@@ -22,6 +22,8 @@ import (
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
+var _ statediff.Builder = &Builder{}
+
 // Builder is a mock state diff builder
 type Builder struct {
 	Args         statediff.Args
@@ -42,7 +44,7 @@ func (builder *Builder) BuildStateDiffObject(args statediff.Args, params statedi
 }
 
 // BuildStateDiffObject mock method
-func (builder *Builder) WriteStateDiffObject(args sdtypes.StateRoots, params statediff.Params, output sdtypes.StateNodeSink, codeOutput sdtypes.CodeSink) error {
+func (builder *Builder) WriteStateDiffObject(args sdtypes.StateRoots, params statediff.Params, output sdtypes.StateNodeSink, iplds sdtypes.IPLDSink) error {
 	builder.StateRoots = args
 	builder.Params = params
 
