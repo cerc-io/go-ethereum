@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'f2fd766f5400fcb9eb47b50675d2e3b1f2753702'}}
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || '37da42481357102a4e02156ad3b178cc5d1f9a42'}}
   ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || '167cfbfb202d387aed2c9950e18c45a66f87821d' }}
   GOPATH: /tmp/go
 
@@ -37,7 +37,6 @@ jobs:
       - name: Run unit tests
         run: |
           make test
-
   statediff-unit-test:
     name: Run state diff unit test
     runs-on: ubuntu-latest
@@ -56,7 +55,6 @@ jobs:
       - name: Run docker compose
         run: |
           docker-compose up -d
-
       - name: Give the migration a few seconds
         run: sleep 30;
 
@@ -84,7 +82,7 @@ jobs:
         with:
           ref: ${{ env.stack-orchestrator-ref }}
           path: "./stack-orchestrator/"
-          repository: vulcanize/stack-orchestrator
+          repository: cerc-io/mshaw_stack_hack
           fetch-depth: 0
 
       - uses: actions/checkout@v3
@@ -101,13 +99,11 @@ jobs:
           echo db_write=true >> $GITHUB_WORKSPACE/config.sh
           echo genesis_file_path=start-up-files/go-ethereum/genesis.json >> $GITHUB_WORKSPACE/config.sh
           cat $GITHUB_WORKSPACE/config.sh
-
       - name: Compile Geth
         run: |
           cd $GITHUB_WORKSPACE/stack-orchestrator/helper-scripts
           ./compile-geth.sh -e docker -p $GITHUB_WORKSPACE/config.sh
           cd -
-
       - name: Run docker compose
         run: |
           docker-compose  \
@@ -115,24 +111,23 @@ jobs:
           -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" \
           --env-file $GITHUB_WORKSPACE/config.sh \
           up -d --build
-
       - name: Make sure the /root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS exists within a certain time frame.
         shell: bash
         run: |
           COUNT=0
           ATTEMPTS=15
-          docker ps
+          sleep 30;
+          docker logs local_go-ethereum_1
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum ps aux
           until $(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" cp go-ethereum:/root/transaction_info/STATEFUL_TEST_DEPLOYED_ADDRESS ./STATEFUL_TEST_DEPLOYED_ADDRESS) || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "$(( COUNT++ ))... \c"; sleep 10; done
           [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not find the successful contract deployment" && (exit 1)
           cat ./STATEFUL_TEST_DEPLOYED_ADDRESS
           sleep 15;
-
       - name: Create a new transaction.
         shell: bash
         run: |
           docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec go-ethereum /bin/bash /root/transaction_info/NEW_TRANSACTION
           echo $?
-
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
