@@ -220,15 +220,20 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	if stateNode.Removed {
 		balance = "0"
 	}
+
 	if w.useCopyForTx(tx) {
 		blockNum, err := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		if err != nil {
+			return insertError{"eth.state_cids", err, "COPY", stateNode}
+		}
+		balInt, err := strconv.ParseInt(balance, 10, 64)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(),
 			toRows(toRow(blockNum, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
-				true, balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)))
+				true, balInt, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)))
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
