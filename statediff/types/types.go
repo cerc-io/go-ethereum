@@ -30,77 +30,52 @@ type StateRoots struct {
 
 // StateObject is the final output structure from the builder
 type StateObject struct {
-	BlockNumber       *big.Int          `json:"blockNumber"     gencodec:"required"`
-	BlockHash         common.Hash       `json:"blockHash"       gencodec:"required"`
-	Nodes             []StateNode       `json:"nodes"           gencodec:"required"`
-	CodeAndCodeHashes []CodeAndCodeHash `json:"codeMapping"`
+	BlockNumber *big.Int        `json:"blockNumber"     gencodec:"required"`
+	BlockHash   common.Hash     `json:"blockHash"       gencodec:"required"`
+	Nodes       []StateLeafNode `json:"nodes"           gencodec:"required"`
+	IPLDs       []IPLD          `json:"iplds"`
 }
 
 // AccountMap is a mapping of hex encoded path => account wrapper
 type AccountMap map[string]AccountWrapper
 
-// AccountWrapper is used to temporary associate the unpacked node with its raw values
+// AccountWrapper is used to temporarily associate the unpacked node with its raw values
 type AccountWrapper struct {
-	Account   *types.StateAccount
-	NodeType  NodeType
-	Path      []byte
-	NodeValue []byte
-	LeafKey   []byte
+	Account *types.StateAccount
+	LeafKey []byte
+	CID     string
 }
 
-// NodeType for explicitly setting type of node
-type NodeType string
-
-const (
-	Unknown   NodeType = "Unknown"
-	Branch    NodeType = "Branch"
-	Extension NodeType = "Extension"
-	Leaf      NodeType = "Leaf"
-	Removed   NodeType = "Removed" // used to represent paths which have been emptied
-)
-
-func (n NodeType) Int() int {
-	switch n {
-	case Branch:
-		return 0
-	case Extension:
-		return 1
-	case Leaf:
-		return 2
-	case Removed:
-		return 3
-	default:
-		return -1
-	}
+// StateLeafNode holds the data for a single state diff leaf node
+type StateLeafNode struct {
+	Removed        bool
+	AccountWrapper AccountWrapper
+	StorageDiff    []StorageLeafNode
 }
 
-// StateNode holds the data for a single state diff node
-type StateNode struct {
-	NodeType     NodeType      `json:"nodeType"        gencodec:"required"`
-	Path         []byte        `json:"path"            gencodec:"required"`
-	NodeValue    []byte        `json:"value"           gencodec:"required"`
-	StorageNodes []StorageNode `json:"storage"`
-	LeafKey      []byte        `json:"leafKey"`
+// StorageLeafNode holds the data for a single storage diff node leaf node
+type StorageLeafNode struct {
+	Removed bool
+	Value   []byte
+	LeafKey []byte
+	CID     string
 }
 
-// StorageNode holds the data for a single storage diff node
-type StorageNode struct {
-	NodeType  NodeType `json:"nodeType"        gencodec:"required"`
-	Path      []byte   `json:"path"            gencodec:"required"`
-	NodeValue []byte   `json:"value"           gencodec:"required"`
-	LeafKey   []byte   `json:"leafKey"`
+// IPLD holds a cid:content pair, e.g. for codehash to code mappings or for intermediate node IPLD objects
+type IPLD struct {
+	CID     string
+	Content []byte
 }
 
-// CodeAndCodeHash struct for holding codehash => code mappings
-// we can't use an actual map because they are not rlp serializable
+// CodeAndCodeHash struct to hold codehash => code mappings
 type CodeAndCodeHash struct {
-	Hash common.Hash `json:"codeHash"`
-	Code []byte      `json:"code"`
+	Hash common.Hash
+	Code []byte
 }
 
-type StateNodeSink func(StateNode) error
-type StorageNodeSink func(StorageNode) error
-type CodeSink func(CodeAndCodeHash) error
+type StateNodeSink func(node StateLeafNode) error
+type StorageNodeSink func(node StorageLeafNode) error
+type IPLDSink func(IPLD) error
 
 // OperationType for type of WatchAddress operation
 type OperationType string

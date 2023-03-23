@@ -39,14 +39,19 @@ type PGXDriver struct {
 	nodeID   string
 }
 
-// NewPGXDriver returns a new pgx driver
-// it initializes the connection pool and creates the node info table
-func NewPGXDriver(ctx context.Context, config Config, node node.Info) (*PGXDriver, error) {
+// ConnectPGX initializes and returns a PGX connection pool
+func ConnectPGX(ctx context.Context, config Config) (*pgxpool.Pool, error) {
 	pgConf, err := MakeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	dbPool, err := pgxpool.ConnectConfig(ctx, pgConf)
+	return pgxpool.ConnectConfig(ctx, pgConf)
+}
+
+// NewPGXDriver returns a new pgx driver
+// it initializes the connection pool and creates the node info table
+func NewPGXDriver(ctx context.Context, config Config, node node.Info) (*PGXDriver, error) {
+	dbPool, err := ConnectPGX(ctx, config)
 	if err != nil {
 		return nil, ErrDBConnectionFailed(err)
 	}

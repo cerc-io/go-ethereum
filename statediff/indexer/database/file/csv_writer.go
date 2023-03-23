@@ -25,37 +25,32 @@ import (
 	"path/filepath"
 	"strconv"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/file/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
+	"github.com/ethereum/go-ethereum/statediff/indexer/shared/schema"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
 var (
-	Tables = []*types.Table{
-		&types.TableIPLDBlock,
-		&types.TableNodeInfo,
-		&types.TableHeader,
-		&types.TableStateNode,
-		&types.TableStorageNode,
-		&types.TableUncle,
-		&types.TableTransaction,
-		&types.TableAccessListElement,
-		&types.TableReceipt,
-		&types.TableLog,
-		&types.TableStateAccount,
+	Tables = []*schema.Table{
+		&schema.TableIPLDBlock,
+		&schema.TableNodeInfo,
+		&schema.TableHeader,
+		&schema.TableStateNode,
+		&schema.TableStorageNode,
+		&schema.TableUncle,
+		&schema.TableTransaction,
+		&schema.TableReceipt,
+		&schema.TableLog,
 	}
 )
 
 type tableRow struct {
-	table  types.Table
+	table  schema.Table
 	values []interface{}
 }
 
@@ -95,7 +90,7 @@ func newFileWriter(path string) (ret fileWriter, err error) {
 	return
 }
 
-func makeFileWriters(dir string, tables []*types.Table) (fileWriters, error) {
+func makeFileWriters(dir string, tables []*schema.Table) (fileWriters, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
@@ -110,7 +105,7 @@ func makeFileWriters(dir string, tables []*types.Table) (fileWriters, error) {
 	return writers, nil
 }
 
-func (tx fileWriters) write(tbl *types.Table, args ...interface{}) error {
+func (tx fileWriters) write(tbl *schema.Table, args ...interface{}) error {
 	row := tbl.ToCsvRow(args...)
 	return tx[tbl.Name].Write(row)
 }
@@ -209,13 +204,13 @@ func (csw *CSVWriter) Close() error {
 func (csw *CSVWriter) upsertNode(node nodeinfo.Info) {
 	var values []interface{}
 	values = append(values, node.GenesisBlock, node.NetworkID, node.ID, node.ClientName, node.ChainID)
-	csw.rows <- tableRow{types.TableNodeInfo, values}
+	csw.rows <- tableRow{schema.TableNodeInfo, values}
 }
 
 func (csw *CSVWriter) upsertIPLD(ipld models.IPLDModel) {
 	var values []interface{}
 	values = append(values, ipld.BlockNumber, ipld.Key, ipld.Data)
-	csw.rows <- tableRow{types.TableIPLDBlock, values}
+	csw.rows <- tableRow{schema.TableIPLDBlock, values}
 }
 
 func (csw *CSVWriter) upsertIPLDDirect(blockNumber, key string, value []byte) {
@@ -226,94 +221,66 @@ func (csw *CSVWriter) upsertIPLDDirect(blockNumber, key string, value []byte) {
 	})
 }
 
-func (csw *CSVWriter) upsertIPLDNode(blockNumber string, i node.Node) {
+func (csw *CSVWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	csw.upsertIPLD(models.IPLDModel{
 		BlockNumber: blockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	})
-}
-
-func (csw *CSVWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	csw.upsertIPLD(models.IPLDModel{
-		BlockNumber: blockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	})
-	return c.String(), prefixedKey, err
 }
 
 func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UncleRoot, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.MhKey, 1, header.Coinbase)
-	csw.rows <- tableRow{types.TableHeader, values}
+		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
+		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase)
+	csw.rows <- tableRow{schema.TableHeader, values}
 	indexerMetrics.blocks.Inc(1)
 }
 
 func (csw *CSVWriter) upsertUncleCID(uncle models.UncleModel) {
 	var values []interface{}
 	values = append(values, uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID,
-		uncle.Reward, uncle.MhKey)
-	csw.rows <- tableRow{types.TableUncle, values}
+		uncle.Reward, uncle.Index)
+	csw.rows <- tableRow{schema.TableUncle, values}
 }
 
 func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 	var values []interface{}
 	values = append(values, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
-		transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value)
-	csw.rows <- tableRow{types.TableTransaction, values}
+		transaction.Src, transaction.Index, transaction.Type, transaction.Value)
+	csw.rows <- tableRow{schema.TableTransaction, values}
 	indexerMetrics.transactions.Inc(1)
-}
-
-func (csw *CSVWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
-	var values []interface{}
-	values = append(values, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address, accessListElement.StorageKeys)
-	csw.rows <- tableRow{types.TableAccessListElement, values}
-	indexerMetrics.accessListEntries.Inc(1)
 }
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	var values []interface{}
-	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
-		rct.PostState, rct.PostStatus, rct.LogRoot)
-	csw.rows <- tableRow{types.TableReceipt, values}
+	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
+		rct.PostState, rct.PostStatus)
+	csw.rows <- tableRow{schema.TableReceipt, values}
 	indexerMetrics.receipts.Inc(1)
 }
 
 func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
 		var values []interface{}
-		values = append(values, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
-			l.Topic1, l.Topic2, l.Topic3, l.Data)
-		csw.rows <- tableRow{types.TableLog, values}
+		values = append(values, l.BlockNumber, l.HeaderID, l.CID, l.ReceiptID, l.Address, l.Index, l.Topic0,
+			l.Topic1, l.Topic2, l.Topic3)
+		csw.rows <- tableRow{schema.TableLog, values}
 		indexerMetrics.logs.Inc(1)
 	}
 }
 
 func (csw *CSVWriter) upsertStateCID(stateNode models.StateNodeModel) {
-	var stateKey string
-	if stateNode.StateKey != nullHash.String() {
-		stateKey = stateNode.StateKey
+	balance := stateNode.Balance
+	if stateNode.Removed {
+		balance = "0"
 	}
 
 	var values []interface{}
-	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
-		stateNode.NodeType, true, stateNode.MhKey)
-	csw.rows <- tableRow{types.TableStateNode, values}
-}
-
-func (csw *CSVWriter) upsertStateAccount(stateAccount models.StateAccountModel) {
-	var values []interface{}
-	values = append(values, stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		strconv.FormatUint(stateAccount.Nonce, 10), stateAccount.CodeHash, stateAccount.StorageRoot)
-	csw.rows <- tableRow{types.TableStateAccount, values}
+	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
+		true, balance, strconv.FormatUint(stateNode.Nonce, 10), stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)
+	csw.rows <- tableRow{schema.TableStateNode, values}
 }
 
 func (csw *CSVWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
@@ -323,9 +290,9 @@ func (csw *CSVWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
 	}
 
 	var values []interface{}
-	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
-		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey)
-	csw.rows <- tableRow{types.TableStorageNode, values}
+	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageKey, storageCID.CID,
+		true, storageCID.Value, storageCID.Removed)
+	csw.rows <- tableRow{schema.TableStorageNode, values}
 }
 
 // LoadWatchedAddresses loads watched addresses from a file
@@ -365,7 +332,7 @@ func (csw *CSVWriter) insertWatchedAddresses(args []sdtypes.WatchAddressArg, cur
 
 		var values []interface{}
 		values = append(values, arg.Address, strconv.FormatUint(arg.CreatedAt, 10), currentBlockNumber.String(), "0")
-		row := types.TableWatchedAddresses.ToCsvRow(values...)
+		row := schema.TableWatchedAddresses.ToCsvRow(values...)
 
 		// writing directly instead of using rows channel as it needs to be flushed immediately
 		err = csw.watchedAddressesWriter.Write(row)
@@ -408,7 +375,7 @@ func (csw *CSVWriter) removeWatchedAddresses(args []sdtypes.WatchAddressArg) err
 func (csw *CSVWriter) setWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) error {
 	var rows [][]string
 	for _, arg := range args {
-		row := types.TableWatchedAddresses.ToCsvRow(arg.Address, strconv.FormatUint(arg.CreatedAt, 10), currentBlockNumber.String(), "0")
+		row := schema.TableWatchedAddresses.ToCsvRow(arg.Address, strconv.FormatUint(arg.CreatedAt, 10), currentBlockNumber.String(), "0")
 		rows = append(rows, row)
 	}
 

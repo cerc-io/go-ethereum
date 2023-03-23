@@ -23,9 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 )
 
 // BatchTx wraps a void with the state necessary for building the tx concurrently during trie difference iteration
@@ -74,24 +71,10 @@ func (tx *BatchTx) cacheDirect(key string, value []byte) {
 	}
 }
 
-func (tx *BatchTx) cacheIPLD(i node.Node) {
+func (tx *BatchTx) cacheIPLD(i ipld.IPLD) {
 	tx.iplds <- models.IPLDModel{
 		BlockNumber: tx.BlockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	}
-}
-
-func (tx *BatchTx) cacheRaw(codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	tx.iplds <- models.IPLDModel{
-		BlockNumber: tx.BlockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	}
-	return c.String(), prefixedKey, err
 }

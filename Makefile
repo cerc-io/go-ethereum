@@ -26,7 +26,7 @@ PASSWORD = password
 export PGPASSWORD=$(PASSWORD)
 
 #Test
-TEST_DB = vulcanize_public
+TEST_DB = cerc_testing
 TEST_CONNECT_STRING = postgresql://$(USER):$(PASSWORD)@$(HOST_NAME):$(PORT)/$(TEST_DB)?sslmode=disable
 
 geth:

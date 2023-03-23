@@ -46,15 +46,12 @@ type Statements interface {
 	InsertHeaderStm() string
 	InsertUncleStm() string
 	InsertTxStm() string
-	InsertAccessListElementStm() string
 	InsertRctStm() string
 	InsertLogStm() string
 	InsertStateStm() string
-	InsertAccountStm() string
 	InsertStorageStm() string
 	InsertIPLDStm() string
 	InsertIPLDsStm() string
-	InsertKnownGapsStm() string
 }
 
 // Tx interface to accommodate different concrete SQL transaction types

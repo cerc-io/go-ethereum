@@ -18,10 +18,6 @@ package shared
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ipfs/go-cid"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	"github.com/multiformats/go-multihash"
 )
 
 // HandleZeroAddrPointer will return an empty string for a nil address pointer
@@ -38,20 +34,4 @@ func HandleZeroAddr(to common.Address) string {
 		return ""
 	}
 	return to.Hex()
-}
-
-// MultihashKeyFromCID converts a cid into a blockstore-prefixed multihash db key string
-func MultihashKeyFromCID(c cid.Cid) string {
-	dbKey := dshelp.MultihashToDsKey(c.Hash())
-	return blockstore.BlockPrefix.String() + dbKey.String()
-}
-
-// MultihashKeyFromKeccak256 converts keccak256 hash bytes into a blockstore-prefixed multihash db key string
-func MultihashKeyFromKeccak256(hash common.Hash) (string, error) {
-	mh, err := multihash.Encode(hash.Bytes(), multihash.KECCAK_256)
-	if err != nil {
-		return "", err
-	}
-	dbKey := dshelp.MultihashToDsKey(mh)
-	return blockstore.BlockPrefix.String() + dbKey.String(), nil
 }

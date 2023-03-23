@@ -50,15 +50,15 @@ func TestSelfDestructChainGen(i int, block *core.BlockGen) {
 	signer := types.HomesteadSigner{}
 	switch i {
 	case 0:
-		// Block 1 is mined by Account1Addr
-		// Account1Addr creates a new contract
+		// Block 1 is mined by TestBankAddress
+		// TestBankAddress creates a new contract
 		block.SetCoinbase(TestBankAddress)
 		tx, _ := types.SignTx(types.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(params.GWei), ContractCode), signer, TestBankKey)
 		ContractAddr = crypto.CreateAddress(TestBankAddress, 0)
 		block.AddTx(tx)
 	case 1:
-		// Block 2 is mined by Account1Addr
-		// Account1Addr self-destructs the contract
+		// Block 2 is mined by TestBankAddress
+		// TestBankAddress self-destructs the contract
 		block.SetCoinbase(TestBankAddress)
 		data := common.Hex2Bytes("43D726D6")
 		tx, _ := types.SignTx(types.NewTransaction(1, ContractAddr, big.NewInt(0), 100000, big.NewInt(params.GWei), data), signer, TestBankKey)

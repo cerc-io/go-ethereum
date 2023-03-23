@@ -127,7 +127,7 @@ This service introduces a CLI flag namespace `statediff`
 The service can only operate in full sync mode (`--syncmode=full`), but only the historical RPC endpoints require an archive node (`--gcmode=archive`)
 
 e.g.
-`./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db.type=postgres --statediff.db.driver=sqlx --statediff.db.host=localhost --statediff.db.port=5432 --statediff.db.name=vulcanize_test --statediff.db.user=postgres --statediff.db.nodeid=nodeid --statediff.db.clientname=clientname`
+`./build/bin/geth --syncmode=full --gcmode=archive --statediff --statediff.writing --statediff.db.type=postgres --statediff.db.driver=sqlx --statediff.db.host=localhost --statediff.db.port=5432 --statediff.db.name=cerc_testing --statediff.db.user=postgres --statediff.db.nodeid=nodeid --statediff.db.clientname=clientname`
 
 When operating in `--statediff.db.type=file` mode, the service will write SQL statements out to the file designated by
 `--statediff.file.path`. Please note that it writes out SQL statements with all `ON CONFLICT` constraint checks dropped.
@@ -239,7 +239,7 @@ This will only work on a version 12.4 Postgres database.
 
 #### Schema overview
 
-Our Postgres schemas are built around a single IPFS backing Postgres IPLD blockstore table (`public.blocks`) that conforms with [go-ds-sql](https://github.com/ipfs/go-ds-sql/blob/master/postgres/postgres.go).
+Our Postgres schemas are built around a single IPFS backing Postgres IPLD blockstore table (`ipld.blocks`) that conforms with [go-ds-sql](https://github.com/ipfs/go-ds-sql/blob/master/postgres/postgres.go).
 All IPLD objects are stored in this table, where `key` is the blockstore-prefixed multihash key for the IPLD object and `data` contains
 the bytes for the IPLD block (in the case of all Ethereum IPLDs, this is the RLP byte encoding of the Ethereum object).
 
@@ -250,7 +250,7 @@ we create an Ethereum [advanced data layout](https://github.com/ipld/specs#schem
 indexes on top of the raw IPLDs in other Postgres tables.
 
 These secondary index tables fall under the `eth` schema and follow an `{objectType}_cids` naming convention.
-These tables provide a view into individual fields of the underlying Ethereum IPLD objects, allowing lookups on these fields, and reference the raw IPLD objects stored in `public.blocks`
+These tables provide a view into individual fields of the underlying Ethereum IPLD objects, allowing lookups on these fields, and reference the raw IPLD objects stored in `ipld.blocks`
 by foreign keys to their multihash keys.
 Additionally, these tables maintain the hash-linked nature of Ethereum objects to one another. E.g. a storage trie node entry in the `storage_cids`
 table contains a `state_id` foreign key which references the `id` for the `state_cids` entry that contains the state leaf node for the contract that storage node belongs to,
@@ -280,7 +280,7 @@ the full incremental history.
 Example: `v1.10.16-statediff-3.0.2`
 
 - The first section, `v1.10.16`, corresponds to the release of the root branch this version is rebased onto (e.g., [](https://github.com/ethereum/go-ethereum/releases/tag/v1.10.16)[https://github.com/ethereum/go-ethereum/releases/tag/v1.10.16](https://github.com/ethereum/go-ethereum/releases/tag/v1.10.16))
-- The second section, `3.0.2`, corresponds to the version of our statediffing code. The major version here (3) should always correspond with the major version of the `ipld-eth-db` schema version it works with (e.g., [](https://github.com/vulcanize/ipld-eth-db/releases/tag/v3.0.6)[https://github.com/vulcanize/ipld-eth-db/releases/tag/v3.0.6](https://github.com/vulcanize/ipld-eth-db/releases/tag/v3.0.6)); it is only bumped when we bump the major version of the schema.
+- The second section, `3.0.2`, corresponds to the version of our statediffing code. The major version here (3) should always correspond with the major version of the `ipld-eth-db` schema version it works with (e.g., [](https://github.com/cerc-io/ipld-eth-db/releases/tag/v3.0.6)[https://github.com/vulcanize/ipld-eth-db/releases/tag/v3.0.6](https://github.com/vulcanize/ipld-eth-db/releases/tag/v3.0.6)); it is only bumped when we bump the major version of the schema.
   - The major version of the schema is only bumped when a breaking change is made to the schema.
   - The minor version is bumped when a new feature is added, or a fix is performed that breaks or updates the statediffing API or CLI in some way.
   - The patch version is bumped whenever minor fixes/patches/features are done that don’t change/break API/CLI compatibility.

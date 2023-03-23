@@ -19,7 +19,7 @@ package file
 import (
 	"math/big"
 
-	node "github.com/ipfs/go-ipld-format"
+	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
@@ -39,18 +39,15 @@ type FileWriter interface {
 	upsertHeaderCID(header models.HeaderModel)
 	upsertUncleCID(uncle models.UncleModel)
 	upsertTransactionCID(transaction models.TxModel)
-	upsertAccessListElement(accessListElement models.AccessListElementModel)
 	upsertReceiptCID(rct *models.ReceiptModel)
 	upsertLogCID(logs []*models.LogsModel)
 	upsertStateCID(stateNode models.StateNodeModel)
-	upsertStateAccount(stateAccount models.StateAccountModel)
 	upsertStorageCID(storageCID models.StorageNodeModel)
 	upsertIPLD(ipld models.IPLDModel)
 
 	// Methods to upsert IPLD in different ways
 	upsertIPLDDirect(blockNumber, key string, value []byte)
-	upsertIPLDNode(blockNumber string, i node.Node)
-	upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error)
+	upsertIPLDNode(blockNumber string, i ipld.IPLD)
 
 	// Methods to read and write watched addresses
 	loadWatchedAddresses() ([]common.Address, error)

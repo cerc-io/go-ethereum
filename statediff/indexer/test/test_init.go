@@ -24,8 +24,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/mocks"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
@@ -36,7 +34,7 @@ import (
 
 var (
 	err       error
-	ipfsPgGet = `SELECT data FROM public.blocks
+	ipfsPgGet = `SELECT data FROM ipld.blocks
 					WHERE key = $1 AND block_number = $2`
 	watchedAddressesPgGet = `SELECT *
 					FROM eth_meta.watched_addresses`
@@ -49,9 +47,6 @@ var (
 	rct1CID, rct2CID, rct3CID, rct4CID, rct5CID                      cid.Cid
 	nonCanonicalBlockRct1CID, nonCanonicalBlockRct2CID               cid.Cid
 	nonCanonicalBlock2Rct1CID, nonCanonicalBlock2Rct2CID             cid.Cid
-	rctLeaf1, rctLeaf2, rctLeaf3, rctLeaf4, rctLeaf5                 []byte
-	nonCanonicalBlockRctLeaf1, nonCanonicalBlockRctLeaf2             []byte
-	nonCanonicalBlock2RctLeaf1, nonCanonicalBlock2RctLeaf2           []byte
 	state1CID, state2CID, storageCID                                 cid.Cid
 )
 
@@ -157,62 +152,18 @@ func init() {
 	state1CID, _ = ipld.RawdataToCid(ipld.MEthStateTrie, mocks.ContractLeafNode, multihash.KECCAK_256)
 	state2CID, _ = ipld.RawdataToCid(ipld.MEthStateTrie, mocks.AccountLeafNode, multihash.KECCAK_256)
 	storageCID, _ = ipld.RawdataToCid(ipld.MEthStorageTrie, mocks.StorageLeafNode, multihash.KECCAK_256)
-
-	// create raw receipts
-	rawRctLeafNodes, rctleafNodeCids := createRctTrie([][]byte{rct1, rct2, rct3, rct4, rct5})
-
-	rct1CID = rctleafNodeCids[0]
-	rct2CID = rctleafNodeCids[1]
-	rct3CID = rctleafNodeCids[2]
-	rct4CID = rctleafNodeCids[3]
-	rct5CID = rctleafNodeCids[4]
-
-	rctLeaf1 = rawRctLeafNodes[0]
-	rctLeaf2 = rawRctLeafNodes[1]
-	rctLeaf3 = rawRctLeafNodes[2]
-	rctLeaf4 = rawRctLeafNodes[3]
-	rctLeaf5 = rawRctLeafNodes[4]
+	rct1CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, rct1, multihash.KECCAK_256)
+	rct2CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, rct2, multihash.KECCAK_256)
+	rct3CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, rct3, multihash.KECCAK_256)
+	rct4CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, rct4, multihash.KECCAK_256)
+	rct5CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, rct5, multihash.KECCAK_256)
 
 	// create raw receipts for non-canonical blocks
-	nonCanonicalBlockRawRctLeafNodes, nonCanonicalBlockRctLeafNodeCids := createRctTrie([][]byte{nonCanonicalBlockRct1, nonCanonicalBlockRct2})
+	nonCanonicalBlockRct1CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlockRct1, multihash.KECCAK_256)
+	nonCanonicalBlockRct2CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlockRct2, multihash.KECCAK_256)
 
-	nonCanonicalBlockRct1CID = nonCanonicalBlockRctLeafNodeCids[0]
-	nonCanonicalBlockRct2CID = nonCanonicalBlockRctLeafNodeCids[1]
-
-	nonCanonicalBlockRctLeaf1 = nonCanonicalBlockRawRctLeafNodes[0]
-	nonCanonicalBlockRctLeaf2 = nonCanonicalBlockRawRctLeafNodes[1]
-
-	nonCanonicalBlock2RawRctLeafNodes, nonCanonicalBlock2RctLeafNodeCids := createRctTrie([][]byte{nonCanonicalBlockRct1, nonCanonicalBlockRct2})
-
-	nonCanonicalBlock2Rct1CID = nonCanonicalBlock2RctLeafNodeCids[0]
-	nonCanonicalBlock2Rct2CID = nonCanonicalBlock2RctLeafNodeCids[1]
-
-	nonCanonicalBlock2RctLeaf1 = nonCanonicalBlock2RawRctLeafNodes[0]
-	nonCanonicalBlock2RctLeaf2 = nonCanonicalBlock2RawRctLeafNodes[1]
-}
-
-// createRctTrie creates a receipt trie from the given raw receipts
-// returns receipt leaf nodes and their CIDs
-func createRctTrie(rcts [][]byte) ([][]byte, []cid.Cid) {
-	receiptTrie := ipld.NewRctTrie()
-
-	for i, rct := range rcts {
-		receiptTrie.Add(i, rct)
-	}
-	rctLeafNodes, keys, _ := receiptTrie.GetLeafNodes()
-
-	rctleafNodeCids := make([]cid.Cid, len(rctLeafNodes))
-	orderedRctLeafNodes := make([][]byte, len(rctLeafNodes))
-	for i, rln := range rctLeafNodes {
-		var idx uint
-
-		r := bytes.NewReader(keys[i].TrieKey)
-		rlp.Decode(r, &idx)
-		rctleafNodeCids[idx] = rln.Cid()
-		orderedRctLeafNodes[idx] = rln.RawData()
-	}
-
-	return orderedRctLeafNodes, rctleafNodeCids
+	nonCanonicalBlock2Rct1CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlock2Rct1, multihash.KECCAK_256)
+	nonCanonicalBlock2Rct2CID, _ = ipld.RawdataToCid(ipld.MEthTxReceipt, nonCanonicalBlock2Rct2, multihash.KECCAK_256)
 }
 
 // createRctModel creates a models.ReceiptModel object from a given ethereum receipt
@@ -221,21 +172,16 @@ func createRctModel(rct *types.Receipt, cid cid.Cid, blockNumber string) models.
 		BlockNumber: blockNumber,
 		HeaderID:    rct.BlockHash.String(),
 		TxID:        rct.TxHash.String(),
-		LeafCID:     cid.String(),
-		LeafMhKey:   shared.MultihashKeyFromCID(cid),
-		LogRoot:     rct.LogRoot.String(),
+		CID:         cid.String(),
 	}
 
 	contract := shared.HandleZeroAddr(rct.ContractAddress)
 	rctModel.Contract = contract
-	if contract != "" {
-		rctModel.ContractHash = crypto.Keccak256Hash(common.HexToAddress(contract).Bytes()).String()
-	}
 
 	if len(rct.PostState) == 0 {
 		rctModel.PostStatus = rct.Status
 	} else {
-		rctModel.PostState = common.Bytes2Hex(rct.PostState)
+		rctModel.PostState = common.BytesToHash(rct.PostState).String()
 	}
 
 	return rctModel

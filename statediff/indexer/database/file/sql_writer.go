@@ -24,9 +24,6 @@ import (
 	"math/big"
 	"os"
 
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	dshelp "github.com/ipfs/go-ipfs-ds-help"
-	node "github.com/ipfs/go-ipld-format"
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/thoas/go-funk"
 
@@ -140,35 +137,29 @@ const (
 	nodeInsert = "INSERT INTO nodes (genesis_block, network_id, node_id, client_name, chain_id) VALUES " +
 		"('%s', '%s', '%s', '%s', %d);\n"
 
-	ipldInsert = "INSERT INTO public.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
+	ipldInsert = "INSERT INTO ipld.blocks (block_number, key, data) VALUES ('%s', '%s', '\\x%x');\n"
 
-	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, " +
-		"state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase) VALUES " +
-		"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '\\x%x', %d, '%s', %d, '%s');\n"
+	headerInsert = "INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_ids, reward, " +
+		"state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase) VALUES " +
+		"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '\\x%x', %d, '%s');\n"
 
-	uncleInsert = "INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, mh_key) VALUES " +
-		"('%s', '%s', '%s', '%s', '%s', '%s', '%s');\n"
+	uncleInsert = "INSERT INTO eth.uncle_cids (block_number, block_hash, header_id, parent_hash, cid, reward, index) VALUES " +
+		"('%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
 
-	txInsert = "INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, mh_key, tx_data, tx_type, " +
-		"value) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', '\\x%x', %d, '%s');\n"
+	txInsert = "INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, src, index, tx_type, " +
+		"value) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s');\n"
 
-	alInsert = "INSERT INTO eth.access_list_elements (block_number, tx_id, index, address, storage_keys) VALUES " +
-		"('%s', '%s', %d, '%s', '%s');\n"
+	rctInsert = "INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, cid, contract, post_state, " +
+		"post_status) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d);\n"
 
-	rctInsert = "INSERT INTO eth.receipt_cids (block_number, header_id, tx_id, leaf_cid, contract, contract_hash, leaf_mh_key, post_state, " +
-		"post_status, log_root) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, '%s');\n"
+	logInsert = "INSERT INTO eth.log_cids (block_number, header_id, cid, rct_id, address, index, topic0, topic1, topic2, " +
+		"topic3) VALUES ('%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s');\n"
 
-	logInsert = "INSERT INTO eth.log_cids (block_number, header_id, leaf_cid, leaf_mh_key, rct_id, address, index, topic0, topic1, topic2, " +
-		"topic3, log_data) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '\\x%x');\n"
+	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, " +
+		"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', %t, %t, '%s', %d, '%s', '%s');\n"
 
-	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, state_path, node_type, diff, mh_key) " +
-		"VALUES ('%s', '%s', '%s', '%s', '\\x%x', %d, %t, '%s');\n"
-
-	accountInsert = "INSERT INTO eth.state_accounts (block_number, header_id, state_path, balance, nonce, code_hash, storage_root) " +
-		"VALUES ('%s', '%s', '\\x%x', '%s', %d, '\\x%x', '%s');\n"
-
-	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_path, storage_leaf_key, cid, storage_path, " +
-		"node_type, diff, mh_key) VALUES ('%s', '%s', '\\x%x', '%s', '%s', '\\x%x', %d, %t, '%s');\n"
+	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, " +
+		"removed, diff, val) VALUES ('%s', '%s', '%s', '%s', '%s', %t, %t, '\\x%x');\n"
 )
 
 func (sqw *SQLWriter) upsertNode(node nodeinfo.Info) {
@@ -187,88 +178,59 @@ func (sqw *SQLWriter) upsertIPLDDirect(blockNumber, key string, value []byte) {
 	})
 }
 
-func (sqw *SQLWriter) upsertIPLDNode(blockNumber string, i node.Node) {
+func (sqw *SQLWriter) upsertIPLDNode(blockNumber string, i ipld.IPLD) {
 	sqw.upsertIPLD(models.IPLDModel{
 		BlockNumber: blockNumber,
-		Key:         blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(i.Cid().Hash()).String(),
+		Key:         i.Cid().String(),
 		Data:        i.RawData(),
 	})
 }
 
-func (sqw *SQLWriter) upsertIPLDRaw(blockNumber string, codec, mh uint64, raw []byte) (string, string, error) {
-	c, err := ipld.RawdataToCid(codec, raw, mh)
-	if err != nil {
-		return "", "", err
-	}
-	prefixedKey := blockstore.BlockPrefix.String() + dshelp.MultihashToDsKey(c.Hash()).String()
-	sqw.upsertIPLD(models.IPLDModel{
-		BlockNumber: blockNumber,
-		Key:         prefixedKey,
-		Data:        raw,
-	})
-	return c.String(), prefixedKey, err
-}
-
 func (sqw *SQLWriter) upsertHeaderCID(header models.HeaderModel) {
 	stmt := fmt.Sprintf(headerInsert, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
-		header.TotalDifficulty, header.NodeID, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UncleRoot, header.Bloom, header.Timestamp, header.MhKey, 1, header.Coinbase)
+		header.TotalDifficulty, formatPostgresStringArray(header.NodeIDs), header.Reward, header.StateRoot, header.TxRoot,
+		header.RctRoot, header.UnclesHash, header.Bloom, header.Timestamp, header.Coinbase)
 	sqw.stmts <- []byte(stmt)
 	indexerMetrics.blocks.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertUncleCID(uncle models.UncleModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(uncleInsert, uncle.BlockNumber, uncle.BlockHash, uncle.HeaderID, uncle.ParentHash, uncle.CID,
-		uncle.Reward, uncle.MhKey))
+		uncle.Reward, uncle.Index))
 }
 
 func (sqw *SQLWriter) upsertTransactionCID(transaction models.TxModel) {
 	sqw.stmts <- []byte(fmt.Sprintf(txInsert, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
-		transaction.Src, transaction.Index, transaction.MhKey, transaction.Data, transaction.Type, transaction.Value))
+		transaction.Src, transaction.Index, transaction.Type, transaction.Value))
 	indexerMetrics.transactions.Inc(1)
 }
 
-func (sqw *SQLWriter) upsertAccessListElement(accessListElement models.AccessListElementModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(alInsert, accessListElement.BlockNumber, accessListElement.TxID, accessListElement.Index, accessListElement.Address,
-		formatPostgresStringArray(accessListElement.StorageKeys)))
-	indexerMetrics.accessListEntries.Inc(1)
-}
-
 func (sqw *SQLWriter) upsertReceiptCID(rct *models.ReceiptModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.LeafCID, rct.Contract, rct.ContractHash, rct.LeafMhKey,
-		rct.PostState, rct.PostStatus, rct.LogRoot))
+	sqw.stmts <- []byte(fmt.Sprintf(rctInsert, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
+		rct.PostState, rct.PostStatus))
 	indexerMetrics.receipts.Inc(1)
 }
 
 func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 	for _, l := range logs {
-		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.HeaderID, l.LeafCID, l.LeafMhKey, l.ReceiptID, l.Address, l.Index, l.Topic0,
-			l.Topic1, l.Topic2, l.Topic3, l.Data))
+		sqw.stmts <- []byte(fmt.Sprintf(logInsert, l.BlockNumber, l.HeaderID, l.CID, l.ReceiptID, l.Address, l.Index, l.Topic0,
+			l.Topic1, l.Topic2, l.Topic3))
 		indexerMetrics.logs.Inc(1)
 	}
 }
 
 func (sqw *SQLWriter) upsertStateCID(stateNode models.StateNodeModel) {
-	var stateKey string
-	if stateNode.StateKey != nullHash.String() {
-		stateKey = stateNode.StateKey
+	balance := stateNode.Balance
+	if stateNode.Removed {
+		balance = "0"
 	}
-	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID, stateNode.Path,
-		stateNode.NodeType, true, stateNode.MhKey))
-}
-
-func (sqw *SQLWriter) upsertStateAccount(stateAccount models.StateAccountModel) {
-	sqw.stmts <- []byte(fmt.Sprintf(accountInsert, stateAccount.BlockNumber, stateAccount.HeaderID, stateAccount.StatePath, stateAccount.Balance,
-		stateAccount.Nonce, stateAccount.CodeHash, stateAccount.StorageRoot))
+	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
+		stateNode.Removed, true, balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot))
 }
 
 func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
-	var storageKey string
-	if storageCID.StorageKey != nullHash.String() {
-		storageKey = storageCID.StorageKey
-	}
-	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StatePath, storageKey, storageCID.CID,
-		storageCID.Path, storageCID.NodeType, true, storageCID.MhKey))
+	sqw.stmts <- []byte(fmt.Sprintf(storageInsert, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID,
+		storageCID.Removed, true, storageCID.Value))
 }
 
 // LoadWatchedAddresses loads watched addresses from a file

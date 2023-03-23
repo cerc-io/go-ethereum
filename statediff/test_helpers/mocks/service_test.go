@@ -29,54 +29,77 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/statediff"
+	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/test_helpers"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
 
 var (
-	emptyStorage   = make([]sdtypes.StorageNode, 0)
+	emptyStorage   = make([]sdtypes.StorageLeafNode, 0)
 	block0, block1 *types.Block
 	minerLeafKey   = test_helpers.AddressToLeafKey(common.HexToAddress("0x0"))
-	account1, _    = rlp.EncodeToBytes(&types.StateAccount{
+	account1       = &types.StateAccount{
 		Nonce:    uint64(0),
 		Balance:  big.NewInt(10000),
 		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").Bytes(),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-	})
+	}
+	account1RLP, _      = rlp.EncodeToBytes(account1)
 	account1LeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
 		common.Hex2Bytes("3926db69aaced518e9b9f0f434a473e7174109c943548bb8f23be41ca76d9ad2"),
-		account1,
+		account1RLP,
 	})
-	minerAccount, _ = rlp.EncodeToBytes(&types.StateAccount{
+	minerAccount = &types.StateAccount{
 		Nonce:    uint64(0),
 		Balance:  big.NewInt(2000002625000000000),
 		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").Bytes(),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-	})
+	}
+	minerAccountRLP, _      = rlp.EncodeToBytes(minerAccount)
 	minerAccountLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
 		common.Hex2Bytes("3380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"),
-		minerAccount,
+		minerAccountRLP,
 	})
-	bankAccount, _ = rlp.EncodeToBytes(&types.StateAccount{
+	bankAccount = &types.StateAccount{
 		Nonce:    uint64(1),
 		Balance:  big.NewInt(1999978999999990000),
 		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").Bytes(),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-	})
+	}
+	bankAccountRLP, _      = rlp.EncodeToBytes(bankAccount)
 	bankAccountLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
 		common.Hex2Bytes("30bf49f440a1cd0527e4d06e2765654c0f56452257516d793a9b8d604dcfdf2a"),
-		bankAccount,
+		bankAccountRLP,
 	})
 	mockTotalDifficulty = big.NewInt(1337)
 	parameters          = statediff.Params{
-		IntermediateStateNodes: false,
-		IncludeTD:              true,
-		IncludeBlock:           true,
-		IncludeReceipts:        true,
+		IncludeTD:       true,
+		IncludeBlock:    true,
+		IncludeReceipts: true,
 	}
+	block1BranchRootNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		crypto.Keccak256(bankAccountLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(minerAccountLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(account1LeafNode),
+		[]byte{},
+		[]byte{},
+	})
 )
 
 func init() {
@@ -106,27 +129,51 @@ func testSubscriptionAPI(t *testing.T) {
 	expectedStateDiff := sdtypes.StateObject{
 		BlockNumber: block1.Number(),
 		BlockHash:   block1.Hash(),
-		Nodes: []sdtypes.StateNode{
+		Nodes: []sdtypes.StateLeafNode{
 			{
-				Path:         []byte{'\x05'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      minerLeafKey,
-				NodeValue:    minerAccountLeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: minerAccount,
+					LeafKey: minerLeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountLeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
 			},
 			{
-				Path:         []byte{'\x0e'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      test_helpers.Account1LeafKey,
-				NodeValue:    account1LeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: account1,
+					LeafKey: test_helpers.Account1LeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1LeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
 			},
 			{
-				Path:         []byte{'\x00'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      test_helpers.BankLeafKey,
-				NodeValue:    bankAccountLeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: bankAccount,
+					LeafKey: test_helpers.BankLeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountLeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
+			},
+		},
+		IPLDs: []sdtypes.IPLD{
+			{
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block1BranchRootNode)).String(),
+				Content: block1BranchRootNode,
+			},
+			{
+				Content: minerAccountLeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountLeafNode)).String(),
+			},
+			{
+				Content: account1LeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1LeafNode)).String(),
+			},
+			{
+				Content: bankAccountLeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountLeafNode)).String(),
 			},
 		},
 	}
@@ -198,27 +245,51 @@ func testHTTPAPI(t *testing.T) {
 	expectedStateDiff := sdtypes.StateObject{
 		BlockNumber: block1.Number(),
 		BlockHash:   block1.Hash(),
-		Nodes: []sdtypes.StateNode{
+		Nodes: []sdtypes.StateLeafNode{
 			{
-				Path:         []byte{'\x05'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      minerLeafKey,
-				NodeValue:    minerAccountLeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: minerAccount,
+					LeafKey: minerLeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountLeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
 			},
 			{
-				Path:         []byte{'\x0e'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      test_helpers.Account1LeafKey,
-				NodeValue:    account1LeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: account1,
+					LeafKey: test_helpers.Account1LeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1LeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
 			},
 			{
-				Path:         []byte{'\x00'},
-				NodeType:     sdtypes.Leaf,
-				LeafKey:      test_helpers.BankLeafKey,
-				NodeValue:    bankAccountLeafNode,
-				StorageNodes: emptyStorage,
+				Removed: false,
+				AccountWrapper: sdtypes.AccountWrapper{
+					Account: bankAccount,
+					LeafKey: test_helpers.BankLeafKey,
+					CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountLeafNode)).String(),
+				},
+				StorageDiff: emptyStorage,
+			},
+		},
+		IPLDs: []sdtypes.IPLD{
+			{
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block1BranchRootNode)).String(),
+				Content: block1BranchRootNode,
+			},
+			{
+				Content: minerAccountLeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountLeafNode)).String(),
+			},
+			{
+				Content: account1LeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1LeafNode)).String(),
+			},
+			{
+				Content: bankAccountLeafNode,
+				CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountLeafNode)).String(),
 			},
 		},
 	}

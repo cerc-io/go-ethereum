@@ -42,6 +42,8 @@ var (
 	unexpectedOperation = "unexpected operation"
 )
 
+var _ statediff.IService = &MockStateDiffService{}
+
 // MockStateDiffService is a mock state diff service
 type MockStateDiffService struct {
 	sync.Mutex
@@ -223,25 +225,6 @@ func (sds *MockStateDiffService) WriteLoop(chan core.ChainEvent) {
 			return
 		}
 	}
-}
-
-// StateTrieAt mock method
-func (sds *MockStateDiffService) StateTrieAt(blockNumber uint64, params statediff.Params) (*statediff.Payload, error) {
-	currentBlock := sds.BlockChain.GetBlockByNumber(blockNumber)
-	log.Info(fmt.Sprintf("sending state trie at %d", blockNumber))
-	return sds.stateTrieAt(currentBlock, params)
-}
-
-func (sds *MockStateDiffService) stateTrieAt(block *types.Block, params statediff.Params) (*statediff.Payload, error) {
-	stateNodes, err := sds.Builder.BuildStateTrieObject(block)
-	if err != nil {
-		return nil, err
-	}
-	stateTrieRlp, err := rlp.EncodeToBytes(&stateNodes)
-	if err != nil {
-		return nil, err
-	}
-	return sds.newPayload(stateTrieRlp, block, params)
 }
 
 // Subscribe is used by the API to subscribe to the service loop
