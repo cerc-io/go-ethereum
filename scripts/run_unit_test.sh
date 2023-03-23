@@ -8,7 +8,7 @@ mkdir -p out
 rm -rf out/docker-tsdb/
 
 # Copy over files to setup TimescaleDB
-ID=$(docker create vulcanize/ipld-eth-db:v4.1.1-alpha)
+ID=$(docker create vulcanize/ipld-eth-db:v5.0.1-alpha)
 docker cp $ID:/app/docker-tsdb out/docker-tsdb/
 docker rm -v $ID
 

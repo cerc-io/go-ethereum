@@ -5,7 +5,7 @@ on:
 
 env:
   stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'f2fd766f5400fcb9eb47b50675d2e3b1f2753702'}}
-  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'be345e0733d2c025e4082c5154e441317ae94cf7' }}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || '167cfbfb202d387aed2c9950e18c45a66f87821d' }}
   GOPATH: /tmp/go
 
 jobs:
@@ -136,7 +136,7 @@ jobs:
       - name: Make sure we see entries in the header table
         shell: bash
         run: |
-          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
+          rows=$(docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d cerc_testing  -AXqtc "SELECT COUNT(*) FROM eth.header_cids")
           [[ "$rows" -lt "1" ]] && echo "We could not find any rows in postgres table." && (exit 1)
           echo $rows
-          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d vulcanize_testing  -AXqtc "SELECT * FROM eth.header_cids"
+          docker compose -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-db-sharding.yml" -f "$GITHUB_WORKSPACE/stack-orchestrator/docker/local/docker-compose-go-ethereum.yml" exec ipld-eth-db psql -U vdbm -d cerc_testing  -AXqtc "SELECT * FROM eth.header_cids"
