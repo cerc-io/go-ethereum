@@ -196,6 +196,15 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 		}
 		// index values by leaf key
 		if it.Leaf() {
+			if bytes.Equal(common.Hex2Bytes("20f2e24db7943eab4415f99e109698863b0fecca1cf9ffc500f38cefbbe29e"), it.LeafKey()) {
+				panic("I should be reached but I am not")
+			}
+			if bytes.Equal(common.Hex2Bytes("08d4679cbcf198c1741a6f4e4473845659a30caa8b26f8d37a0be2e2bc0d8892"), it.LeafKey()) {
+				fmt.Printf("\r\nI am reached, like a good leaf node\r\n")
+			}
+			if bytes.Equal(common.Hex2Bytes("ce573ced93917e658d10e2d9009470dad72b63c898d173721194a12f2ae5e190"), it.LeafKey()) {
+				fmt.Printf("\r\nI am also reached, like a good leaf node\r\n")
+			}
 			// if it is a "value" node, we will index the value by leaf key
 			accountW, err := sdb.processStateValueNode(it, watchedAddressesLeafPaths)
 			if err != nil {
@@ -231,6 +240,23 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 					}
 				}
 			}
+			if bytes.Equal(block2MovedPremineLeafNode, nodeVal) {
+				fmt.Printf("\r\nfurther demonstration that the so-called leaf node is present in the trie but just doesn't show up under it.Leaf()\r\n")
+				// and if we decode the node, and check whether or not it is a leaf by looking at the partial path
+				// we see it is indeed a leaf node
+				// so the partial path has the leaf flag, but the first part of the path (the position of the node in the trie) does not have the terminator flag
+				var elements []interface{}
+				if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
+					return nil, err
+				}
+				ok, err := isLeaf(elements)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					fmt.Printf("\r\nyep I'm a leaf\r\n")
+				}
+			}
 			nodeHash := make([]byte, len(it.Hash().Bytes()))
 			copy(nodeHash, it.Hash().Bytes())
 			if err := output(types2.IPLD{
@@ -245,17 +271,17 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 }
 
 var (
-	block3MovedPremineBalance2, _ = new(big.Int).SetString("1999944000000000000000", 10)
-	block3MovedPremineAccount2    = &types.StateAccount{
+	block2MovedPremineBalance, _ = new(big.Int).SetString("4000000000000000000000", 10)
+	block2MovedPremineAccount    = &types.StateAccount{
 		Nonce:    0,
-		Balance:  block3MovedPremineBalance2,
+		Balance:  block2MovedPremineBalance,
 		CodeHash: test_helpers.NullCodeHash.Bytes(),
 		Root:     test_helpers.EmptyContractRoot,
 	}
-	block3MovedPremineAccount2RLP, _ = rlp.EncodeToBytes(block3MovedPremineAccount2)
-	block3MovedPremineLeafNode2, _   = rlp.EncodeToBytes(&[]interface{}{
-		common.Hex2Bytes("33bc1e69eedf90f402e11f6862da14ed8e50156635a04d6393bbae154012"), // ce5783bc1e69eedf90f402e11f6862da14ed8e50156635a04d6393bbae154012
-		block3MovedPremineAccount2RLP,
+	block2MovedPremineAccountRLP, _ = rlp.EncodeToBytes(block2MovedPremineAccount)
+	block2MovedPremineLeafNode, _   = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("20f2e24db7943eab4415f99e109698863b0fecca1cf9ffc500f38cefbbe29e"),
+		block2MovedPremineAccountRLP,
 	})
 )
 
@@ -307,6 +333,12 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 		}
 
 		if it.Leaf() {
+			if bytes.Equal(common.Hex2Bytes("20f2e24db7943eab4415f99e109698863b0fecca1cf9ffc500f38cefbbe29e"), it.LeafKey()) {
+				panic("I should be reached but I am not")
+			}
+			if bytes.Equal(common.Hex2Bytes("08d4679cbcf198c1741a6f4e4473845659a30caa8b26f8d37a0be2e2bc0d8892"), it.LeafKey()) {
+				fmt.Printf("\r\nI am reached, like a good leaf node\r\n")
+			}
 			accountW, err := sdb.processStateValueNode(it, watchedAddressesLeafPaths)
 			if err != nil {
 				return nil, err
