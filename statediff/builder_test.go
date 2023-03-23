@@ -512,7 +512,6 @@ func TestBuilderF(t *testing.T) {
 	block1 = blocks[0]
 	block2 = blocks[1]
 	block3 = blocks[2]
-	blocks = append([]*types.Block{block0}, blocks...)
 	params := statediff.Params{}
 	builder = statediff.NewBuilder(chain.StateCache())
 
