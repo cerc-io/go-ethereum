@@ -83,7 +83,7 @@ type IndexerMetricsHandles struct {
 	SortKeysTimer                                    metrics.Timer
 	FindIntersectionTimer                            metrics.Timer
 	OutputTimer                                      metrics.Timer
-	CodeOutputTimer                                  metrics.Timer
+	IPLDOutputTimer                                  metrics.Timer
 	DifferenceIteratorNextTimer                      metrics.Timer
 	DifferenceIteratorCounter                        metrics.Counter
 	DeletedOrUpdatedStorageTimer                     metrics.Timer
@@ -124,7 +124,7 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 		SortKeysTimer:                                    metrics.NewTimer(),
 		FindIntersectionTimer:                            metrics.NewTimer(),
 		OutputTimer:                                      metrics.NewTimer(),
-		CodeOutputTimer:                                  metrics.NewTimer(),
+		IPLDOutputTimer:                                  metrics.NewTimer(),
 		DifferenceIteratorNextTimer:                      metrics.NewTimer(),
 		DifferenceIteratorCounter:                        metrics.NewCounter(),
 		DeletedOrUpdatedStorageTimer:                     metrics.NewTimer(),
@@ -163,7 +163,7 @@ func RegisterIndexerMetrics(reg metrics.Registry) IndexerMetricsHandles {
 	reg.Register(metricName(subsys, "t_sort_keys"), ctx.SortKeysTimer)
 	reg.Register(metricName(subsys, "t_find_intersection"), ctx.FindIntersectionTimer)
 	reg.Register(metricName(subsys, "t_output_fn"), ctx.OutputTimer)
-	reg.Register(metricName(subsys, "t_code_output_fn"), ctx.CodeOutputTimer)
+	reg.Register(metricName(subsys, "t_ipld_output_fn"), ctx.IPLDOutputTimer)
 	reg.Register(metricName(subsys, "t_difference_iterator_next"), ctx.DifferenceIteratorNextTimer)
 	reg.Register(metricName(subsys, "difference_iterator_counter"), ctx.DifferenceIteratorCounter)
 	reg.Register(metricName(subsys, "t_created_and_updated_storage"), ctx.CreatedAndUpdatedStorageTimer)

@@ -802,7 +802,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		return sds.indexer.PushStateNode(tx, node, block.Hash().String())
 	}
 	ipldOutput := func(c types2.IPLD) error {
-		defer metrics.ReportAndUpdateDuration("statediff ipldOutput", time.Now(), logger, metrics.IndexerMetrics.CodeOutputTimer)
+		defer metrics.ReportAndUpdateDuration("statediff ipldOutput", time.Now(), logger, metrics.IndexerMetrics.IPLDOutputTimer)
 		return sds.indexer.PushIPLD(tx, c)
 	}
 
