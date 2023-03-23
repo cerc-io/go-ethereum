@@ -549,23 +549,6 @@ func TestBuilderOnMainnetBlocks(t *testing.T) {
 				BlockNumber: block2.Number(),
 				BlockHash:   block2.Hash(),
 				Nodes: []sdtypes.StateLeafNode{
-					// this new leaf at x00 x08 x0d x00 was "created" when a premine account (leaf) was moved from path x00 x08 x0d
-					// this occurred because of the creation of the new coinbase receiving account (leaf) at x00 x08 x0d x04
-					// which necessitates we create a branch at x00 x08 x0d (as shown in the below UpdateAccounts)
-					{ // TODO: this doesn't show up? WHY??? It shows up below in the IPLDs, as it is a diffed node,
-						// but it doesn't show up here because it.Leaf() doesn't evaluate to true for it for some reason
-						// even though it is a leaf node by every other measure, and we know the nodes are all correct
-						// because we can hash the root node written out above that links down to this
-						// and the hash matches the expected root hash
-						// NOTE: IF YOU REMOVE ME, THE TEST WILL PASS
-						Removed: false,
-						AccountWrapper: sdtypes.AccountWrapper{
-							Account: block2MovedPremineAccount,
-							LeafKey: common.HexToHash("08d0f2e24db7943eab4415f99e109698863b0fecca1cf9ffc500f38cefbbe29e").Bytes(),
-							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block2MovedPremineLeafNode)).String(),
-						},
-						StorageDiff: emptyStorage,
-					},
 					{
 						Removed: false,
 						AccountWrapper: sdtypes.AccountWrapper{
@@ -624,21 +607,6 @@ func TestBuilderOnMainnetBlocks(t *testing.T) {
 							Account: block3MovedPremineAccount1,
 							LeafKey: common.HexToHash("ce573ced93917e658d10e2d9009470dad72b63c898d173721194a12f2ae5e190").Bytes(),
 							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block3MovedPremineLeafNode1)).String(),
-						},
-						StorageDiff: emptyStorage,
-					},
-					{ // This account (leaf) used to be at 0c 0e 05 07, likely moves because of the new account above
-						// TODO: this doesn't show up? WHY??? It shows up below in the IPLDs, as it is a diffed node,
-						// but it doesn't show up here because it.Leaf() doesn't evaluate to true for it for some reason
-						// even though it is a leaf node by every other measure, and we know the nodes are all correct
-						// because we can hash the root node written out above that links down to this
-						// and the hash matches the expected root hash
-						// NOTE: IF YOU REMOVE ME, THE TEST WILL PASS
-						Removed: false,
-						AccountWrapper: sdtypes.AccountWrapper{
-							Account: block3MovedPremineAccount2,
-							LeafKey: common.HexToHash("ce5783bc1e69eedf90f402e11f6862da14ed8e50156635a04d6393bbae154012").Bytes(),
-							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block3MovedPremineLeafNode2)).String(),
 						},
 						StorageDiff: emptyStorage,
 					},
