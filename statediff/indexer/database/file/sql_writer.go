@@ -156,7 +156,7 @@ const (
 		"topic3) VALUES ('%s', '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s');\n"
 
 	stateInsert = "INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, removed, diff, " +
-		"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', %t, %t, '%s', %d, '\\x%x', '%s');\n"
+		"balance, nonce, code_hash, storage_root) VALUES ('%s', '%s', '%s', '%s', %t, %t, '%s', %d, '%s', '%s');\n"
 
 	storageInsert = "INSERT INTO eth.storage_cids (block_number, header_id, state_leaf_key, storage_leaf_key, cid, " +
 		"removed, diff, val) VALUES ('%s', '%s', '%s', '%s', '%s', %t, %t, '\\x%x');\n"
@@ -220,8 +220,12 @@ func (sqw *SQLWriter) upsertLogCID(logs []*models.LogsModel) {
 }
 
 func (sqw *SQLWriter) upsertStateCID(stateNode models.StateNodeModel) {
+	balance := stateNode.Balance
+	if stateNode.Removed {
+		balance = "0"
+	}
 	sqw.stmts <- []byte(fmt.Sprintf(stateInsert, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
-		stateNode.Removed, true, stateNode.Balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot))
+		stateNode.Removed, true, balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot))
 }
 
 func (sqw *SQLWriter) upsertStorageCID(storageCID models.StorageNodeModel) {

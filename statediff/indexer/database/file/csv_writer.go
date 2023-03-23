@@ -272,14 +272,14 @@ func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 }
 
 func (csw *CSVWriter) upsertStateCID(stateNode models.StateNodeModel) {
-	var stateKey string
-	if stateNode.StateKey != nullHash.String() {
-		stateKey = stateNode.StateKey
+	balance := stateNode.Balance
+	if stateNode.Removed {
+		balance = "0"
 	}
 
 	var values []interface{}
-	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateKey, stateNode.CID,
-		true, stateNode.Balance, strconv.FormatUint(stateNode.Nonce, 10), stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)
+	values = append(values, stateNode.BlockNumber, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
+		true, balance, strconv.FormatUint(stateNode.Nonce, 10), stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)
 	csw.rows <- tableRow{schema.TableStateNode, values}
 }
 
