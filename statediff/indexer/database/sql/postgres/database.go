@@ -43,7 +43,6 @@ type DB struct {
 // Stm == Statement
 func (db *DB) InsertHeaderStm() string {
 	return schema.TableHeader.ToInsertStatement(db.upsert)
-
 }
 
 // InsertUncleStm satisfies the sql.Statements interface
@@ -54,31 +53,26 @@ func (db *DB) InsertUncleStm() string {
 // InsertTxStm satisfies the sql.Statements interface
 func (db *DB) InsertTxStm() string {
 	return schema.TableTransaction.ToInsertStatement(db.upsert)
-
 }
 
 // InsertRctStm satisfies the sql.Statements interface
 func (db *DB) InsertRctStm() string {
 	return schema.TableReceipt.ToInsertStatement(db.upsert)
-
 }
 
 // InsertLogStm satisfies the sql.Statements interface
 func (db *DB) InsertLogStm() string {
 	return schema.TableLog.ToInsertStatement(db.upsert)
-
 }
 
 // InsertStateStm satisfies the sql.Statements interface
 func (db *DB) InsertStateStm() string {
 	return schema.TableStateNode.ToInsertStatement(db.upsert)
-
 }
 
 // InsertStorageStm satisfies the sql.Statements interface
 func (db *DB) InsertStorageStm() string {
 	return schema.TableStorageNode.ToInsertStatement(db.upsert)
-
 }
 
 // InsertIPLDStm satisfies the sql.Statements interface
