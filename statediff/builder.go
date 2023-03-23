@@ -22,6 +22,9 @@ package statediff
 import (
 	"bytes"
 	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/statediff/test_helpers"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared"
 
@@ -241,6 +244,21 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 	return diffAccountsAtB, it.Error()
 }
 
+var (
+	block3MovedPremineBalance2, _ = new(big.Int).SetString("1999944000000000000000", 10)
+	block3MovedPremineAccount2    = &types.StateAccount{
+		Nonce:    0,
+		Balance:  block3MovedPremineBalance2,
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	block3MovedPremineAccount2RLP, _ = rlp.EncodeToBytes(block3MovedPremineAccount2)
+	block3MovedPremineLeafNode2, _   = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("33bc1e69eedf90f402e11f6862da14ed8e50156635a04d6393bbae154012"), // ce5783bc1e69eedf90f402e11f6862da14ed8e50156635a04d6393bbae154012
+		block3MovedPremineAccount2RLP,
+	})
+)
+
 // reminder: it.Leaf() == true when the iterator is positioned at a "value node" which is not something that actually exists in an MMPT
 func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watchedAddressesLeafPaths [][]byte) (*types2.AccountWrapper, error) {
 	// skip if it is not a watched address
@@ -312,7 +330,7 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 					Removed: true,
 				}
 
-				var storageDiff []types2.StorageLeafNode
+				storageDiff := make([]types2.StorageLeafNode, 0)
 				err := sdb.buildRemovedAccountStorageNodes(accountW.Account.Root, StorageNodeAppender(&storageDiff))
 				if err != nil {
 					return nil, fmt.Errorf("failed building storage diffs for removed state account with key %x\r\nerror: %v", leafKey, err)
@@ -337,7 +355,7 @@ func (sdb *StateDiffBuilder) buildAccountUpdates(creations, deletions types2.Acc
 	for _, key := range updatedKeys {
 		createdAcc := creations[key]
 		deletedAcc := deletions[key]
-		var storageDiff []types2.StorageLeafNode
+		storageDiff := make([]types2.StorageLeafNode, 0)
 		if deletedAcc.Account != nil && createdAcc.Account != nil {
 			oldSR := deletedAcc.Account.Root
 			newSR := createdAcc.Account.Root
@@ -371,7 +389,7 @@ func (sdb *StateDiffBuilder) buildAccountCreations(accounts types2.AccountMap, o
 		}
 		if !bytes.Equal(val.Account.CodeHash, nullCodeHash) {
 			// For contract creations, any storage node contained is a diff
-			var storageDiff []types2.StorageLeafNode
+			storageDiff := make([]types2.StorageLeafNode, 0)
 			err := sdb.buildStorageNodesEventual(val.Account.Root, StorageNodeAppender(&storageDiff), ipldOutput)
 			if err != nil {
 				return fmt.Errorf("failed building eventual storage diffs for node with leaf key %x\r\nerror: %v", val.LeafKey, err)

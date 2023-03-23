@@ -1148,8 +1148,16 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
 		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
 			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state diff: %+v\nexpected state diff: %+v", diff, test.expected)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
 }
@@ -1453,8 +1461,16 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
 		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
 			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
 }
@@ -1625,8 +1641,16 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
 		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
 			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
 }
@@ -1870,8 +1894,16 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
 		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
 			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
 }
@@ -2134,8 +2166,16 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
 		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
 		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
 			t.Logf("Test failed: %s", test.name)
-			t.Errorf("actual state diff: %+v\r\n\r\n\r\nexpected state diff: %+v", diff, test.expected)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
 }
