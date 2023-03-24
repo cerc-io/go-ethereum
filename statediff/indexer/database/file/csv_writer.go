@@ -28,6 +28,7 @@ import (
 	"github.com/thoas/go-funk"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	nodeinfo "github.com/ethereum/go-ethereum/statediff/indexer/node"
@@ -235,7 +236,7 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
 		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase)
 	csw.rows <- tableRow{schema.TableHeader, values}
-	indexerMetrics.blocks.Inc(1)
+	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertUncleCID(uncle models.UncleModel) {
@@ -250,7 +251,7 @@ func (csw *CSVWriter) upsertTransactionCID(transaction models.TxModel) {
 	values = append(values, transaction.BlockNumber, transaction.HeaderID, transaction.TxHash, transaction.CID, transaction.Dst,
 		transaction.Src, transaction.Index, transaction.Type, transaction.Value)
 	csw.rows <- tableRow{schema.TableTransaction, values}
-	indexerMetrics.transactions.Inc(1)
+	metrics.IndexerMetrics.TransactionsCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
@@ -258,7 +259,7 @@ func (csw *CSVWriter) upsertReceiptCID(rct *models.ReceiptModel) {
 	values = append(values, rct.BlockNumber, rct.HeaderID, rct.TxID, rct.CID, rct.Contract,
 		rct.PostState, rct.PostStatus)
 	csw.rows <- tableRow{schema.TableReceipt, values}
-	indexerMetrics.receipts.Inc(1)
+	metrics.IndexerMetrics.ReceiptsCounter.Inc(1)
 }
 
 func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
@@ -267,7 +268,7 @@ func (csw *CSVWriter) upsertLogCID(logs []*models.LogsModel) {
 		values = append(values, l.BlockNumber, l.HeaderID, l.CID, l.ReceiptID, l.Address, l.Index, l.Topic0,
 			l.Topic1, l.Topic2, l.Topic3)
 		csw.rows <- tableRow{schema.TableLog, values}
-		indexerMetrics.logs.Inc(1)
+		metrics.IndexerMetrics.LogsCounter.Inc(1)
 	}
 }
 
@@ -284,13 +285,8 @@ func (csw *CSVWriter) upsertStateCID(stateNode models.StateNodeModel) {
 }
 
 func (csw *CSVWriter) upsertStorageCID(storageCID models.StorageNodeModel) {
-	var storageKey string
-	if storageCID.StorageKey != nullHash.String() {
-		storageKey = storageCID.StorageKey
-	}
-
 	var values []interface{}
-	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageKey, storageCID.CID,
+	values = append(values, storageCID.BlockNumber, storageCID.HeaderID, storageCID.StateKey, storageCID.StorageKey, storageCID.CID,
 		true, storageCID.Value, storageCID.Removed)
 	csw.rows <- tableRow{schema.TableStorageNode, values}
 }

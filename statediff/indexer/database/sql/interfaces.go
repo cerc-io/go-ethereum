@@ -19,7 +19,8 @@ package sql
 import (
 	"context"
 	"io"
-	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 )
 
 // Database interfaces required by the sql indexer
@@ -30,12 +31,13 @@ type Database interface {
 
 // Driver interface has all the methods required by a driver implementation to support the sql indexer
 type Driver interface {
+	UseCopyFrom() bool
 	QueryRow(ctx context.Context, sql string, args ...interface{}) ScannableRow
 	Exec(ctx context.Context, sql string, args ...interface{}) (Result, error)
 	Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 	Get(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 	Begin(ctx context.Context) (Tx, error)
-	Stats() Stats
+	Stats() metrics.DbStats
 	NodeID() string
 	Context() context.Context
 	io.Closer
@@ -52,12 +54,25 @@ type Statements interface {
 	InsertStorageStm() string
 	InsertIPLDStm() string
 	InsertIPLDsStm() string
+
+	// Table/column descriptions for use with CopyFrom and similar commands.
+	LogTableName() []string
+	LogColumnNames() []string
+	RctTableName() []string
+	RctColumnNames() []string
+	StateTableName() []string
+	StateColumnNames() []string
+	StorageTableName() []string
+	StorageColumnNames() []string
+	TxTableName() []string
+	TxColumnNames() []string
 }
 
 // Tx interface to accommodate different concrete SQL transaction types
 type Tx interface {
 	QueryRow(ctx context.Context, sql string, args ...interface{}) ScannableRow
 	Exec(ctx context.Context, sql string, args ...interface{}) (Result, error)
+	CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error)
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
 }
@@ -70,16 +85,4 @@ type ScannableRow interface {
 // Result interface to accommodate different concrete result types
 type Result interface {
 	RowsAffected() (int64, error)
-}
-
-// Stats interface to accommodate different concrete sql stats types
-type Stats interface {
-	MaxOpen() int64
-	Open() int64
-	InUse() int64
-	Idle() int64
-	WaitCount() int64
-	WaitDuration() time.Duration
-	MaxIdleClosed() int64
-	MaxLifetimeClosed() int64
 }

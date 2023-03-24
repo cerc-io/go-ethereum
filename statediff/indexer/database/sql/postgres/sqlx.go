@@ -19,10 +19,12 @@ package postgres
 import (
 	"context"
 	coresql "database/sql"
+	"errors"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/node"
 )
@@ -109,7 +111,7 @@ func (driver *SQLXDriver) Begin(_ context.Context) (sql.Tx, error) {
 	return sqlxTxWrapper{tx: tx}, nil
 }
 
-func (driver *SQLXDriver) Stats() sql.Stats {
+func (driver *SQLXDriver) Stats() metrics.DbStats {
 	stats := driver.db.Stats()
 	return sqlxStatsWrapper{stats: stats}
 }
@@ -129,46 +131,52 @@ func (driver *SQLXDriver) Context() context.Context {
 	return driver.ctx
 }
 
+// HasCopy satisfies sql.Database
+func (driver *SQLXDriver) UseCopyFrom() bool {
+	// sqlx does not currently support COPY.
+	return false
+}
+
 type sqlxStatsWrapper struct {
 	stats coresql.DBStats
 }
 
-// MaxOpen satisfies sql.Stats
+// MaxOpen satisfies metrics.DbStats
 func (s sqlxStatsWrapper) MaxOpen() int64 {
 	return int64(s.stats.MaxOpenConnections)
 }
 
-// Open satisfies sql.Stats
+// Open satisfies metrics.DbStats
 func (s sqlxStatsWrapper) Open() int64 {
 	return int64(s.stats.OpenConnections)
 }
 
-// InUse satisfies sql.Stats
+// InUse satisfies metrics.DbStats
 func (s sqlxStatsWrapper) InUse() int64 {
 	return int64(s.stats.InUse)
 }
 
-// Idle satisfies sql.Stats
+// Idle satisfies metrics.DbStats
 func (s sqlxStatsWrapper) Idle() int64 {
 	return int64(s.stats.Idle)
 }
 
-// WaitCount satisfies sql.Stats
+// WaitCount satisfies metrics.DbStats
 func (s sqlxStatsWrapper) WaitCount() int64 {
 	return s.stats.WaitCount
 }
 
-// WaitDuration satisfies sql.Stats
+// WaitDuration satisfies metrics.DbStats
 func (s sqlxStatsWrapper) WaitDuration() time.Duration {
 	return s.stats.WaitDuration
 }
 
-// MaxIdleClosed satisfies sql.Stats
+// MaxIdleClosed satisfies metrics.DbStats
 func (s sqlxStatsWrapper) MaxIdleClosed() int64 {
 	return s.stats.MaxIdleClosed
 }
 
-// MaxLifetimeClosed satisfies sql.Stats
+// MaxLifetimeClosed satisfies metrics.DbStats
 func (s sqlxStatsWrapper) MaxLifetimeClosed() int64 {
 	return s.stats.MaxLifetimeClosed
 }
@@ -195,4 +203,8 @@ func (t sqlxTxWrapper) Commit(ctx context.Context) error {
 // Rollback satisfies sql.Tx
 func (t sqlxTxWrapper) Rollback(ctx context.Context) error {
 	return t.tx.Rollback()
+}
+
+func (t sqlxTxWrapper) CopyFrom(ctx context.Context, tableName []string, columnNames []string, rows [][]interface{}) (int64, error) {
+	return 0, errors.New("Unsupported Operation")
 }

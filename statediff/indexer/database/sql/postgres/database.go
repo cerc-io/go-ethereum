@@ -84,3 +84,43 @@ func (db *DB) InsertIPLDStm() string {
 func (db *DB) InsertIPLDsStm() string {
 	return `INSERT INTO ipld.blocks (block_number, key, data) VALUES (unnest($1::BIGINT[]), unnest($2::TEXT[]), unnest($3::BYTEA[])) ON CONFLICT DO NOTHING`
 }
+
+func (db *DB) LogTableName() []string {
+	return []string{"eth", "log_cids"}
+}
+
+func (db *DB) LogColumnNames() []string {
+	return []string{"block_number", "header_id", "cid", "rct_id", "address", "index", "topic0", "topic1", "topic2", "topic3"}
+}
+
+func (db *DB) RctTableName() []string {
+	return []string{"eth", "receipt_cids"}
+}
+
+func (db *DB) RctColumnNames() []string {
+	return []string{"block_number", "header_id", "tx_id", "cid", "contract", "post_state", "post_status"}
+}
+
+func (db *DB) StateTableName() []string {
+	return []string{"eth", "state_cids"}
+}
+
+func (db *DB) StateColumnNames() []string {
+	return []string{"block_number", "header_id", "state_leaf_key", "cid", "diff", "balance", "nonce", "code_hash", "storage_root", "removed"}
+}
+
+func (db *DB) StorageTableName() []string {
+	return []string{"eth", "storage_cids"}
+}
+
+func (db *DB) StorageColumnNames() []string {
+	return []string{"block_number", "header_id", "state_leaf_key", "storage_leaf_key", "cid", "diff", "val", "removed"}
+}
+
+func (db *DB) TxTableName() []string {
+	return []string{"eth", "transaction_cids"}
+}
+
+func (db *DB) TxColumnNames() []string {
+	return []string{"block_number", "header_id", "tx_hash", "cid", "dst", "src", "index", "tx_type", "value"}
+}

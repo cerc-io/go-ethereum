@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -584,6 +587,7 @@ func (it *differenceIterator) AddResolver(resolver ethdb.KeyValueReader) {
 }
 
 func (it *differenceIterator) Next(bool) bool {
+	defer metrics.UpdateDuration(time.Now(), metrics.IndexerMetrics.DifferenceIteratorNextTimer)
 	// Invariants:
 	// - We always advance at least one element in b.
 	// - At the start of this function, a's path is lexically greater than b's.
