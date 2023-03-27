@@ -1,0 +1,82 @@
+name: Tests for Geth that are used in multiple jobs.
+
+on: [pull_request]
+
+env:
+  stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'e62830c982d4dfc5f3c1c2b12c1754a7e9b538f1'}}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-ethcl-db-ref  || 'be345e0733d2c025e4082c5154e441317ae94cf7' }}
+  GOPATH: /tmp/go
+
+jobs:
+  code-checks:
+    name: Check code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+
+      - uses: actions/checkout@v2
+
+      - name: lint
+        run: go run build/ci.go lint
+
+  build:
+    name: Run docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run docker build
+        run: docker build -t cerc-io/go-ethereum .
+
+  geth-unit-test:
+    name: Run geth unit test
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run unit tests
+        run: make test
+          
+
+  statediff-unit-test:
+    name: Run state diff unit test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "1.19"
+          check-latest: true
+
+      - me: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run dockerd
+        run: |
+          dockerd -H unix:///var/run/docker.ci.sock --userland-proxy=false &
+          sleep 5
+
+      - name: Run docker compose
+        run: |
+          docker -H unix:///var/run/docker.ci.sock compose up -d
+
+      - name: Give the migration a few seconds
+        run: sleep 30
+
+      - name: Run unit tests
+        run: make statedifftest
