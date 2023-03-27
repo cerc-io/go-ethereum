@@ -22,6 +22,6 @@ services:
       POSTGRES_DB: "vulcanize_testing"
       POSTGRES_PASSWORD: "password"
     ports:
-      - "8077:5432"
+      - "127.0.0.1:8077:5432"
     volumes:
       - ./statediff/indexer/database/file:/file_indexer
