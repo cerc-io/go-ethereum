@@ -47,10 +47,10 @@ var (
 	minerAddress                                           = common.HexToAddress("0x0")
 	minerLeafKey                                           = test_helpers.AddressToLeafKey(minerAddress)
 
-	slot0 = common.HexToHash("0")
-	slot1 = common.HexToHash("1")
-	slot2 = common.HexToHash("2")
-	slot3 = common.HexToHash("3")
+	slot0 = common.BigToHash(big.NewInt(0))
+	slot1 = common.BigToHash(big.NewInt(1))
+	slot2 = common.BigToHash(big.NewInt(2))
+	slot3 = common.BigToHash(big.NewInt(3))
 
 	slot0StorageKey = crypto.Keccak256Hash(slot0[:])
 	slot1StorageKey = crypto.Keccak256Hash(slot1[:])
@@ -504,7 +504,7 @@ func init() {
 	}
 }
 
-func TestBuilderF(t *testing.T) {
+func TestBuilder(t *testing.T) {
 	blocks, chain := test_helpers.MakeChain(3, test_helpers.Genesis, test_helpers.TestChainGen)
 	contractLeafKey = test_helpers.AddressToLeafKey(test_helpers.ContractAddr)
 	defer chain.Stop()
@@ -886,22 +886,19 @@ func TestBuilderF(t *testing.T) {
 			t.Logf("Test failed: %s", test.name)
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
-		// Let's also confirm that our root state nodes form the state root hash in the headers
-		/*
-			if i > 0 {
-				block := blocks[i-1]
-				expectedStateRoot := block.Root()
-				for _, node := range test.expected.Nodes {
-					if bytes.Equal(node.Path, []byte{}) {
-						stateRoot := crypto.Keccak256Hash(node.NodeValue)
-						if !bytes.Equal(expectedStateRoot.Bytes(), stateRoot.Bytes()) {
-							t.Logf("Test failed: %s", test.name)
-							t.Errorf("actual stateroot: %x\r\nexpected stateroot: %x", stateRoot.Bytes(), expectedStateRoot.Bytes())
-						}
-					}
-				}
-			}
-		*/
+	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block0.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock0LeafNode)) {
+		t.Errorf("block0 expected root %x does not match actual root %x", block0.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock0LeafNode))
+	}
+	if !bytes.Equal(block1.Root().Bytes(), crypto.Keccak256(block1BranchRootNode)) {
+		t.Errorf("block1 expected root %x does not match actual root %x", block1.Root().Bytes(), crypto.Keccak256(block1BranchRootNode))
+	}
+	if !bytes.Equal(block2.Root().Bytes(), crypto.Keccak256(block2BranchRootNode)) {
+		t.Errorf("block2 expected root %x does not match actual root %x", block2.Root().Bytes(), crypto.Keccak256(block2BranchRootNode))
+	}
+	if !bytes.Equal(block3.Root().Bytes(), crypto.Keccak256(block3BranchRootNode)) {
+		t.Errorf("block3 expected root %x does not match actual root %x", block3.Root().Bytes(), crypto.Keccak256(block3BranchRootNode))
 	}
 }
 
@@ -1158,6 +1155,19 @@ func TestBuilderWithWatchedAddressList(t *testing.T) {
 			t.Logf("Test failed: %s", test.name)
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
+	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block0.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock0LeafNode)) {
+		t.Errorf("block0 expected root %x does not match actual root %x", block0.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock0LeafNode))
+	}
+	if !bytes.Equal(block1.Root().Bytes(), crypto.Keccak256(block1BranchRootNode)) {
+		t.Errorf("block1 expected root %x does not match actual root %x", block1.Root().Bytes(), crypto.Keccak256(block1BranchRootNode))
+	}
+	if !bytes.Equal(block2.Root().Bytes(), crypto.Keccak256(block2BranchRootNode)) {
+		t.Errorf("block2 expected root %x does not match actual root %x", block2.Root().Bytes(), crypto.Keccak256(block2BranchRootNode))
+	}
+	if !bytes.Equal(block3.Root().Bytes(), crypto.Keccak256(block3BranchRootNode)) {
+		t.Errorf("block3 expected root %x does not match actual root %x", block3.Root().Bytes(), crypto.Keccak256(block3BranchRootNode))
 	}
 }
 
@@ -1472,6 +1482,16 @@ func TestBuilderWithRemovedAccountAndStorage(t *testing.T) {
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode)) {
+		t.Errorf("block4 expected root %x does not match actual root %x", block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode))
+	}
+	if !bytes.Equal(block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode)) {
+		t.Errorf("block5 expected root %x does not match actual root %x", block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode))
+	}
+	if !bytes.Equal(block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode)) {
+		t.Errorf("block6 expected root %x does not match actual root %x", block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode))
+	}
 }
 
 func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
@@ -1651,6 +1671,16 @@ func TestBuilderWithRemovedNonWatchedAccount(t *testing.T) {
 			t.Logf("Test failed: %s", test.name)
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
+	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode)) {
+		t.Errorf("block4 expected root %x does not match actual root %x", block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode))
+	}
+	if !bytes.Equal(block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode)) {
+		t.Errorf("block5 expected root %x does not match actual root %x", block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode))
+	}
+	if !bytes.Equal(block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode)) {
+		t.Errorf("block6 expected root %x does not match actual root %x", block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode))
 	}
 }
 
@@ -1904,6 +1934,16 @@ func TestBuilderWithRemovedWatchedAccount(t *testing.T) {
 			t.Logf("Test failed: %s", test.name)
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
+	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode)) {
+		t.Errorf("block4 expected root %x does not match actual root %x", block4.Root().Bytes(), crypto.Keccak256(block4BranchRootNode))
+	}
+	if !bytes.Equal(block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode)) {
+		t.Errorf("block5 expected root %x does not match actual root %x", block5.Root().Bytes(), crypto.Keccak256(block5BranchRootNode))
+	}
+	if !bytes.Equal(block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode)) {
+		t.Errorf("block6 expected root %x does not match actual root %x", block6.Root().Bytes(), crypto.Keccak256(block6BranchRootNode))
 	}
 }
 
@@ -2177,6 +2217,13 @@ func TestBuilderWithMovedAccount(t *testing.T) {
 			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
 		}
 	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block1.Root().Bytes(), crypto.Keccak256(block01BranchRootNode)) {
+		t.Errorf("block01 expected root %x does not match actual root %x", block4.Root().Bytes(), crypto.Keccak256(block01BranchRootNode))
+	}
+	if !bytes.Equal(block2.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock02LeafNode)) {
+		t.Errorf("block02 expected root %x does not match actual root %x", block5.Root().Bytes(), crypto.Keccak256(bankAccountAtBlock02LeafNode))
+	}
 }
 
 /*
@@ -2194,6 +2241,619 @@ contract test {
     }
 
     uint256[100] data;
+
+	constructor() public {
+	    owner = msg.sender;
+		data = [1];
+	}
+
+    function Put(uint256 addr, uint256 value) public {
+        data[addr] = value;
+    }
+
+    function close() public onlyOwner { //onlyOwner is custom modifier
+        selfdestruct(owner);  // `owner` is the owners address
+    }
+}
+*/
+
+var (
+	b                    = big.NewInt(0).Sub(test_helpers.TestBIGBankFunds, test_helpers.BalanceChangeBIG)
+	block1BankBigBalance = big.NewInt(0).Sub(b, big.NewInt(test_helpers.GasFees2))
+	bankAccountAtBlock1b = &types.StateAccount{
+		Nonce:    1,
+		Balance:  block1BankBigBalance,
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	bankAccountAtBlock1bRLP, _      = rlp.EncodeToBytes(bankAccountAtBlock1b)
+	bankAccountAtBlock1bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("30bf49f440a1cd0527e4d06e2765654c0f56452257516d793a9b8d604dcfdf2a"),
+		bankAccountAtBlock1bRLP,
+	})
+
+	account1AtBlock1b = &types.StateAccount{
+		Nonce:    0,
+		Balance:  test_helpers.Block1bAccount1Balance,
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	account1AtBlock1bRLP, _      = rlp.EncodeToBytes(account1AtBlock1b)
+	account1AtBlock1bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3926db69aaced518e9b9f0f434a473e7174109c943548bb8f23be41ca76d9ad2"),
+		account1AtBlock1bRLP,
+	})
+
+	account1AtBlock2bBalance, _ = big.NewInt(0).SetString("1999999999999999999999999761539571000000000", 10)
+	account1AtBlock2b           = &types.StateAccount{
+		Nonce:    1,
+		Balance:  account1AtBlock2bBalance,
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	account1AtBlock2bRLP, _      = rlp.EncodeToBytes(account1AtBlock2b)
+	account1AtBlock2bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3926db69aaced518e9b9f0f434a473e7174109c943548bb8f23be41ca76d9ad2"),
+		account1AtBlock2bRLP,
+	})
+
+	minerAccountAtBlock2b = &types.StateAccount{
+		Nonce:    0,
+		Balance:  big.NewInt(4055891787808414571),
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	minerAccountAtBlock2bRLP, _      = rlp.EncodeToBytes(minerAccountAtBlock2b)
+	minerAccountAtBlock2bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"),
+		minerAccountAtBlock2bRLP,
+	})
+
+	contractAccountAtBlock2b = &types.StateAccount{
+		Nonce:    1,
+		Balance:  big.NewInt(0),
+		CodeHash: test_helpers.CodeHashForInternalizedLeafNode.Bytes(),
+		Root:     crypto.Keccak256Hash(block2StorageBranchRootNode),
+	}
+	contractAccountAtBlock2bRLP, _      = rlp.EncodeToBytes(contractAccountAtBlock2b)
+	contractAccountAtBlock2bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3d7e14f1723fa19b5d6d9f8b86b49acefbc9c400bf4ed686c10d6b6467fc5b3a"),
+		contractAccountAtBlock2bRLP,
+	})
+
+	minerAccountAtBlock3b = &types.StateAccount{
+		Nonce:    0,
+		Balance:  big.NewInt(4000417525320086000),
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	minerAccountAtBlock3bRLP, _      = rlp.EncodeToBytes(minerAccountAtBlock3b)
+	minerAccountAtBlock3bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"),
+		minerAccountAtBlock3bRLP,
+	})
+
+	bankAccountAtBlock3bBalance, _ = big.NewInt(0).SetString("18000000000000000000000001999920365757724976", 10)
+	bankAccountAtBlock3b           = &types.StateAccount{
+		Nonce:    3,
+		Balance:  bankAccountAtBlock3bBalance,
+		CodeHash: test_helpers.NullCodeHash.Bytes(),
+		Root:     test_helpers.EmptyContractRoot,
+	}
+	bankAccountAtBlock3bRLP, _      = rlp.EncodeToBytes(bankAccountAtBlock3b)
+	bankAccountAtBlock3bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("30bf49f440a1cd0527e4d06e2765654c0f56452257516d793a9b8d604dcfdf2a"),
+		bankAccountAtBlock3bRLP,
+	})
+
+	contractAccountAtBlock3b = &types.StateAccount{
+		Nonce:    1,
+		Balance:  big.NewInt(0),
+		CodeHash: test_helpers.CodeHashForInternalizedLeafNode.Bytes(),
+		Root:     crypto.Keccak256Hash(block3bStorageBranchRootNode),
+	}
+	contractAccountAtBlock3bRLP, _      = rlp.EncodeToBytes(contractAccountAtBlock3b)
+	contractAccountAtBlock3bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("3d7e14f1723fa19b5d6d9f8b86b49acefbc9c400bf4ed686c10d6b6467fc5b3a"),
+		contractAccountAtBlock3bRLP,
+	})
+
+	slot40364  = common.BigToHash(big.NewInt(40364))
+	slot105566 = common.BigToHash(big.NewInt(105566))
+
+	slot40364StorageValue  = common.Hex2Bytes("01")
+	slot105566StorageValue = common.Hex2Bytes("02")
+
+	slot40364StorageKey  = crypto.Keccak256Hash(slot40364[:])
+	slot105566StorageKey = crypto.Keccak256Hash(slot105566[:])
+
+	slot40364StorageInternalLeafNode = []interface{}{
+		common.Hex2Bytes("3077bbc951a04529defc15da8c06e427cde0d7a1499c50975bbe8aab"),
+		slot40364StorageValue,
+	}
+	slot105566StorageInternalLeafNode = []interface{}{
+		common.Hex2Bytes("3c62586c18bf1ecfda161ced374b7a894630e2db426814c24e5d42af"),
+		slot105566StorageValue,
+	}
+
+	block3bStorageBranchRootNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(slot0StorageLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(slot1StorageLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(block3bStorageExtensionNode),
+		[]byte{},
+	})
+
+	block3bStorageExtensionNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		common.Hex2Bytes("1291631c"),
+		crypto.Keccak256(block3bStorageBranchNodeWithInternalLeaves),
+	})
+
+	block3bStorageBranchNodeWithInternalLeaves, _ = rlp.EncodeToBytes(&[]interface{}{
+		slot105566StorageInternalLeafNode,
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		slot40364StorageInternalLeafNode,
+		[]byte{},
+		[]byte{},
+		[]byte{},
+	})
+
+	block1bBranchRootNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		crypto.Keccak256(bankAccountAtBlock1bLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(minerAccountAtBlock1LeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(account1AtBlock1bLeafNode),
+		[]byte{},
+		[]byte{},
+	})
+
+	block2bBranchRootNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		crypto.Keccak256(bankAccountAtBlock1bLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(minerAccountAtBlock2bLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(account1AtBlock2bLeafNode),
+		crypto.Keccak256(contractAccountAtBlock2bLeafNode),
+		[]byte{},
+	})
+
+	block3bBranchRootNode, _ = rlp.EncodeToBytes(&[]interface{}{
+		crypto.Keccak256(bankAccountAtBlock3bLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(minerAccountAtBlock2bLeafNode),
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		[]byte{},
+		crypto.Keccak256(account1AtBlock2bLeafNode),
+		crypto.Keccak256(contractAccountAtBlock3bLeafNode),
+		[]byte{},
+	})
+)
+
+func TestBuilderWithInternalizedLeafNode(t *testing.T) {
+	blocks, chain := test_helpers.MakeChain(3, test_helpers.GenesisForInternalLeafNodeTest, test_helpers.TestChainGenWithInternalLeafNode)
+	contractLeafKey = test_helpers.AddressToLeafKey(test_helpers.ContractAddr)
+	defer chain.Stop()
+	block0 = test_helpers.Genesis
+	block1 = blocks[0]
+	block2 = blocks[1]
+	block3 = blocks[2]
+	params := statediff.Params{}
+	builder = statediff.NewBuilder(chain.StateCache())
+
+	var tests = []struct {
+		name              string
+		startingArguments statediff.Args
+		expected          *types2.StateObject
+	}{
+		{
+			"testEmptyDiff",
+			statediff.Args{
+				OldStateRoot: block0.Root(),
+				NewStateRoot: block0.Root(),
+				BlockNumber:  block0.Number(),
+				BlockHash:    block0.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block0.Number(),
+				BlockHash:   block0.Hash(),
+				Nodes:       emptyDiffs,
+			},
+		},
+		{
+			"testBlock0",
+			//10000 transferred from testBankAddress to account1Addr
+			statediff.Args{
+				OldStateRoot: test_helpers.NullHash,
+				NewStateRoot: block0.Root(),
+				BlockNumber:  block0.Number(),
+				BlockHash:    block0.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block0.Number(),
+				BlockHash:   block0.Hash(),
+				Nodes: []types2.StateLeafNode{
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: bankAccountAtBlock0,
+							LeafKey: test_helpers.BankLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock0LeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+				},
+				IPLDs: []types2.IPLD{
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock0LeafNode)).String(),
+						Content: bankAccountAtBlock0LeafNode,
+					},
+				},
+			},
+		},
+		{
+			"testBlock1",
+			//10000 transferred from testBankAddress to account1Addr
+			statediff.Args{
+				OldStateRoot: block0.Root(),
+				NewStateRoot: block1.Root(),
+				BlockNumber:  block1.Number(),
+				BlockHash:    block1.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block1.Number(),
+				BlockHash:   block1.Hash(),
+				Nodes: []types2.StateLeafNode{
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: bankAccountAtBlock1b,
+							LeafKey: test_helpers.BankLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock1bLeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: minerAccountAtBlock1,
+							LeafKey: minerLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountAtBlock1LeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: account1AtBlock1b,
+							LeafKey: test_helpers.Account1LeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1AtBlock1bLeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+				},
+				IPLDs: []types2.IPLD{
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block1bBranchRootNode)).String(),
+						Content: block1bBranchRootNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock1bLeafNode)).String(),
+						Content: bankAccountAtBlock1bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountAtBlock1LeafNode)).String(),
+						Content: minerAccountAtBlock1LeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1AtBlock1bLeafNode)).String(),
+						Content: account1AtBlock1bLeafNode,
+					},
+				},
+			},
+		},
+		{
+			"testBlock2",
+			// 1000 transferred from testBankAddress to account1Addr
+			// 1000 transferred from account1Addr to account2Addr
+			// account1addr creates a new contract
+			statediff.Args{
+				OldStateRoot: block1.Root(),
+				NewStateRoot: block2.Root(),
+				BlockNumber:  block2.Number(),
+				BlockHash:    block2.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block2.Number(),
+				BlockHash:   block2.Hash(),
+				Nodes: []types2.StateLeafNode{
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: minerAccountAtBlock2b,
+							LeafKey: minerLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountAtBlock2bLeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: account1AtBlock2b,
+							LeafKey: test_helpers.Account1LeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1AtBlock2bLeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: contractAccountAtBlock2b,
+							LeafKey: contractLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(contractAccountAtBlock2bLeafNode)).String()},
+						StorageDiff: []types2.StorageLeafNode{
+							{
+								Removed: false,
+								Value:   slot0StorageValue,
+								LeafKey: slot0StorageKey.Bytes(),
+								CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(slot0StorageLeafNode)).String(),
+							},
+							{
+								Removed: false,
+								Value:   slot1StorageValue,
+								LeafKey: slot1StorageKey.Bytes(),
+								CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(slot1StorageLeafNode)).String(),
+							},
+						},
+					},
+				},
+				IPLDs: []types2.IPLD{
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.RawBinary, test_helpers.CodeHashForInternalizedLeafNode.Bytes()).String(),
+						Content: test_helpers.ByteCodeAfterDeploymentForInternalLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block2bBranchRootNode)).String(),
+						Content: block2bBranchRootNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(minerAccountAtBlock2bLeafNode)).String(),
+						Content: minerAccountAtBlock2bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(account1AtBlock2bLeafNode)).String(),
+						Content: account1AtBlock2bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(contractAccountAtBlock2bLeafNode)).String(),
+						Content: contractAccountAtBlock2bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block2StorageBranchRootNode)).String(),
+						Content: block2StorageBranchRootNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(slot0StorageLeafNode)).String(),
+						Content: slot0StorageLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(slot1StorageLeafNode)).String(),
+						Content: slot1StorageLeafNode,
+					},
+				},
+			},
+		},
+		{
+			"testBlock3",
+			//the contract's storage is changed
+			//and the block is mined by account 2
+			statediff.Args{
+				OldStateRoot: block2.Root(),
+				NewStateRoot: block3.Root(),
+				BlockNumber:  block3.Number(),
+				BlockHash:    block3.Hash(),
+			},
+			&types2.StateObject{
+				BlockNumber: block3.Number(),
+				BlockHash:   block3.Hash(),
+				Nodes: []types2.StateLeafNode{
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: bankAccountAtBlock3b,
+							LeafKey: test_helpers.BankLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock3bLeafNode)).String()},
+						StorageDiff: emptyStorage,
+					},
+					{
+						Removed: false,
+						AccountWrapper: struct {
+							Account *types.StateAccount
+							LeafKey []byte
+							CID     string
+						}{
+							Account: contractAccountAtBlock3b,
+							LeafKey: contractLeafKey,
+							CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(contractAccountAtBlock3bLeafNode)).String()},
+						StorageDiff: []types2.StorageLeafNode{
+							{
+								Removed: false,
+								Value:   slot105566StorageValue,
+								LeafKey: slot105566StorageKey.Bytes(),
+								CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block3bStorageBranchNodeWithInternalLeaves)).String(),
+							},
+							{
+								Removed: false,
+								Value:   slot40364StorageValue,
+								LeafKey: slot40364StorageKey.Bytes(),
+								CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block3bStorageBranchNodeWithInternalLeaves)).String(),
+							},
+						},
+					},
+				},
+				IPLDs: []types2.IPLD{
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(block3bBranchRootNode)).String(),
+						Content: block3bBranchRootNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(bankAccountAtBlock3bLeafNode)).String(),
+						Content: bankAccountAtBlock3bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStateTrie, crypto.Keccak256(contractAccountAtBlock3bLeafNode)).String(),
+						Content: contractAccountAtBlock3bLeafNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block3bStorageBranchRootNode)).String(),
+						Content: block3bStorageBranchRootNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block3bStorageExtensionNode)).String(),
+						Content: block3bStorageExtensionNode,
+					},
+					{
+						CID:     ipld2.Keccak256ToCid(ipld2.MEthStorageTrie, crypto.Keccak256(block3bStorageBranchNodeWithInternalLeaves)).String(),
+						Content: block3bStorageBranchNodeWithInternalLeaves,
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		diff, err := builder.BuildStateDiffObject(test.startingArguments, params)
+		if err != nil {
+			t.Error(err)
+		}
+		receivedStateDiffRlp, err := rlp.EncodeToBytes(&diff)
+		if err != nil {
+			t.Error(err)
+		}
+		expectedStateDiffRlp, err := rlp.EncodeToBytes(test.expected)
+		if err != nil {
+			t.Error(err)
+		}
+		sort.Slice(receivedStateDiffRlp, func(i, j int) bool { return receivedStateDiffRlp[i] < receivedStateDiffRlp[j] })
+		sort.Slice(expectedStateDiffRlp, func(i, j int) bool { return expectedStateDiffRlp[i] < expectedStateDiffRlp[j] })
+		if !bytes.Equal(receivedStateDiffRlp, expectedStateDiffRlp) {
+			actual, err := json.Marshal(diff)
+			if err != nil {
+				t.Error(err)
+			}
+			expected, err := json.Marshal(test.expected)
+			if err != nil {
+				t.Error(err)
+			}
+			t.Logf("Test failed: %s", test.name)
+			t.Errorf("actual state diff: %s\r\n\r\n\r\nexpected state diff: %s", actual, expected)
+		}
+	}
+	// Let's also confirm that our root state nodes form the state root hash in the headers
+	if !bytes.Equal(block1.Root().Bytes(), crypto.Keccak256(block1bBranchRootNode)) {
+		t.Errorf("block1 expected root %x does not match actual root %x", block1.Root().Bytes(), crypto.Keccak256(block1bBranchRootNode))
+	}
+	if !bytes.Equal(block2.Root().Bytes(), crypto.Keccak256(block2bBranchRootNode)) {
+		t.Errorf("block2 expected root %x does not match actual root %x", block2.Root().Bytes(), crypto.Keccak256(block2bBranchRootNode))
+	}
+	if !bytes.Equal(block3.Root().Bytes(), crypto.Keccak256(block3bBranchRootNode)) {
+		t.Errorf("block3 expected root %x does not match actual root %x", block3.Root().Bytes(), crypto.Keccak256(block3bBranchRootNode))
+	}
+}
+
+/*
+pragma solidity ^0.5.10;
+
+contract test {
+    address payable owner;
+
+    modifier onlyOwner {
+        require(
+            msg.sender == owner,
+            "Only owner can call this function."
+        );
+        _;
+    }
+
+    uint256[105566] data;
 
 	constructor() public {
 	    owner = msg.sender;

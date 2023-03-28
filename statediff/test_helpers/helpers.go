@@ -29,10 +29,13 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big.Int) *types.Block {
+func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance, baseFee *big.Int, initialGasLimit uint64) *types.Block {
 	g := core.Genesis{
 		Alloc:   core.GenesisAlloc{addr: {Balance: balance}},
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		BaseFee: baseFee,
+	}
+	if initialGasLimit != 0 {
+		g.GasLimit = initialGasLimit
 	}
 	return g.MustCommit(db)
 }
@@ -133,5 +136,34 @@ func TestChainGen(i int, block *core.BlockGen) {
 		data := common.Hex2Bytes("43D726D6")
 		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(Account1Addr), ContractAddr, big.NewInt(0), 100000, big.NewInt(params.InitialBaseFee), data), signer, Account1Key)
 		block.AddTx(tx)
+	}
+}
+
+func TestChainGenWithInternalLeafNode(i int, block *core.BlockGen) {
+	signer := types.HomesteadSigner{}
+	switch i {
+	case 0:
+		// In block 1, the test bank sends account #1 some ether.
+		tx, _ := types.SignTx(types.NewTransaction(block.TxNonce(TestBankAddress), Account1Addr, BalanceChangeBIG, params.TxGas, big.NewInt(params.InitialBaseFee), nil), signer, TestBankKey)
+		block.AddTx(tx)
+	case 1:
+		// In block 2 Account1Addr creates a test contract.
+		nonce := block.TxNonce(Account1Addr)
+		tx1, _ := types.SignTx(types.NewContractCreation(block.TxNonce(Account1Addr), big.NewInt(0), ContractForInternalLeafNodeGasLimit, big.NewInt(params.InitialBaseFee), ContractCodeForInternalLeafNode), signer, Account1Key)
+		ContractAddr = crypto.CreateAddress(Account1Addr, nonce)
+		block.AddTx(tx1)
+	case 2:
+		// Block 3 has two transactions which set slots 223 and 648 with small values
+		// The goal here is to induce a branch node with an internalized leaf node
+		block.SetCoinbase(TestBankAddress)
+		data1 := common.Hex2Bytes("C16431B90000000000000000000000000000000000000000000000000000000000009dab0000000000000000000000000000000000000000000000000000000000000001")
+		data2 := common.Hex2Bytes("C16431B90000000000000000000000000000000000000000000000000000000000019c5d0000000000000000000000000000000000000000000000000000000000000002")
+
+		nonce := block.TxNonce(TestBankAddress)
+		tx1, _ := types.SignTx(types.NewTransaction(nonce, ContractAddr, big.NewInt(0), 100000, big.NewInt(params.InitialBaseFee), data1), signer, TestBankKey)
+		nonce++
+		tx2, _ := types.SignTx(types.NewTransaction(nonce, ContractAddr, big.NewInt(0), 100000, big.NewInt(params.InitialBaseFee), data2), signer, TestBankKey)
+		block.AddTx(tx1)
+		block.AddTx(tx2)
 	}
 }

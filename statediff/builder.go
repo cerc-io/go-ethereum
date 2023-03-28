@@ -42,6 +42,7 @@ var (
 	emptyNode, _      = rlp.EncodeToBytes(&[]byte{})
 	emptyContractRoot = crypto.Keccak256Hash(emptyNode)
 	nullCodeHash      = crypto.Keccak256Hash([]byte{}).Bytes()
+	nullNodeHash      = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")
 )
 
 // Builder interface exposes the method for building a state diff between two blocks
@@ -218,8 +219,17 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 			diffAccountsAtB[common.Bytes2Hex(accountW.LeafKey)] = *accountW
 		} else { // trie nodes will be written to blockstore only
 			// reminder that this includes leaf nodes, since the geth iterator.Leaf() actually signifies a "value" node
+			if bytes.Equal(it.Hash().Bytes(), nullNodeHash) {
+				continue
+			}
 			nodeVal := make([]byte, len(it.NodeBlob()))
 			copy(nodeVal, it.NodeBlob())
+			nodePath := make([]byte, len(it.Path()))
+			copy(nodePath, it.Path())
+			var elements []interface{}
+			if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
+				return nil, err
+			}
 			if len(watchedAddressesLeafPaths) > 0 {
 				var elements []interface{}
 				if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
@@ -279,7 +289,6 @@ func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watched
 	if err != nil {
 		return nil, err
 	}
-
 	return &types2.AccountWrapper{
 		LeafKey: leafKey,
 		Account: &account,
@@ -578,6 +587,9 @@ func (sdb *StateDiffBuilder) createdAndUpdatedStorage(a, b trie.NodeIterator, ou
 			}
 			diffSlotsAtB[common.Bytes2Hex(storageLeafNode.LeafKey)] = true
 		} else {
+			if bytes.Equal(it.Hash().Bytes(), nullNodeHash) {
+				continue
+			}
 			nodeVal := make([]byte, len(it.NodeBlob()))
 			copy(nodeVal, it.NodeBlob())
 			nodeHash := make([]byte, len(it.Hash().Bytes()))
