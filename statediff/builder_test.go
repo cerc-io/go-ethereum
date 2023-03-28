@@ -2321,18 +2321,6 @@ var (
 		contractAccountAtBlock2bRLP,
 	})
 
-	minerAccountAtBlock3b = &types.StateAccount{
-		Nonce:    0,
-		Balance:  big.NewInt(4000417525320086000),
-		CodeHash: test_helpers.NullCodeHash.Bytes(),
-		Root:     test_helpers.EmptyContractRoot,
-	}
-	minerAccountAtBlock3bRLP, _      = rlp.EncodeToBytes(minerAccountAtBlock3b)
-	minerAccountAtBlock3bLeafNode, _ = rlp.EncodeToBytes(&[]interface{}{
-		common.Hex2Bytes("3380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"),
-		minerAccountAtBlock3bRLP,
-	})
-
 	bankAccountAtBlock3bBalance, _ = big.NewInt(0).SetString("18000000000000000000000001999920365757724976", 10)
 	bankAccountAtBlock3b           = &types.StateAccount{
 		Nonce:    3,
