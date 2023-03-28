@@ -224,12 +224,6 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 			}
 			nodeVal := make([]byte, len(it.NodeBlob()))
 			copy(nodeVal, it.NodeBlob())
-			nodePath := make([]byte, len(it.Path()))
-			copy(nodePath, it.Path())
-			var elements []interface{}
-			if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
-				return nil, err
-			}
 			if len(watchedAddressesLeafPaths) > 0 {
 				var elements []interface{}
 				if err := rlp.DecodeBytes(nodeVal, &elements); err != nil {
