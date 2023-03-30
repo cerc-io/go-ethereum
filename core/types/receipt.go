@@ -114,6 +114,9 @@ func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
 
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
 // into an RLP stream. If no post state is present, byzantium fork is assumed.
+// For a legacy Receipt this returns RLP([PostStateOrStatus, CumulativeGasUsed, Bloom, Logs])
+// For a EIP-2718 Receipt this returns RLP(TxType || ReceiptPayload)
+// For a EIP-2930 Receipt, TxType == 0x01 and ReceiptPayload == RLP([PostStateOrStatus, CumulativeGasUsed, Bloom, Logs])
 func (r *Receipt) EncodeRLP(w io.Writer) error {
 	data := &receiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs}
 	if r.Type == LegacyTxType {

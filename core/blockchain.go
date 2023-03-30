@@ -29,6 +29,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/common/mclock"
@@ -139,6 +141,7 @@ type CacheConfig struct {
 
 	SnapshotNoBuild bool // Whether the background generation is allowed
 	SnapshotWait    bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
+	StateDiffing bool // Whether or not the statediffing service is running
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
@@ -224,6 +227,10 @@ type BlockChain struct {
 	processor  Processor // Block transaction processor interface
 	forker     *ForkChoice
 	vmConfig   vm.Config
+
+	// Locked roots and their mutex
+	trieLock    sync.Mutex
+	lockedRoots map[common.Hash]bool
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -272,6 +279,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 		futureBlocks:  lru.NewCache[common.Hash, *types.Block](maxFutureBlocks),
 		engine:        engine,
 		vmConfig:      vmConfig,
+		lockedRoots:   make(map[common.Hash]bool),
 	}
 	bc.forker = NewForkChoice(bc, shouldPreserve)
 	bc.stateCache = state.NewDatabaseWithNodeDB(bc.db, bc.triedb)
@@ -976,7 +984,11 @@ func (bc *BlockChain) Stop() {
 			}
 		}
 		for !bc.triegc.Empty() {
-			triedb.Dereference(bc.triegc.PopItem())
+			pruneRootV := bc.triegc.PopItem()
+			pruneRoot := (common.Hash)(pruneRootV)
+			if !bc.TrieLocked(pruneRoot) {
+				triedb.Dereference(pruneRoot)
+			}
 		}
 		if size, _ := triedb.Size(); size != 0 {
 			log.Error("Dangling trie nodes after full cleanup")
@@ -1409,7 +1421,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			bc.triegc.Push(root, number)
 			break
 		}
-		bc.triedb.Dereference(root)
+		pruneRoot := (common.Hash)(root)
+		if !bc.TrieLocked(pruneRoot) {
+			log.Debug("Dereferencing", "root", (common.Hash)(root).Hex())
+			bc.triedb.Dereference(pruneRoot)
+		}
 	}
 	return nil
 }
@@ -2498,4 +2514,29 @@ func (bc *BlockChain) SetBlockValidatorAndProcessorForTesting(v Validator, p Pro
 // It is thread-safe and can be called repeatedly without side effects.
 func (bc *BlockChain) SetTrieFlushInterval(interval time.Duration) {
 	atomic.StoreInt64(&bc.flushInterval, int64(interval))
+}
+
+	// TrieLocked returns whether the trie associated with the provided root is locked for use
+func (bc *BlockChain) TrieLocked(root common.Hash) bool {
+	bc.trieLock.Lock()
+	locked, ok := bc.lockedRoots[root]
+	bc.trieLock.Unlock()
+	if !ok {
+		return false
+	}
+	return locked
+}
+
+// LockTrie prevents dereferencing of the provided root
+func (bc *BlockChain) LockTrie(root common.Hash) {
+	bc.trieLock.Lock()
+	bc.lockedRoots[root] = true
+	bc.trieLock.Unlock()
+}
+
+// UnlockTrie allows dereferencing of the provided root- provided it was previously locked
+func (bc *BlockChain) UnlockTrie(root common.Hash) {
+	bc.trieLock.Lock()
+	bc.lockedRoots[root] = false
+	bc.trieLock.Unlock()
 }
