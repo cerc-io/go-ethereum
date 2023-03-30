@@ -30,8 +30,10 @@ import (
 )
 
 func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance, baseFee *big.Int, initialGasLimit uint64) *types.Block {
+	alloc := map[common.Address]core.GenesisAccount{
+		addr: core.GenesisAccount{Balance: balance}}
 	g := core.Genesis{
-		Alloc:   core.GenesisAlloc{addr: {Balance: balance}},
+		Alloc:   alloc,
 		BaseFee: baseFee,
 	}
 	if initialGasLimit != 0 {
@@ -45,7 +47,7 @@ func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance, bas
 func MakeChain(n int, parent *types.Block, chainGen func(int, *core.BlockGen)) ([]*types.Block, *core.BlockChain) {
 	config := params.TestChainConfig
 	blocks, _ := core.GenerateChain(config, parent, ethash.NewFaker(), Testdb, n, chainGen)
-	chain, _ := core.NewBlockChain(Testdb, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
+	chain, _ := core.NewBlockChain(Testdb, nil, nil, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 	return blocks, chain
 }
 

@@ -134,8 +134,8 @@ func (bc *BlockChain) SetCurrentBlock(block *types.Block) {
 }
 
 // CurrentBlock mock method
-func (bc *BlockChain) CurrentBlock() *types.Block {
-	return bc.currentBlock
+func (bc *BlockChain) CurrentBlock() *types.Header {
+	return bc.currentBlock.Header()
 }
 
 func (bc *BlockChain) SetTd(hash common.Hash, blockNum uint64, td *big.Int) {

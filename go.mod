@@ -47,7 +47,7 @@ require (
 	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/jackpal/go-nat-pmp v1.0.2
-	github.com/jedisct1/go-minisign v0.0.0-20211028175153-1c139d1cc84b
+	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/karalabe/usb v0.0.2
@@ -62,10 +62,10 @@ require (
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/rs/cors v1.7.0
-	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 	github.com/status-im/keycard-go v0.2.0
 	github.com/stretchr/testify v1.8.0
-	github.com/supranational/blst v0.3.8
+	github.com/supranational/blst v0.3.8-0.20220526154634-513d2456b344
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/thoas/go-funk v0.9.2
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
@@ -81,12 +81,11 @@ require (
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 )
 
-require github.com/hashicorp/golang-lru v0.5.1
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v0.21.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v0.8.3 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
+	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.0.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.0.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.1.1 // indirect
@@ -144,7 +143,6 @@ require (
 	github.com/stretchr/objx v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect

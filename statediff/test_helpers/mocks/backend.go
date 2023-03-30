@@ -134,7 +134,7 @@ func (backend *Backend) CurrentHeader() *types.Header {
 	panic("not implemented") // TODO: Implement
 }
 
-func (backend *Backend) CurrentBlock() *types.Block {
+func (backend *Backend) CurrentBlock() *types.Header {
 	panic("not implemented") // TODO: Implement
 }
 
@@ -162,11 +162,15 @@ func (backend *Backend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	panic("not implemented") // TODO: Implement
 }
 
+func (backend *Backend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
+	panic("not implemented") // TODO: Implement
+}
+
 func (backend *Backend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	panic("not implemented") // TODO: Implement
 }
 
-func (backend *Backend) GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
+func (backend *Backend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
 	panic("not implemented") // TODO: Implement
 }
 

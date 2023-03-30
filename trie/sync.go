@@ -555,7 +555,7 @@ func (s *Sync) commitCodeRequest(req *codeRequest) error {
 func ResolvePath(path []byte) (common.Hash, []byte) {
 	var owner common.Hash
 	if len(path) >= 2*common.HashLength {
-		owner = common.BytesToHash(hexToKeybytes(path[:2*common.HashLength]))
+		owner = common.BytesToHash(hexToKeyBytes(path[:2*common.HashLength]))
 		path = path[2*common.HashLength:]
 	}
 	return owner, path
