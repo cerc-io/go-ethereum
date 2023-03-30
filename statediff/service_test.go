@@ -54,8 +54,8 @@ var (
 	parentHeader1 = types.Header{Number: big.NewInt(rand.Int63()), Root: parentRoot1}
 	parentHeader2 = types.Header{Number: big.NewInt(rand.Int63()), Root: parentRoot2}
 
-	parentBlock1 = types.NewBlock(&parentHeader1, nil, nil, nil, new(trie.Trie))
-	parentBlock2 = types.NewBlock(&parentHeader2, nil, nil, nil, new(trie.Trie))
+	parentBlock1 = types.NewBlock(&parentHeader1, nil, nil, nil, trie.NewEmpty(nil))
+	parentBlock2 = types.NewBlock(&parentHeader2, nil, nil, nil, trie.NewEmpty(nil))
 
 	parentHash1 = parentBlock1.Hash()
 	parentHash2 = parentBlock2.Hash()
@@ -67,9 +67,9 @@ var (
 	header2   = types.Header{ParentHash: parentHash2, Root: testRoot2, Number: big.NewInt(2)}
 	header3   = types.Header{ParentHash: common.HexToHash("parent hash"), Root: testRoot3, Number: big.NewInt(3)}
 
-	testBlock1 = types.NewBlock(&header1, nil, nil, nil, new(trie.Trie))
-	testBlock2 = types.NewBlock(&header2, nil, nil, nil, new(trie.Trie))
-	testBlock3 = types.NewBlock(&header3, nil, nil, nil, new(trie.Trie))
+	testBlock1 = types.NewBlock(&header1, nil, nil, nil, trie.NewEmpty(nil))
+	testBlock2 = types.NewBlock(&header2, nil, nil, nil, trie.NewEmpty(nil))
+	testBlock3 = types.NewBlock(&header3, nil, nil, nil, trie.NewEmpty(nil))
 
 	receiptRoot1  = common.HexToHash("0x05")
 	receiptRoot2  = common.HexToHash("0x06")
