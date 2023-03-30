@@ -69,7 +69,7 @@ var writeLoopParams = ParamsWithMutex{
 
 type blockChain interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	CurrentBlock() *types.Block
+	CurrentBlock() *types.Header
 	GetBlockByHash(hash common.Hash) *types.Block
 	GetBlockByNumber(number uint64) *types.Block
 	GetReceiptsByHash(hash common.Hash) types.Receipts
@@ -913,7 +913,7 @@ func (sds *Service) WatchAddress(operation types2.OperationType, args []types2.W
 	defer writeLoopParams.Unlock()
 
 	// get the current block number
-	currentBlockNumber := sds.BlockChain.CurrentBlock().Number()
+	currentBlockNumber := sds.BlockChain.CurrentBlock().Number
 
 	switch operation {
 	case types2.Add:

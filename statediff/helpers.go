@@ -53,8 +53,6 @@ func ChainConfig(chainID uint64) (*params.ChainConfig, error) {
 	switch chainID {
 	case 1:
 		return params.MainnetChainConfig, nil
-	case 3:
-		return params.RopstenChainConfig, nil
 	case 4:
 		return params.RinkebyChainConfig, nil
 	case 5:

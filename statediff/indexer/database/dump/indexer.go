@@ -68,7 +68,7 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	traceMsg := fmt.Sprintf("indexer stats for statediff at %d with hash %s:\r\n", height, blockHashStr)
 	transactions := block.Transactions()
 	// Derive any missing fields
-	if err := receipts.DeriveFields(sdi.chainConfig, blockHash, height, transactions); err != nil {
+	if err := receipts.DeriveFields(sdi.chainConfig, blockHash, height, block.BaseFee(), transactions); err != nil {
 		return nil, err
 	}
 
