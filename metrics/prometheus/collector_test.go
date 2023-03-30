@@ -99,6 +99,9 @@ test_timer {quantile="0.99"} 1.2e+08
 test_timer {quantile="0.999"} 1.2e+08
 test_timer {quantile="0.9999"} 1.2e+08
 
+# TYPE test_timer_total gauge
+test_timer_total 230000000
+
 # TYPE test_resetting_timer_count counter
 test_resetting_timer_count 6
 
