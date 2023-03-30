@@ -38,7 +38,7 @@ all:
 	$(GORUN) build/ci.go install
 
 test: all
-	$(GORUN) build/ci.go test -v
+	$(GORUN) build/ci.go test
 
 lint: ## Run linters.
 	$(GORUN) build/ci.go lint
