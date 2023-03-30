@@ -30,8 +30,10 @@ import (
 )
 
 func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance, baseFee *big.Int, initialGasLimit uint64) *types.Block {
+	alloc := map[common.Address]core.GenesisAccount{
+		addr: core.GenesisAccount{Balance: balance}}
 	g := core.Genesis{
-		Alloc:   core.GenesisAlloc{addr: {Balance: balance}},
+		Alloc:   alloc,
 		BaseFee: baseFee,
 	}
 	if initialGasLimit != 0 {

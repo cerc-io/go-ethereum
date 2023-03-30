@@ -139,7 +139,7 @@ type CacheConfig struct {
 
 	SnapshotNoBuild bool // Whether the background generation is allowed
 	SnapshotWait    bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
-	StateDiffing bool // Whether or not the statediffing service is running
+	StateDiffing    bool // Whether the statediffing service is running
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
@@ -982,8 +982,7 @@ func (bc *BlockChain) Stop() {
 			}
 		}
 		for !bc.triegc.Empty() {
-			pruneRootV := bc.triegc.PopItem()
-			pruneRoot := (common.Hash)(pruneRootV)
+			pruneRoot := bc.triegc.PopItem()
 			if !bc.TrieLocked(pruneRoot) {
 				triedb.Dereference(pruneRoot)
 			}
@@ -1419,10 +1418,9 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 			bc.triegc.Push(root, number)
 			break
 		}
-		pruneRoot := (common.Hash)(root)
-		if !bc.TrieLocked(pruneRoot) {
-			log.Debug("Dereferencing", "root", (common.Hash)(root).Hex())
-			bc.triedb.Dereference(pruneRoot)
+		if !bc.TrieLocked(root) {
+			log.Debug("Dereferencing", "root", root.Hex())
+			bc.triedb.Dereference(root)
 		}
 	}
 	return nil
@@ -2514,7 +2512,7 @@ func (bc *BlockChain) SetTrieFlushInterval(interval time.Duration) {
 	atomic.StoreInt64(&bc.flushInterval, int64(interval))
 }
 
-	// TrieLocked returns whether the trie associated with the provided root is locked for use
+// TrieLocked returns whether the trie associated with the provided root is locked for use
 func (bc *BlockChain) TrieLocked(root common.Hash) bool {
 	bc.trieLock.Lock()
 	locked, ok := bc.lockedRoots[root]

@@ -55,7 +55,6 @@ var (
 		BaseFee:     big.NewInt(params.InitialBaseFee),
 		Coinbase:    common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476777"),
 	}
-	a                                          = trie.Trie{}
 	MockTransactions, MockReceipts, SenderAddr = createTransactionsAndReceipts(TestConfig, BlockNumber)
 	MockBlock                                  = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, trie.NewEmpty(nil))
 	MockHeaderRlp, _                           = rlp.EncodeToBytes(MockBlock.Header())

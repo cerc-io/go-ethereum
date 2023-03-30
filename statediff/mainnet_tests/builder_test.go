@@ -20,14 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/big"
 	"os"
 	"sort"
 	"testing"
-
-	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -37,9 +35,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/statediff"
+	ipld2 "github.com/ethereum/go-ethereum/statediff/indexer/ipld"
 	"github.com/ethereum/go-ethereum/statediff/test_helpers"
 	sdtypes "github.com/ethereum/go-ethereum/statediff/types"
 )
@@ -467,7 +465,7 @@ func loadBlockFromRLPFile(filename string) (*types.Block, []byte, error) {
 		return nil, nil, err
 	}
 	defer f.Close()
-	blockRLP, err := ioutil.ReadAll(f)
+	blockRLP, err := io.ReadAll(f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -476,7 +474,7 @@ func loadBlockFromRLPFile(filename string) (*types.Block, []byte, error) {
 }
 
 func TestBuilderOnMainnetBlocks(t *testing.T) {
-	chain, _ := core.NewBlockChain(db, nil, params.MainnetChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
+	chain, _ := core.NewBlockChain(db, nil, nil, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 	_, err := chain.InsertChain([]*types.Block{block1, block2, block3})
 	if err != nil {
 		t.Error(err)
