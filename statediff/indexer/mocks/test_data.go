@@ -54,7 +54,7 @@ var (
 		Coinbase:    common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476777"),
 	}
 	MockTransactions, MockReceipts, SenderAddr = createTransactionsAndReceipts(TestConfig, BlockNumber)
-	MockBlock                                  = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, new(trie.Trie))
+	MockBlock                                  = types.NewBlock(&MockHeader, MockTransactions, nil, MockReceipts, trie.NewEmpty(nil))
 	MockHeaderRlp, _                           = rlp.EncodeToBytes(MockBlock.Header())
 
 	// non-canonical block at London height
@@ -62,7 +62,7 @@ var (
 	MockNonCanonicalHeader            = MockHeader
 	MockNonCanonicalBlockTransactions = types.Transactions{MockTransactions[1], MockTransactions[4]}
 	MockNonCanonicalBlockReceipts     = createNonCanonicalBlockReceipts(TestConfig, BlockNumber, MockNonCanonicalBlockTransactions)
-	MockNonCanonicalBlock             = types.NewBlock(&MockNonCanonicalHeader, MockNonCanonicalBlockTransactions, nil, MockNonCanonicalBlockReceipts, new(trie.Trie))
+	MockNonCanonicalBlock             = types.NewBlock(&MockNonCanonicalHeader, MockNonCanonicalBlockTransactions, nil, MockNonCanonicalBlockReceipts, trie.NewEmpty(nil))
 	MockNonCanonicalHeaderRlp, _      = rlp.EncodeToBytes(MockNonCanonicalBlock.Header())
 
 	// non-canonical block at London height + 1
@@ -81,7 +81,7 @@ var (
 	}
 	MockNonCanonicalBlock2Transactions = types.Transactions{MockTransactions[2], MockTransactions[4]}
 	MockNonCanonicalBlock2Receipts     = createNonCanonicalBlockReceipts(TestConfig, Block2Number, MockNonCanonicalBlock2Transactions)
-	MockNonCanonicalBlock2             = types.NewBlock(&MockNonCanonicalHeader2, MockNonCanonicalBlock2Transactions, nil, MockNonCanonicalBlock2Receipts, new(trie.Trie))
+	MockNonCanonicalBlock2             = types.NewBlock(&MockNonCanonicalHeader2, MockNonCanonicalBlock2Transactions, nil, MockNonCanonicalBlock2Receipts, trie.NewEmpty(nil))
 	MockNonCanonicalHeader2Rlp, _      = rlp.EncodeToBytes(MockNonCanonicalBlock2.Header())
 
 	Address                     = common.HexToAddress("0xaE9BEa628c4Ce503DcFD7E305CaB4e29E7476592")
@@ -314,7 +314,7 @@ func NewLegacyData(config *params.ChainConfig) *LegacyData {
 	}
 
 	mockTransactions, mockReceipts, senderAddr := createLegacyTransactionsAndReceipts(config, blockNumber)
-	mockBlock := types.NewBlock(&mockHeader, mockTransactions, nil, mockReceipts, new(trie.Trie))
+	mockBlock := types.NewBlock(&mockHeader, mockTransactions, nil, mockReceipts, trie.NewEmpty(nil))
 	mockHeaderRlp, _ := rlp.EncodeToBytes(mockBlock.Header())
 	contractAddress := crypto.CreateAddress(senderAddr, mockTransactions[2].Nonce())
 
