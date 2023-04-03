@@ -155,8 +155,8 @@ type JobID uint64
 
 // JobStatus represents the status of a completed job
 type JobStatus struct {
-	id  JobID
-	err error
+	ID  JobID
+	Err error
 }
 
 type statusSubscription struct {
