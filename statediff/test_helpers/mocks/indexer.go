@@ -27,15 +27,20 @@ import (
 )
 
 var _ interfaces.StateDiffIndexer = &StateDiffIndexer{}
+var _ interfaces.Batch = &batch{}
 
 // StateDiffIndexer is a mock state diff indexer
 type StateDiffIndexer struct{}
 
-func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
-	return nil, nil
+type batch struct {
+	sdi *StateDiffIndexer
 }
 
-func (sdi *StateDiffIndexer) PushStateNode(tx interfaces.Batch, stateNode sdtypes.StateNode, headerID string) error {
+func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
+	return &batch{}, nil
+}
+
+func (sdi *StateDiffIndexer) PushStateNode(txi interfaces.Batch, stateNode sdtypes.StateNode, headerID string) error {
 	return nil
 }
 
@@ -66,5 +71,9 @@ func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 }
 
 func (sdi *StateDiffIndexer) Close() error {
+	return nil
+}
+
+func (tx *batch) Submit(err error) error {
 	return nil
 }
