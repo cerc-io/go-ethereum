@@ -27,19 +27,34 @@ import (
 )
 
 var _ interfaces.StateDiffIndexer = &StateDiffIndexer{}
+var _ interfaces.Batch = &batch{}
 
 // StateDiffIndexer is a mock state diff indexer
-type StateDiffIndexer struct{}
-
-func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
-	return nil, nil
+type StateDiffIndexer struct {
+	StateNodes []sdtypes.StateLeafNode
+	IPLDs      []sdtypes.IPLD
 }
 
-func (sdi *StateDiffIndexer) PushStateNode(tx interfaces.Batch, stateNode sdtypes.StateLeafNode, headerID string) error {
+type batch struct {
+	sdi *StateDiffIndexer
+
+	StateNodes []sdtypes.StateLeafNode
+	IPLDs      []sdtypes.IPLD
+}
+
+func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
+	return &batch{}, nil
+}
+
+func (sdi *StateDiffIndexer) PushStateNode(txi interfaces.Batch, stateNode sdtypes.StateLeafNode, headerID string) error {
+	tx := txi.(*batch)
+	tx.StateNodes = append(tx.StateNodes, stateNode)
 	return nil
 }
 
-func (sdi *StateDiffIndexer) PushIPLD(tx interfaces.Batch, iplds sdtypes.IPLD) error {
+func (sdi *StateDiffIndexer) PushIPLD(txi interfaces.Batch, ipld sdtypes.IPLD) error {
+	tx := txi.(*batch)
+	tx.IPLDs = append(tx.IPLDs, ipld)
 	return nil
 }
 
@@ -66,5 +81,18 @@ func (sdi *StateDiffIndexer) ClearWatchedAddresses() error {
 }
 
 func (sdi *StateDiffIndexer) Close() error {
+	return nil
+}
+
+func (tx *batch) Submit(err error) error {
+	if err != nil {
+		return err
+	}
+	for _, sn := range tx.StateNodes {
+		tx.sdi.StateNodes = append(tx.sdi.StateNodes, sn)
+	}
+	for _, ipld := range tx.IPLDs {
+		tx.sdi.IPLDs = append(tx.sdi.IPLDs, ipld)
+	}
 	return nil
 }
