@@ -226,6 +226,8 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		enableWriteLoop:   params.EnableWriteLoop,
 		numWorkers:        workers,
 		maxRetry:          defaultRetryLimit,
+		jobStatusSubs:     map[rpc.ID]statusSubscription{},
+		currentJobs:       map[uint64]JobID{},
 	}
 	stack.RegisterLifecycle(sds)
 	stack.RegisterAPIs(sds.APIs())
@@ -912,9 +914,6 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 func (sds *Service) SubscribeWriteStatus(id rpc.ID, sub chan<- JobStatus, quitChan chan<- bool) {
 	log.Info("Subscribing to job status updates", "subscription id", id)
 	sds.Lock()
-	if sds.jobStatusSubs == nil {
-		sds.jobStatusSubs = map[rpc.ID]statusSubscription{}
-	}
 	sds.jobStatusSubs[id] = statusSubscription{
 		statusChan: sub,
 		quitChan:   quitChan,
