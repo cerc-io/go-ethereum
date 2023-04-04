@@ -19,6 +19,7 @@ package statediff_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -206,7 +207,6 @@ func testErrorInBlockLoop(t *testing.T) {
 	}()
 	service.Loop(eventsChannel)
 
-	// defaultParams.ComputeWatchedAddressesLeafPaths()
 	if !reflect.DeepEqual(builder.Params, defaultParams) {
 		t.Error("Test failure:", t.Name())
 		t.Logf("Actual params does not equal expected.\nactual:%+v\nexpected: %+v", builder.Params, defaultParams)
@@ -277,7 +277,6 @@ func TestGetStateDiffAt(t *testing.T) {
 		t.Error(err)
 	}
 
-	// defaultParams.ComputeWatchedAddressesLeafPaths()
 	if !reflect.DeepEqual(builder.Params, defaultParams) {
 		t.Error("Test failure:", t.Name())
 		t.Logf("Actual params does not equal expected.\nactual:%+v\nexpected: %+v", builder.Params, defaultParams)
@@ -321,11 +320,11 @@ func subscribeWrites(ctx context.Context, svc *statediff.Service) (writeSub, err
 	}
 	client := rpc.DialInProc(server)
 	statusChan := make(chan statediff.JobStatus)
-	sub, err := client.Subscribe(context.Background(), "statediff", statusChan, "streamWrites")
+	sub, err := client.Subscribe(ctx, "statediff", statusChan, "streamWrites")
 	return writeSub{sub, statusChan, client}, err
 }
 
-func awaitJob(ws writeSub, job statediff.JobID, ctx context.Context) (bool, error) {
+func awaitJob(ws writeSub, job statediff.JobID, timeout time.Duration) (bool, error) {
 	for {
 		select {
 		case err := <-ws.sub.Err():
@@ -337,8 +336,8 @@ func awaitJob(ws writeSub, job statediff.JobID, ctx context.Context) (bool, erro
 			if status.ID == job {
 				return true, nil
 			}
-		case <-ctx.Done():
-			return false, ctx.Err()
+		case <-time.After(timeout):
+			return false, errors.New("timeout")
 		}
 	}
 }
@@ -358,15 +357,14 @@ func TestWriteStateDiffAt(t *testing.T) {
 
 	// delay to avoid subscription request being sent after statediff is written,
 	// and timeout to prevent hanging just in case it still happens
-	writeDelay := time.Second
+	writeDelay := 100 * time.Millisecond
 	jobTimeout := time.Second
 	ws, err := subscribeWrites(context.Background(), service)
 	require.NoError(t, err)
 	defer ws.close()
 	time.Sleep(writeDelay)
 	job := service.WriteStateDiffAt(testBlock1.NumberU64(), defaultParams)
-	ctx, _ := context.WithTimeout(context.Background(), jobTimeout)
-	ok, err := awaitJob(ws, job, ctx)
+	ok, err := awaitJob(ws, job, jobTimeout)
 	require.NoError(t, err)
 	require.True(t, ok)
 
