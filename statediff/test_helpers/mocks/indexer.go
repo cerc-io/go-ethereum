@@ -32,9 +32,7 @@ var _ interfaces.Batch = &batch{}
 // StateDiffIndexer is a mock state diff indexer
 type StateDiffIndexer struct{}
 
-type batch struct {
-	sdi *StateDiffIndexer
-}
+type batch struct{}
 
 func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
 	return &batch{}, nil
