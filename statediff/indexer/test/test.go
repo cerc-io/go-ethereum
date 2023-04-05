@@ -380,7 +380,7 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 			require.Equal(t, common.BytesToHash(mocks.AccountLeafKey).Hex(), stateNode.StateKey)
 			require.Equal(t, mocks.AccountLeafNode, data)
 			require.Equal(t, mocks.BlockNumber.String(), stateNode.BlockNumber)
-			require.Equal(t, "1000", stateNode.Balance)
+			require.Equal(t, mocks.Balance.String(), stateNode.Balance)
 			require.Equal(t, mocks.AccountCodeHash.String(), stateNode.CodeHash)
 			require.Equal(t, mocks.AccountRoot, stateNode.StorageRoot)
 			require.Equal(t, uint64(0), stateNode.Nonce)

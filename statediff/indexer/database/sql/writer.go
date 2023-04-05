@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/jackc/pgtype"
+	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
 	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
 
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
@@ -96,13 +99,17 @@ INSERT INTO eth.transaction_cids (block_number, header_id, tx_hash, cid, dst, sr
 ON CONFLICT (tx_hash, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
+	val := transaction.Value
+	if val == "" {
+		val = "0"
+	}
 	if w.useCopyForTx(tx) {
 		blockNum, err := strconv.ParseInt(transaction.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
 
-		value, err := strconv.ParseFloat(transaction.Value, 64)
+		value, err := toNumeric(val)
 		if err != nil {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
@@ -138,7 +145,7 @@ ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(rct.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(rct.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.receipt_cids", err, "COPY", rct}
 		}
@@ -174,7 +181,7 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 	if w.useCopyForTx(tx) {
 		var rows [][]interface{}
 		for _, log := range logs {
-			blockNum, err := strconv.ParseInt(log.BlockNumber, 10, 64)
+			blockNum, err := strconv.ParseUint(log.BlockNumber, 10, 64)
 			if err != nil {
 				return insertError{"eth.log_cids", err, "COPY", log}
 			}
@@ -216,24 +223,25 @@ INSERT INTO eth.state_cids (block_number, header_id, state_leaf_key, cid, remove
 ON CONFLICT (header_id, state_leaf_key, block_number) DO NOTHING
 */
 func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
-	balance := stateNode.Balance
+	bal := stateNode.Balance
 	if stateNode.Removed {
-		balance = "0"
+		bal = "0"
 	}
 
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(stateNode.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
-		balInt, err := strconv.ParseInt(balance, 10, 64)
+
+		balance, err := toNumeric(bal)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
 
 		_, err = tx.CopyFrom(w.db.Context(), w.db.StateTableName(), w.db.StateColumnNames(),
 			toRows(toRow(blockNum, stateNode.HeaderID, stateNode.StateKey, stateNode.CID,
-				true, balInt, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)))
+				true, balance, stateNode.Nonce, stateNode.CodeHash, stateNode.StorageRoot, stateNode.Removed)))
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
@@ -244,7 +252,7 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 			stateNode.StateKey,
 			stateNode.CID,
 			true,
-			balance,
+			bal,
 			stateNode.Nonce,
 			stateNode.CodeHash,
 			stateNode.StorageRoot,
@@ -263,7 +271,7 @@ ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHI
 */
 func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) error {
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(storageCID.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.storage_cids", err, "COPY", storageCID}
 		}
@@ -306,6 +314,15 @@ func toRow(args ...interface{}) []interface{} {
 	var row []interface{}
 	row = append(row, args...)
 	return row
+}
+
+func toNumeric(value string) (*shopspring.Numeric, error) {
+	decimalValue, err := decimal.NewFromString(value)
+	if nil != err {
+		return nil, err
+	}
+
+	return &shopspring.Numeric{Decimal: decimalValue, Status: pgtype.Present}, nil
 }
 
 // combine row (or rows) into a slice of rows for CopyFrom
