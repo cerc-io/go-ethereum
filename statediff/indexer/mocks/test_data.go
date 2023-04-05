@@ -182,9 +182,10 @@ var (
 	AccountCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 	AccountLeafKey  = test_helpers.Account2LeafKey
 	RemovedLeafKey  = test_helpers.Account1LeafKey
+	Balance, _      = new(big.Int).SetString("106387458790507306766", 10)
 	Account         = &types.StateAccount{
 		Nonce:    nonce0,
-		Balance:  big.NewInt(1000),
+		Balance:  Balance,
 		CodeHash: AccountCodeHash.Bytes(),
 		Root:     common.HexToHash(AccountRoot),
 	}

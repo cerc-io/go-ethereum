@@ -138,7 +138,7 @@ ON CONFLICT (tx_id, header_id, block_number) DO NOTHING
 */
 func (w *Writer) upsertReceiptCID(tx Tx, rct *models.ReceiptModel) error {
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(rct.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(rct.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.receipt_cids", err, "COPY", rct}
 		}
@@ -174,7 +174,7 @@ func (w *Writer) upsertLogCID(tx Tx, logs []*models.LogsModel) error {
 	if w.useCopyForTx(tx) {
 		var rows [][]interface{}
 		for _, log := range logs {
-			blockNum, err := strconv.ParseInt(log.BlockNumber, 10, 64)
+			blockNum, err := strconv.ParseUint(log.BlockNumber, 10, 64)
 			if err != nil {
 				return insertError{"eth.log_cids", err, "COPY", log}
 			}
@@ -222,11 +222,11 @@ func (w *Writer) upsertStateCID(tx Tx, stateNode models.StateNodeModel) error {
 	}
 
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(stateNode.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(stateNode.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
-		balInt, err := strconv.ParseInt(balance, 10, 64)
+		balInt, err := strconv.ParseUint(balance, 10, 64)
 		if err != nil {
 			return insertError{"eth.state_cids", err, "COPY", stateNode}
 		}
@@ -263,7 +263,7 @@ ON CONFLICT (header_id, state_leaf_key, storage_leaf_key, block_number) DO NOTHI
 */
 func (w *Writer) upsertStorageCID(tx Tx, storageCID models.StorageNodeModel) error {
 	if w.useCopyForTx(tx) {
-		blockNum, err := strconv.ParseInt(storageCID.BlockNumber, 10, 64)
+		blockNum, err := strconv.ParseUint(storageCID.BlockNumber, 10, 64)
 		if err != nil {
 			return insertError{"eth.storage_cids", err, "COPY", storageCID}
 		}
