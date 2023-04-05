@@ -20,14 +20,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jackc/pgtype"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
-	"github.com/shopspring/decimal"
 
+	"github.com/jackc/pgtype"
 	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
+	"github.com/shopspring/decimal"
 )
 
 var (
