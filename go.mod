@@ -13,7 +13,7 @@ require (
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.14.0
 	github.com/cockroachdb/pebble v0.0.0-20230209160836-829675f94811
-	github.com/consensys/gnark-crypto v0.9.1-0.20230105202408-1a7a29904a7c
+	github.com/consensys/gnark-crypto v0.6.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set/v2 v2.1.0
 	github.com/docker/docker v1.6.2
@@ -60,8 +60,8 @@ require (
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
-	github.com/status-im/keycard-go v0.2.0
-	github.com/stretchr/testify v1.8.0
+	github.com/status-im/keycard-go v0.1.0
+	github.com/stretchr/testify v1.7.0
 	github.com/supranational/blst v0.3.8-0.20220526154634-513d2456b344
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tyler-smith/go-bip39 v1.1.0
