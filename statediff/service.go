@@ -160,8 +160,8 @@ type JobID uint64
 
 // JobStatus represents the status of a completed job
 type JobStatus struct {
-	id  JobID
-	err error
+	ID  JobID
+	Err error
 }
 
 type statusSubscription struct {
@@ -185,6 +185,7 @@ func NewBlockCache(max uint) BlockCache {
 
 // New creates a new statediff.Service
 // func New(stack *node.Node, ethServ *eth.Ethereum, dbParams *DBParams, enableWriteLoop bool) error {
+// func New(stack *node.Node, blockChain *core.BlockChain, networkID uint64, params Config, backend ethapi.Backend) error {
 func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params Config, backend ethapi.Backend) error {
 	blockChain := ethServ.BlockChain()
 	var indexer interfaces.StateDiffIndexer
@@ -226,6 +227,8 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		enableWriteLoop:   params.EnableWriteLoop,
 		numWorkers:        workers,
 		maxRetry:          defaultRetryLimit,
+		jobStatusSubs:     map[rpc.ID]statusSubscription{},
+		currentJobs:       map[uint64]JobID{},
 	}
 	stack.RegisterLifecycle(sds)
 	stack.RegisterAPIs(sds.APIs())
@@ -238,6 +241,37 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	}
 
 	return nil
+}
+
+func NewService(blockChain blockChain, cfg Config, backend ethapi.Backend, indexer interfaces.StateDiffIndexer) *Service {
+	workers := cfg.NumWorkers
+	if workers == 0 {
+		workers = 1
+	}
+
+	quitCh := make(chan bool)
+	sds := &Service{
+		Mutex:             sync.Mutex{},
+		BlockChain:        blockChain,
+		Builder:           NewBuilder(blockChain.StateCache()),
+		QuitChan:          quitCh,
+		Subscriptions:     make(map[common.Hash]map[rpc.ID]Subscription),
+		SubscriptionTypes: make(map[common.Hash]Params),
+		BlockCache:        NewBlockCache(workers),
+		BackendAPI:        backend,
+		WaitForSync:       cfg.WaitForSync,
+		indexer:           indexer,
+		enableWriteLoop:   cfg.EnableWriteLoop,
+		numWorkers:        workers,
+		maxRetry:          defaultRetryLimit,
+		jobStatusSubs:     map[rpc.ID]statusSubscription{},
+		currentJobs:       map[uint64]JobID{},
+	}
+
+	if indexer != nil {
+		indexer.ReportDBMetrics(10*time.Second, quitCh)
+	}
+	return sds
 }
 
 // Protocols exports the services p2p protocols, this service has none
@@ -883,7 +917,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	}, params, output, codeOutput)
 	// TODO this anti-pattern needs to be sorted out eventually
 	if err := tx.Submit(err); err != nil {
-		return fmt.Errorf("batch transaction submission failed: %s", err.Error())
+		return fmt.Errorf("batch transaction submission failed: %w", err)
 	}
 
 	// allow dereferencing of parent, keep current locked as it should be the next parent
@@ -912,9 +946,6 @@ func (sds *Service) writeStateDiffWithRetry(block *types.Block, parentRoot commo
 func (sds *Service) SubscribeWriteStatus(id rpc.ID, sub chan<- JobStatus, quitChan chan<- bool) {
 	log.Info("Subscribing to job status updates", "subscription id", id)
 	sds.Lock()
-	if sds.jobStatusSubs == nil {
-		sds.jobStatusSubs = map[rpc.ID]statusSubscription{}
-	}
 	sds.jobStatusSubs[id] = statusSubscription{
 		statusChan: sub,
 		quitChan:   quitChan,
