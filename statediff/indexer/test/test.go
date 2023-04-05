@@ -439,7 +439,7 @@ func TestPublishAndIndexStateIPLDs(t *testing.T, db sql.Database) {
 				BlockNumber: mocks.BlockNumber.String(),
 				HeaderID:    account.HeaderID,
 				StatePath:   stateNode.Path,
-				Balance:     "1000",
+				Balance:     mocks.Balance.String(),
 				CodeHash:    mocks.AccountCodeHash.Bytes(),
 				StorageRoot: mocks.AccountRoot,
 				Nonce:       0,

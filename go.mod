@@ -78,10 +78,12 @@ require (
 
 require (
 	github.com/georgysavva/scany v1.2.1
+	github.com/jackc/pgtype v1.8.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.7
 	github.com/multiformats/go-multihash v0.0.15
 	github.com/pganalyze/pg_query_go/v2 v2.2.0
+	github.com/shopspring/decimal v1.2.0
 	github.com/thoas/go-funk v0.9.3
 )
 
@@ -123,7 +125,6 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.1.1 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
-	github.com/jackc/pgtype v1.8.1 // indirect
 	github.com/jackc/puddle v1.1.3 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect

@@ -20,10 +20,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/metrics"
 	"github.com/ethereum/go-ethereum/statediff/indexer/models"
+
+	"github.com/jackc/pgtype"
+	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -88,7 +91,7 @@ func (w *Writer) upsertTransactionCID(tx Tx, transaction models.TxModel) error {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
 
-		value, err := strconv.ParseFloat(transaction.Value, 64)
+		value, err := toNumeric(transaction.Value)
 		if err != nil {
 			return insertError{"eth.transaction_cids", err, "COPY", transaction}
 		}
@@ -234,7 +237,7 @@ func (w *Writer) upsertStateAccount(tx Tx, stateAccount models.StateAccountModel
 		if err != nil {
 			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
 		}
-		balance, err := strconv.ParseFloat(stateAccount.Balance, 64)
+		balance, err := toNumeric(stateAccount.Balance)
 		if err != nil {
 			return insertError{"eth.state_accounts", err, "COPY", stateAccount}
 		}
@@ -302,6 +305,15 @@ func toRow(args ...interface{}) []interface{} {
 	var row []interface{}
 	row = append(row, args...)
 	return row
+}
+
+func toNumeric(value string) (*shopspring.Numeric, error) {
+	decimalValue, err := decimal.NewFromString(value)
+	if nil != err {
+		return nil, err
+	}
+
+	return &shopspring.Numeric{Decimal: decimalValue, Status: pgtype.Present}, nil
 }
 
 // combine row (or rows) into a slice of rows for CopyFrom
