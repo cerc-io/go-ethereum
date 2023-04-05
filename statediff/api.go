@@ -194,7 +194,7 @@ func (api *PublicStateDiffAPI) StreamWrites(ctx context.Context) (*rpc.Subscript
 				}
 			case err = <-rpcSub.Err():
 				if err != nil {
-					log.Error("State diff service rpcSub error: " + err.Error())
+					log.Error("statediff_StreamWrites RPC subscription error: " + err.Error())
 					return
 				}
 			case <-quitChan:
