@@ -890,9 +890,6 @@ func (sds *Service) UnsubscribeWriteStatus(id rpc.ID) error {
 	sds.Lock()
 	close(sds.jobStatusSubs[id].quitChan)
 	delete(sds.jobStatusSubs, id)
-	if len(sds.jobStatusSubs) == 0 {
-		sds.jobStatusSubs = nil
-	}
 	sds.Unlock()
 	return nil
 }
