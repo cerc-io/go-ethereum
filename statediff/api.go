@@ -178,10 +178,8 @@ func (api *PublicStateDiffAPI) StreamWrites(ctx context.Context) (*rpc.Subscript
 
 		var err error
 		defer func() {
-			if err != nil {
-				if err = api.sds.UnsubscribeWriteStatus(rpcSub.ID); err != nil {
-					log.Error("Failed to unsubscribe from job status stream: " + err.Error())
-				}
+			if err = api.sds.UnsubscribeWriteStatus(rpcSub.ID); err != nil {
+				log.Error("Failed to unsubscribe from job status stream: " + err.Error())
 			}
 		}()
 		// loop and await payloads and relay them to the subscriber with the notifier
