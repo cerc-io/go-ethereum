@@ -71,9 +71,9 @@ func StorageNodeAppender(nodes *[]types2.StorageLeafNode) types2.StorageNodeSink
 		return nil
 	}
 }
-func IPLDMappingAppender(codeAndCodeHashes *[]types2.IPLD) types2.IPLDSink {
+func IPLDMappingAppender(iplds *[]types2.IPLD) types2.IPLDSink {
 	return func(c types2.IPLD) error {
-		*codeAndCodeHashes = append(*codeAndCodeHashes, c)
+		*iplds = append(*iplds, c)
 		return nil
 	}
 }
