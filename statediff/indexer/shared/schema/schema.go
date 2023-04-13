@@ -23,6 +23,7 @@ var TableIPLDBlock = Table{
 		{Name: "key", Type: Dtext},
 		{Name: "data", Type: Dbytea},
 	},
+	UpsertClause: OnConflict("block_number", "key"),
 }
 
 var TableNodeInfo = Table{
