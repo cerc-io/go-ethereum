@@ -21,6 +21,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,6 +37,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
+
+var _ ethapi.Backend = &Backend{}
 
 // Builder is a mock state diff builder
 type Backend struct {
@@ -81,8 +85,8 @@ func (backend *Backend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 	panic("not implemented") // TODO: Implement
 }
 
-func (backend *Backend) FeeHistory(ctx context.Context, blockCount int, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, error) {
-	panic("not implemented") // TODO: Implement
+func (backend *Backend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, error) {
+	panic("implement me")
 }
 
 func (backend *Backend) ChainDb() ethdb.Database {
