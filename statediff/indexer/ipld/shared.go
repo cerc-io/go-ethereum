@@ -119,7 +119,7 @@ func (lt *localTrie) Add(idx int, rawdata []byte) error {
 	if err != nil {
 		panic(err)
 	}
-	return lt.trie.TryUpdate(key, rawdata)
+	return lt.trie.Update(key, rawdata)
 }
 
 // rootHash returns the computed trie root.
