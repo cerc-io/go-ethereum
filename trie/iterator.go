@@ -90,6 +90,10 @@ type NodeIterator interface {
 	// grandparent if the immediate parent is an internal node with no hash.
 	Parent() common.Hash
 
+	// ParentPath returns the path of the parent of the current node. The path may be the one
+	// grandparent if the immediate parent is an internal node with no path.
+	ParentPath() []byte
+
 	// Path returns the hex-encoded path to the current node.
 	// Callers must not retain references to the return value after calling Next.
 	// For leaf nodes, the last element of the path is the 'terminator symbol' 0x10.
@@ -134,11 +138,12 @@ type NodeIterator interface {
 // nodeIteratorState represents the iteration state at one particular node of the
 // trie, which can be resumed at a later invocation.
 type nodeIteratorState struct {
-	hash    common.Hash // Hash of the node being iterated (nil if not standalone)
-	node    node        // Trie node being iterated
-	parent  common.Hash // Hash of the first full ancestor node (nil if current is the root)
-	index   int         // Child to be processed next
-	pathlen int         // Length of the path to this node
+	hash       common.Hash // Hash of the node being iterated (nil if not standalone)
+	node       node        // Trie node being iterated
+	parent     common.Hash // Hash of the first full ancestor node (nil if current is the root)
+	parentPath []byte      // Path of the first full ancestor node
+	index      int         // Child to be processed next
+	pathlen    int         // Length of the path to this node
 }
 
 type nodeIterator struct {
@@ -191,6 +196,13 @@ func (it *nodeIterator) Parent() common.Hash {
 		return common.Hash{}
 	}
 	return it.stack[len(it.stack)-1].parent
+}
+
+func (it *nodeIterator) ParentPath() []byte {
+	if len(it.stack) == 0 {
+		return []byte{}
+	}
+	return it.stack[len(it.stack)-1].parentPath
 }
 
 func (it *nodeIterator) Leaf() bool {
@@ -425,16 +437,19 @@ func findChild(n *fullNode, index int, path []byte, ancestor common.Hash) (node,
 		state     *nodeIteratorState
 		childPath []byte
 	)
+	parentPath := make([]byte, len(path))
+	copy(parentPath, path)
 	for ; index < len(n.Children); index++ {
 		if n.Children[index] != nil {
 			child = n.Children[index]
 			hash, _ := child.cache()
 			state = &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
-				node:    child,
-				parent:  ancestor,
-				index:   -1,
-				pathlen: len(path),
+				hash:       common.BytesToHash(hash),
+				node:       child,
+				parent:     ancestor,
+				parentPath: parentPath,
+				index:      -1,
+				pathlen:    len(path),
 			}
 			childPath = append(childPath, path...)
 			childPath = append(childPath, byte(index))
@@ -454,14 +469,17 @@ func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor common.Has
 		}
 	case *shortNode:
 		// Short node, return the pointer singleton child
+		parentPath := make([]byte, len(it.path))
+		copy(parentPath, it.path)
 		if parent.index < 0 {
 			hash, _ := node.Val.cache()
 			state := &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
-				node:    node.Val,
-				parent:  ancestor,
-				index:   -1,
-				pathlen: len(it.path),
+				hash:       common.BytesToHash(hash),
+				node:       node.Val,
+				parent:     ancestor,
+				parentPath: parentPath,
+				index:      -1,
+				pathlen:    len(it.path),
 			}
 			path := append(it.path, node.Key...)
 			return state, path, true
@@ -500,14 +518,17 @@ func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor common.H
 		}
 	case *shortNode:
 		// Short node, return the pointer singleton child
+		parentPath := make([]byte, len(it.path))
+		copy(parentPath, it.path)
 		if parent.index < 0 {
 			hash, _ := n.Val.cache()
 			state := &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
-				node:    n.Val,
-				parent:  ancestor,
-				index:   -1,
-				pathlen: len(it.path),
+				hash:       common.BytesToHash(hash),
+				node:       n.Val,
+				parent:     ancestor,
+				parentPath: parentPath,
+				index:      -1,
+				pathlen:    len(it.path),
 			}
 			path := append(it.path, n.Key...)
 			return state, path, true
@@ -573,6 +594,10 @@ func (it *differenceIterator) Hash() common.Hash {
 
 func (it *differenceIterator) Parent() common.Hash {
 	return it.b.Parent()
+}
+
+func (it *differenceIterator) ParentPath() []byte {
+	return it.b.ParentPath()
 }
 
 func (it *differenceIterator) Leaf() bool {
@@ -689,6 +714,10 @@ func (it *unionIterator) Hash() common.Hash {
 
 func (it *unionIterator) Parent() common.Hash {
 	return (*it.items)[0].Parent()
+}
+
+func (it *unionIterator) ParentPath() []byte {
+	return (*it.items)[0].ParentPath()
 }
 
 func (it *unionIterator) Leaf() bool {
