@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -122,7 +121,7 @@ func (tr *Tracker) dump() error {
 
 // Restore attempts to read iterator state from file
 // if file doesn't exist, returns an empty slice with no error
-func (tr *Tracker) Restore(tree state.Trie) ([]trie.NodeIterator, error) {
+func (tr *Tracker) Restore(makeIterator iter.IteratorConstructor) ([]trie.NodeIterator, error) {
 	file, err := os.Open(tr.recoveryFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -169,7 +168,7 @@ func (tr *Tracker) Restore(tree state.Trie) ([]trie.NodeIterator, error) {
 			decrementPath(startPath)
 			startPath = append(startPath, 0)
 		}
-		it := iter.NewPrefixBoundIterator(tree.NodeIterator(iter.HexToKeyBytes(startPath)), startPath, endPath)
+		it := iter.NewPrefixBoundIterator(makeIterator(iter.HexToKeyBytes(startPath)), startPath, endPath)
 		ret = append(ret, tr.Tracked(it, recoveredPath))
 	}
 
