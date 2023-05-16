@@ -200,7 +200,7 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 	it, itCount := trie.NewDifferenceIterator(a, b)
 	for it.Next(true) {
 		// ignore node if it is not along paths of interest
-		if watchingAddresses && !isValidPrefixPath(watchedAddressesLeafPaths, it.Path()) {
+		if watchingAddresses && !isValidPrefixPath(watchedAddressesLeafPaths, append(prefixPath, it.Path()...)) {
 			continue
 		}
 		// index values by leaf key
@@ -234,8 +234,7 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 					return nil, err
 				}
 				if ok {
-					nodePath := make([]byte, len(it.Path()))
-					copy(nodePath, it.Path())
+					nodePath := append(prefixPath, it.Path()...)
 					partialPath := trie.CompactToHex(elements[0].([]byte))
 					valueNodePath := append(nodePath, partialPath...)
 					if !isWatchedAddress(watchedAddressesLeafPaths, valueNodePath) {
@@ -262,7 +261,7 @@ func (sdb *StateDiffBuilder) createdAndUpdatedState(a, b trie.NodeIterator,
 func (sdb *StateDiffBuilder) processStateValueNode(it trie.NodeIterator, watchedAddressesLeafPaths [][]byte, prefixPath []byte) (*types2.AccountWrapper, error) {
 	// skip if it is not a watched address
 	// If we aren't watching any specific addresses, we are watching everything
-	if len(watchedAddressesLeafPaths) > 0 && !isWatchedAddress(watchedAddressesLeafPaths, it.Path()) {
+	if len(watchedAddressesLeafPaths) > 0 && !isWatchedAddress(watchedAddressesLeafPaths, append(prefixPath, it.Path()...)) {
 		return nil, nil
 	}
 
@@ -310,7 +309,7 @@ func (sdb *StateDiffBuilder) deletedOrUpdatedState(a, b trie.NodeIterator, diffA
 	it, _ := trie.NewDifferenceIterator(b, a)
 	for it.Next(true) {
 		// ignore node if it is not along paths of interest
-		if watchingAddresses && !isValidPrefixPath(watchedAddressesLeafPaths, it.Path()) {
+		if watchingAddresses && !isValidPrefixPath(watchedAddressesLeafPaths, append(prefixPath, it.Path()...)) {
 			continue
 		}
 
