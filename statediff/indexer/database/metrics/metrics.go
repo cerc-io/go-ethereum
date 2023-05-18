@@ -253,7 +253,7 @@ func (met *dbMetricsHandles) Update(stats DbStats) {
 
 func ReportAndUpdateDuration(msg string, start time.Time, logger log.Logger, timer metrics.Timer) {
 	since := UpdateDuration(start, timer)
-	logger.Debug(fmt.Sprintf("%s duration=%dms", msg, since.Milliseconds()))
+	logger.Trace(fmt.Sprintf("%s duration=%dms", msg, since.Milliseconds()))
 }
 
 func UpdateDuration(start time.Time, timer metrics.Timer) time.Duration {

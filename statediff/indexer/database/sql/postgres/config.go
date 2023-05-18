@@ -56,13 +56,14 @@ func ResolveDriverType(str string) (DriverType, error) {
 	}
 }
 
-// DefaultConfig are default parameters for connecting to a Postgres sql
-var DefaultConfig = Config{
+// TestConfig specifies default parameters for connecting to a testing DB
+var TestConfig = Config{
 	Hostname:     "localhost",
 	Port:         8077,
 	DatabaseName: "cerc_testing",
 	Username:     "vdbm",
 	Password:     "password",
+	Driver:       SQLX,
 }
 
 // Config holds params for a Postgres db

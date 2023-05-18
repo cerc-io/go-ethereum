@@ -39,7 +39,7 @@ func setupPGXIndexer(t *testing.T, config postgres.Config) {
 }
 
 func setupPGX(t *testing.T) {
-	setupPGXWithConfig(t, postgres.DefaultConfig)
+	setupPGXWithConfig(t, postgres.TestConfig)
 }
 
 func setupPGXWithConfig(t *testing.T, config postgres.Config) {
@@ -48,7 +48,7 @@ func setupPGXWithConfig(t *testing.T, config postgres.Config) {
 }
 
 func setupPGXNonCanonical(t *testing.T) {
-	setupPGXIndexer(t, postgres.DefaultConfig)
+	setupPGXIndexer(t, postgres.TestConfig)
 	test.SetupTestDataNonCanonical(t, ind)
 }
 
@@ -103,7 +103,7 @@ func TestPGXIndexer(t *testing.T) {
 	})
 
 	t.Run("Publish and index with CopyFrom enabled.", func(t *testing.T) {
-		config := postgres.DefaultConfig
+		config := postgres.TestConfig
 		config.CopyFrom = true
 
 		setupPGXWithConfig(t, config)
@@ -169,7 +169,7 @@ func TestPGXIndexerNonCanonical(t *testing.T) {
 }
 
 func TestPGXWatchAddressMethods(t *testing.T) {
-	setupPGXIndexer(t, postgres.DefaultConfig)
+	setupPGXIndexer(t, postgres.TestConfig)
 	defer tearDown(t)
 	defer checkTxClosure(t, 1, 0, 1)
 
