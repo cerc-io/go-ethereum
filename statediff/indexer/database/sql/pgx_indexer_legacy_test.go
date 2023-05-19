@@ -28,7 +28,7 @@ import (
 )
 
 func setupLegacyPGXIndexer(t *testing.T) {
-	db, err = postgres.SetupPGXDB(postgres.DefaultConfig)
+	db, err = postgres.SetupPGXDB(postgres.TestConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -82,7 +82,7 @@ func TestIterator(t *testing.T) {
 		allPaths := fixt.Block1_Paths
 		cases := []uint{1, 2, 4, 8, 16, 32}
 		runCase := func(t *testing.T, nbins uint) {
-			iters := iter.SubtrieIterators(tree, nbins)
+			iters := iter.SubtrieIterators(tree.NodeIterator, nbins)
 			ix := 0
 			for b := uint(0); b < nbins; b++ {
 				for it := iters[b]; it.Next(true); ix++ {

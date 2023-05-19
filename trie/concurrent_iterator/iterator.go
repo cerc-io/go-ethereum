@@ -31,6 +31,10 @@ type PrefixBoundIterator struct {
 	EndPath   []byte
 }
 
+// IteratorConstructor is a constructor returning a NodeIterator, which is used to decouple this
+// code from the trie implementation.
+type IteratorConstructor = func(startKey []byte) trie.NodeIterator
+
 func (it *PrefixBoundIterator) Next(descend bool) bool {
 	if it.EndPath == nil {
 		return it.NodeIterator.Next(descend)
@@ -130,10 +134,10 @@ func eachPrefixRange(prefix []byte, nbins uint, callback func([]byte, []byte)) {
 }
 
 // SubtrieIterators cuts a trie by path prefix, returning `nbins` iterators covering its subtries
-func SubtrieIterators(tree state.Trie, nbins uint) []trie.NodeIterator {
+func SubtrieIterators(makeIterator IteratorConstructor, nbins uint) []trie.NodeIterator {
 	var iters []trie.NodeIterator
 	eachPrefixRange(nil, nbins, func(from []byte, to []byte) {
-		it := tree.NodeIterator(HexToKeyBytes(from))
+		it := makeIterator(HexToKeyBytes(from))
 		iters = append(iters, NewPrefixBoundIterator(it, from, to))
 	})
 	return iters

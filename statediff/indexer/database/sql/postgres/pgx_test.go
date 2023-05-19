@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	pgConfig, _ = postgres.MakeConfig(postgres.DefaultConfig)
+	pgConfig, _ = postgres.MakeConfig(postgres.TestConfig)
 	ctx         = context.Background()
 )
 
@@ -111,7 +111,7 @@ func TestPostgresPGX(t *testing.T) {
 		badHash := fmt.Sprintf("x %s", strings.Repeat("1", 100))
 		badInfo := node.Info{GenesisBlock: badHash, NetworkID: "1", ID: "x123", ClientName: "geth"}
 
-		_, err := postgres.NewPGXDriver(ctx, postgres.DefaultConfig, badInfo)
+		_, err := postgres.NewPGXDriver(ctx, postgres.TestConfig, badInfo)
 		if err == nil {
 			t.Fatal("Expected an error")
 		}
