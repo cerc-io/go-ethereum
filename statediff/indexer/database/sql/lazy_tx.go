@@ -73,14 +73,14 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer func(e *error) {
+	defer func() {
 		if p := recover(); p != nil {
 			rollback(ctx, base)
 			panic(p)
-		} else if e != nil && *e != nil {
+		} else if err != nil {
 			rollback(ctx, base)
 		}
-	}(&err)
+	}()
 	for _, item := range tx.cache {
 		switch item := item.(type) {
 		case *copyFrom:
