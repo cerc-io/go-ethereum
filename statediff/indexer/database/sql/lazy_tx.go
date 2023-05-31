@@ -73,24 +73,24 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
+	defer func(e *error) {
 		if p := recover(); p != nil {
 			rollback(ctx, base)
 			panic(p)
-		} else if err != nil {
+		} else if e != nil && *e != nil {
 			rollback(ctx, base)
 		}
-	}()
+	}(&err)
 	for _, item := range tx.cache {
 		switch item := item.(type) {
 		case *copyFrom:
-			_, err := base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
+			_, err = base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
 			if err != nil {
 				log.Error("COPY error", "table", item.tableName, "err", err)
 				return err
 			}
 		case cachedStmt:
-			_, err := base.Exec(ctx, item.sql, item.args...)
+			_, err = base.Exec(ctx, item.sql, item.args...)
 			if err != nil {
 				return err
 			}

@@ -39,18 +39,19 @@ func countStateDiffBegin(block *types.Block) (time.Time, log.Logger) {
 	return start, logger
 }
 
-func countStateDiffEnd(start time.Time, logger log.Logger, err error) time.Duration {
+func countStateDiffEnd(start time.Time, logger log.Logger, err *error) time.Duration {
 	duration := time.Since(start)
 	defaultStatediffMetrics.underway.Dec(1)
-	if nil == err {
-		defaultStatediffMetrics.succeeded.Inc(1)
-	} else {
+	failed := nil != err && nil != *err
+	if failed {
 		defaultStatediffMetrics.failed.Inc(1)
+	} else {
+		defaultStatediffMetrics.succeeded.Inc(1)
 	}
 	defaultStatediffMetrics.totalProcessingTime.Inc(duration.Milliseconds())
 
 	logger.Debug(fmt.Sprintf("writeStateDiff END (duration=%dms, err=%t) [underway=%d, succeeded=%d, failed=%d, total_time=%dms]",
-		duration.Milliseconds(), nil != err,
+		duration.Milliseconds(), failed,
 		defaultStatediffMetrics.underway.Count(),
 		defaultStatediffMetrics.succeeded.Count(),
 		defaultStatediffMetrics.failed.Count(),

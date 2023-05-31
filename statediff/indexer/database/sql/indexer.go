@@ -116,14 +116,14 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 
 	// Begin new DB tx for everything
 	tx := NewDelayedTx(sdi.dbWriter.db)
-	defer func() {
+	defer func(e *error) {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
 			panic(p)
-		} else if err != nil {
+		} else if e != nil && *e != nil {
 			rollback(sdi.ctx, tx)
 		}
-	}()
+	}(&err)
 	blockTx := &BatchTx{
 		removedCacheFlag: new(uint32),
 		ctx:              sdi.ctx,
@@ -496,16 +496,16 @@ func (sdi *StateDiffIndexer) LoadWatchedAddresses() ([]common.Address, error) {
 // InsertWatchedAddresses inserts the given addresses in the database
 func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) (err error) {
 	tx := NewDelayedTx(sdi.dbWriter.db)
-	defer func() {
+	defer func(e *error) {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
 			panic(p)
-		} else if err != nil {
+		} else if e != nil && *e != nil {
 			rollback(sdi.ctx, tx)
 		} else {
 			err = tx.Commit(sdi.ctx)
 		}
-	}()
+	}(&err)
 
 	for _, arg := range args {
 		_, err = tx.Exec(sdi.ctx, `INSERT INTO eth_meta.watched_addresses (address, created_at, watched_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING`,
@@ -521,16 +521,16 @@ func (sdi *StateDiffIndexer) InsertWatchedAddresses(args []sdtypes.WatchAddressA
 // RemoveWatchedAddresses removes the given watched addresses from the database
 func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressArg) (err error) {
 	tx := NewDelayedTx(sdi.dbWriter.db)
-	defer func() {
+	defer func(e *error) {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
 			panic(p)
-		} else if err != nil {
+		} else if e != nil && *e != nil {
 			rollback(sdi.ctx, tx)
 		} else {
 			err = tx.Commit(sdi.ctx)
 		}
-	}()
+	}(&err)
 
 	for _, arg := range args {
 		_, err = tx.Exec(sdi.ctx, `DELETE FROM eth_meta.watched_addresses WHERE address = $1`, arg.Address)
@@ -545,16 +545,16 @@ func (sdi *StateDiffIndexer) RemoveWatchedAddresses(args []sdtypes.WatchAddressA
 // SetWatchedAddresses clears and inserts the given addresses in the database
 func (sdi *StateDiffIndexer) SetWatchedAddresses(args []sdtypes.WatchAddressArg, currentBlockNumber *big.Int) (err error) {
 	tx := NewDelayedTx(sdi.dbWriter.db)
-	defer func() {
+	defer func(e *error) {
 		if p := recover(); p != nil {
 			rollback(sdi.ctx, tx)
 			panic(p)
-		} else if err != nil {
+		} else if e != nil && *e != nil {
 			rollback(sdi.ctx, tx)
 		} else {
 			err = tx.Commit(sdi.ctx)
 		}
-	}()
+	}(&err)
 
 	_, err = tx.Exec(sdi.ctx, `DELETE FROM eth_meta.watched_addresses`)
 	if err != nil {

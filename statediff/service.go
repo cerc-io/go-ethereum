@@ -815,7 +815,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 	var err error
 	var tx interfaces.Batch
 	start, logger := countStateDiffBegin(block)
-	defer countStateDiffEnd(start, logger, err)
+	defer countStateDiffEnd(start, logger, &err)
 	if params.IncludeTD {
 		totalDifficulty = sds.BlockChain.GetTd(block.Hash(), block.NumberU64())
 	}
@@ -847,7 +847,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		BlockNumber:  block.Number(),
 	}, params, output, ipldOutput)
 	// TODO this anti-pattern needs to be sorted out eventually
-	if err := tx.Submit(err); err != nil {
+	if err = tx.Submit(err); err != nil {
 		return fmt.Errorf("batch transaction submission failed: %w", err)
 	}
 
