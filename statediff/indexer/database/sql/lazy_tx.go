@@ -84,13 +84,13 @@ func (tx *DelayedTx) Commit(ctx context.Context) error {
 	for _, item := range tx.cache {
 		switch item := item.(type) {
 		case *copyFrom:
-			_, err := base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
+			_, err = base.CopyFrom(ctx, item.tableName, item.columnNames, item.rows)
 			if err != nil {
 				log.Error("COPY error", "table", item.tableName, "err", err)
 				return err
 			}
 		case cachedStmt:
-			_, err := base.Exec(ctx, item.sql, item.args...)
+			_, err = base.Exec(ctx, item.sql, item.args...)
 			if err != nil {
 				return err
 			}
