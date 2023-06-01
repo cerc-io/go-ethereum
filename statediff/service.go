@@ -151,8 +151,10 @@ type Service struct {
 	// Job ID ticker
 	lastJobID uint64
 	// In flight jobs (for WriteStateDiffAt)
-	currentJobs      map[uint64]JobID
-	currentJobsMutex sync.Mutex
+	currentJobs        map[uint64]JobID
+	currentJobsMutex   sync.Mutex
+	currentBlocks      map[string]bool
+	currentBlocksMutex sync.Mutex
 }
 
 // IDs used for tracking in-progress jobs (0 for invalid)
@@ -214,21 +216,24 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	}
 
 	sds := &Service{
-		Mutex:             sync.Mutex{},
-		BlockChain:        blockChain,
-		Builder:           NewBuilder(blockChain.StateCache()),
-		QuitChan:          quitCh,
-		Subscriptions:     make(map[common.Hash]map[rpc.ID]Subscription),
-		SubscriptionTypes: make(map[common.Hash]Params),
-		BlockCache:        NewBlockCache(workers),
-		BackendAPI:        backend,
-		WaitForSync:       params.WaitForSync,
-		indexer:           indexer,
-		enableWriteLoop:   params.EnableWriteLoop,
-		numWorkers:        workers,
-		maxRetry:          defaultRetryLimit,
-		jobStatusSubs:     map[rpc.ID]statusSubscription{},
-		currentJobs:       map[uint64]JobID{},
+		Mutex:              sync.Mutex{},
+		BlockChain:         blockChain,
+		Builder:            NewBuilder(blockChain.StateCache()),
+		QuitChan:           quitCh,
+		Subscriptions:      make(map[common.Hash]map[rpc.ID]Subscription),
+		SubscriptionTypes:  make(map[common.Hash]Params),
+		BlockCache:         NewBlockCache(workers),
+		BackendAPI:         backend,
+		WaitForSync:        params.WaitForSync,
+		indexer:            indexer,
+		enableWriteLoop:    params.EnableWriteLoop,
+		numWorkers:         workers,
+		maxRetry:           defaultRetryLimit,
+		jobStatusSubs:      map[rpc.ID]statusSubscription{},
+		currentJobs:        map[uint64]JobID{},
+		currentJobsMutex:   sync.Mutex{},
+		currentBlocks:      map[string]bool{},
+		currentBlocksMutex: sync.Mutex{},
 	}
 	stack.RegisterLifecycle(sds)
 	stack.RegisterAPIs(sds.APIs())
@@ -251,21 +256,24 @@ func NewService(blockChain blockChain, cfg Config, backend ethapi.Backend, index
 
 	quitCh := make(chan bool)
 	sds := &Service{
-		Mutex:             sync.Mutex{},
-		BlockChain:        blockChain,
-		Builder:           NewBuilder(blockChain.StateCache()),
-		QuitChan:          quitCh,
-		Subscriptions:     make(map[common.Hash]map[rpc.ID]Subscription),
-		SubscriptionTypes: make(map[common.Hash]Params),
-		BlockCache:        NewBlockCache(workers),
-		BackendAPI:        backend,
-		WaitForSync:       cfg.WaitForSync,
-		indexer:           indexer,
-		enableWriteLoop:   cfg.EnableWriteLoop,
-		numWorkers:        workers,
-		maxRetry:          defaultRetryLimit,
-		jobStatusSubs:     map[rpc.ID]statusSubscription{},
-		currentJobs:       map[uint64]JobID{},
+		Mutex:              sync.Mutex{},
+		BlockChain:         blockChain,
+		Builder:            NewBuilder(blockChain.StateCache()),
+		QuitChan:           quitCh,
+		Subscriptions:      make(map[common.Hash]map[rpc.ID]Subscription),
+		SubscriptionTypes:  make(map[common.Hash]Params),
+		BlockCache:         NewBlockCache(workers),
+		BackendAPI:         backend,
+		WaitForSync:        cfg.WaitForSync,
+		indexer:            indexer,
+		enableWriteLoop:    cfg.EnableWriteLoop,
+		numWorkers:         workers,
+		maxRetry:           defaultRetryLimit,
+		jobStatusSubs:      map[rpc.ID]statusSubscription{},
+		currentJobs:        map[uint64]JobID{},
+		currentJobsMutex:   sync.Mutex{},
+		currentBlocks:      map[string]bool{},
+		currentBlocksMutex: sync.Mutex{},
 	}
 
 	if indexer != nil {
@@ -877,8 +885,38 @@ func (sds *Service) WriteStateDiffFor(blockHash common.Hash, params Params) erro
 	return sds.writeStateDiffWithRetry(currentBlock, parentRoot, params)
 }
 
+// Claim exclusive access for state diffing the specified block.
+// Returns true and a function to release access if successful, else false, nil.
+func (sds *Service) claimExclusiveAccess(block *types.Block) (bool, func()) {
+	sds.currentBlocksMutex.Lock()
+	defer sds.currentBlocksMutex.Unlock()
+
+	key := fmt.Sprintf("%s,%d", block.Hash().Hex(), block.NumberU64())
+	if sds.currentBlocks[key] {
+		return false, nil
+	}
+	sds.currentBlocks[key] = true
+	return true, func() {
+		sds.currentBlocksMutex.Lock()
+		defer sds.currentBlocksMutex.Unlock()
+		delete(sds.currentBlocks, key)
+	}
+}
+
 // Writes a state diff from the current block, parent state root, and provided params
 func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, params Params) error {
+	if granted, relinquish := sds.claimExclusiveAccess(block); granted {
+		defer relinquish()
+	} else {
+		log.Info("Not writing, statediff in progress.", "number", block.NumberU64(), "hash", block.Hash().Hex())
+		return nil
+	}
+
+	if done, _ := sds.indexer.HasBlock(block.Hash(), block.NumberU64()); done {
+		log.Info("Not writing, statediff already done.", "number", block.NumberU64(), "hash", block.Hash().Hex())
+		return nil
+	}
+
 	var totalDifficulty *big.Int
 	var receipts types.Receipts
 	var err error

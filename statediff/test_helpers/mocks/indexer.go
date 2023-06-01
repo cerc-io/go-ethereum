@@ -34,6 +34,10 @@ type StateDiffIndexer struct{}
 
 type batch struct{}
 
+func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
+	return false, nil
+}
+
 func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (interfaces.Batch, error) {
 	return &batch{}, nil
 }

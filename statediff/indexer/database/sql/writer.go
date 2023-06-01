@@ -50,6 +50,11 @@ func (w *Writer) Close() error {
 	return w.db.Close()
 }
 
+func (w *Writer) hasHeader(blockHash common.Hash, blockNumber uint64) (exists bool, err error) {
+	err = w.db.QueryRow(w.db.Context(), w.db.ExistsHeaderStm(), blockNumber, blockHash.String()).Scan(&exists)
+	return exists, err
+}
+
 /*
 INSERT INTO eth.header_cids (block_number, block_hash, parent_hash, cid, td, node_id, reward, state_root, tx_root, receipt_root, uncle_root, bloom, timestamp, mh_key, times_validated, coinbase)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)

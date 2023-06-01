@@ -16,7 +16,9 @@
 
 package postgres
 
-import "github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+import (
+	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
+)
 
 var _ sql.Database = &DB{}
 
@@ -34,6 +36,11 @@ func NewPostgresDB(driver sql.Driver, upsert bool) *DB {
 type DB struct {
 	upsert bool
 	sql.Driver
+}
+
+// ExistsHeaderStm satisfies the sql.Statements interface
+func (db *DB) ExistsHeaderStm() string {
+	return "SELECT EXISTS(SELECT 1 from eth.header_cids WHERE block_number = $1 AND block_hash = $2 LIMIT 1)"
 }
 
 // InsertHeaderStm satisfies the sql.Statements interface
