@@ -412,6 +412,12 @@ func (sdi *StateDiffIndexer) PushIPLD(batch interfaces.Batch, ipld sdtypes.IPLD)
 	return nil
 }
 
+// HasBlock checks whether the indicated block already exists in the output.
+// In the "dump" case, this is presumed to be false.
+func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
+	return false, nil
+}
+
 // Close satisfies io.Closer
 func (sdi *StateDiffIndexer) Close() error {
 	return sdi.dump.Close()

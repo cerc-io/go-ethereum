@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/jackc/pgtype"
 	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
 	"github.com/lib/pq"
@@ -44,6 +46,11 @@ func NewWriter(db Database) *Writer {
 // Close satisfies io.Closer
 func (w *Writer) Close() error {
 	return w.db.Close()
+}
+
+func (w *Writer) hasHeader(blockHash common.Hash, blockNumber uint64) (exists bool, err error) {
+	err = w.db.QueryRow(w.db.Context(), w.db.ExistsHeaderStm(), blockNumber, blockHash.String()).Scan(&exists)
+	return exists, err
 }
 
 /*

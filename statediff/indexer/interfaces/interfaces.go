@@ -29,6 +29,7 @@ import (
 
 // StateDiffIndexer interface required to index statediff data
 type StateDiffIndexer interface {
+	HasBlock(hash common.Hash, number uint64) (bool, error)
 	PushBlock(block *types.Block, receipts types.Receipts, totalDifficulty *big.Int) (Batch, error)
 	PushStateNode(tx Batch, stateNode sdtypes.StateLeafNode, headerID string) error
 	PushIPLD(tx Batch, ipld sdtypes.IPLD) error

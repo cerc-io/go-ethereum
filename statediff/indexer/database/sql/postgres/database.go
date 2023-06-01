@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/statediff/indexer/database/sql"
 	"github.com/ethereum/go-ethereum/statediff/indexer/shared/schema"
 )
@@ -37,6 +39,10 @@ func NewPostgresDB(driver sql.Driver, upsert bool) *DB {
 type DB struct {
 	upsert bool
 	sql.Driver
+}
+
+func (db *DB) ExistsHeaderStm() string {
+	return fmt.Sprintf("SELECT EXISTS(SELECT 1 from %s WHERE block_number = $1 AND block_hash = $2 LIMIT 1)", schema.TableHeader.Name)
 }
 
 // InsertHeaderStm satisfies the sql.Statements interface
