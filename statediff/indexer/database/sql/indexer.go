@@ -219,6 +219,10 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	return blockTx, err
 }
 
+func (sdi *StateDiffIndexer) HasBlock(block *types.Block) (bool, error) {
+	return sdi.dbWriter.hasHeader(block.Hash(), block.NumberU64())
+}
+
 // processHeader publishes and indexes a header IPLD in Postgres
 // it returns the headerID
 func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, headerNode ipld.IPLD, reward, td *big.Int) (string, error) {

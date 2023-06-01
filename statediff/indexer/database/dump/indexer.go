@@ -412,6 +412,10 @@ func (sdi *StateDiffIndexer) PushIPLD(batch interfaces.Batch, ipld sdtypes.IPLD)
 	return nil
 }
 
+func (sdi *StateDiffIndexer) HasBlock(block *types.Block) (bool, error) {
+	return false, nil
+}
+
 // Close satisfies io.Closer
 func (sdi *StateDiffIndexer) Close() error {
 	return sdi.dump.Close()
