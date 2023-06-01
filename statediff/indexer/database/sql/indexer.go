@@ -219,8 +219,9 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	return blockTx, err
 }
 
-func (sdi *StateDiffIndexer) HasBlock(block *types.Block) (bool, error) {
-	return sdi.dbWriter.hasHeader(block.Hash(), block.NumberU64())
+// HasBlock checks whether the indicated block already exists in the database.
+func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
+	return sdi.dbWriter.hasHeader(hash, number)
 }
 
 // processHeader publishes and indexes a header IPLD in Postgres

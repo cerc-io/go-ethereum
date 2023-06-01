@@ -843,7 +843,7 @@ func (sds *Service) writeStateDiff(block *types.Block, parentRoot common.Hash, p
 		return nil
 	}
 
-	if done, _ := sds.indexer.HasBlock(block); done {
+	if done, _ := sds.indexer.HasBlock(block.Hash(), block.NumberU64()); done {
 		log.Info("Not writing, statediff already done.", "number", block.NumberU64(), "hash", block.Hash().Hex())
 		return nil
 	}

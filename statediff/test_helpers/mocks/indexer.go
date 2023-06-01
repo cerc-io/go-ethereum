@@ -34,7 +34,7 @@ type StateDiffIndexer struct{}
 
 type batch struct{}
 
-func (sdi *StateDiffIndexer) HasBlock(block *types.Block) (bool, error) {
+func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
 	return false, nil
 }
 

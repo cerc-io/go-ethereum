@@ -461,7 +461,9 @@ func (sdi *StateDiffIndexer) PushIPLD(batch interfaces.Batch, ipld sdtypes.IPLD)
 	return nil
 }
 
-func (sdi *StateDiffIndexer) HasBlock(block *types.Block) (bool, error) {
+// HasBlock checks whether the indicated block already exists in the output.
+// In the "file" case this is presumed to be false.
+func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
 	return false, nil
 }
 
