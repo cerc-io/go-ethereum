@@ -273,13 +273,15 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 			}
 		}
 		p := statediff.Config{
-			IndexerConfig:   indexerConfig,
-			ID:              nodeID,
-			ClientName:      clientName,
-			Context:         context.Background(),
-			EnableWriteLoop: ctx.Bool(utils.StateDiffWritingFlag.Name),
-			NumWorkers:      ctx.Uint(utils.StateDiffWorkersFlag.Name),
-			WaitForSync:     ctx.Bool(utils.StateDiffWaitForSync.Name),
+			IndexerConfig:           indexerConfig,
+			ID:                      nodeID,
+			ClientName:              clientName,
+			Context:                 context.Background(),
+			EnableWriteLoop:         ctx.Bool(utils.StateDiffWritingFlag.Name),
+			NumWorkers:              ctx.Uint(utils.StateDiffWorkersFlag.Name),
+			WaitForSync:             ctx.Bool(utils.StateDiffWaitForSync.Name),
+			BackfillCheckPastBlocks: ctx.Uint64(utils.StateDiffBackfillCheckPastBlocks.Name),
+			BackfillMaxHeadGap:      ctx.Uint64(utils.StateDiffBackfillMaxHeadGap.Name),
 		}
 		utils.RegisterStateDiffService(stack, eth, &cfg.Eth, p, backend)
 	}

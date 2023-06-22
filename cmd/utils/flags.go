@@ -1120,6 +1120,16 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Name:  "statediff.waitforsync",
 		Usage: "Should the statediff service wait for geth to catch up to the head of the chain?",
 	}
+	StateDiffBackfillCheckPastBlocks = &cli.Uint64Flag{
+		Name:  "statediff.backfillcheckpastblocks",
+		Usage: "The number of blocks behind the startup statediff position to check (and fill) for gaps when head tracking.",
+		Value: 7200,
+	}
+	StateDiffBackfillMaxHeadGap = &cli.Uint64Flag{
+		Name:  "statediff.backfillmaxheadgap",
+		Usage: "The maximum gap between the startup statediff and startup head positions that can be backfilled.",
+		Value: 7200,
+	}
 )
 
 var (
