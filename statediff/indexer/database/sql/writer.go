@@ -50,7 +50,7 @@ func (w *Writer) Close() error {
 	return w.db.Close()
 }
 
-// hashHeader returns true if a matching hash+number record exists in the database, else false.
+// hasHeader returns true if a matching hash+number record exists in the database, else false.
 func (w *Writer) hasHeader(blockHash common.Hash, blockNumber uint64) (exists bool, err error) {
 	// pgx misdetects the parameter OIDs and selects int8, which can overflow.
 	// unfortunately there is no good place to override it, so it is safer to pass the uint64s as text
@@ -63,18 +63,16 @@ func (w *Writer) hasHeader(blockHash common.Hash, blockNumber uint64) (exists bo
 // For example, if the database contains blocks the overall range 1000:2000, but is missing blocks 1110:1230 and 1380
 // it would return [{FirstMissing: 1110, LastMissing: 1230}, {FirstMissing: 1380, LastMissing: 1380}]
 func (w *Writer) detectGaps(beginBlockNumber uint64, endBlockNumber uint64) ([]*interfaces.BlockGap, error) {
-	pgStm := "SELECT block_number + 1 AS first_missing, (next_bn - 1) AS last_missing FROM (SELECT block_number, LEAD(block_number) OVER (ORDER BY block_number) AS next_bn FROM eth.header_cids WHERE block_number >= $1::BIGINT AND block_number <= $2::BIGINT) h WHERE next_bn > block_number + 1"
 	var gaps []*interfaces.BlockGap
 	// pgx misdetects the parameter OIDs and selects int8, which can overflow.
 	// unfortunately there is no good place to override it, so it is safer to pass the uint64s as text
 	// and let PG handle the cast
-	err := w.db.Select(w.db.Context(), &gaps, pgStm, strconv.FormatUint(beginBlockNumber, 10), strconv.FormatUint(endBlockNumber, 10))
+	err := w.db.Select(w.db.Context(), &gaps, w.db.DetectGapsStm(), strconv.FormatUint(beginBlockNumber, 10), strconv.FormatUint(endBlockNumber, 10))
 	return gaps, err
 }
 
-/*
-SELECT block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase FROM %s ORDER BY block_number DESC LIMIT 1
-*/
+// maxHeader returns the header for the highest block number in the database.
+// SELECT block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase FROM %s ORDER BY block_number DESC LIMIT 1
 func (w *Writer) maxHeader() (*models.HeaderModel, error) {
 	var model models.HeaderModel
 	var err error
