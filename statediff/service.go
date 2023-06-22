@@ -1187,7 +1187,7 @@ func (sds *Service) Backfill() {
 func (sds *Service) backfillHeadGap(indexerBlockNumber uint64, chainBlockNumber uint64) {
 	headGap := chainBlockNumber - indexerBlockNumber
 	var ch = make(chan uint64, headGap)
-	for bn := indexerBlockNumber; bn < chainBlockNumber; bn++ {
+	for bn := indexerBlockNumber; bn <= chainBlockNumber; bn++ {
 		ch <- bn
 	}
 
