@@ -461,6 +461,18 @@ func (sdi *StateDiffIndexer) PushIPLD(batch interfaces.Batch, ipld sdtypes.IPLD)
 	return nil
 }
 
+// CurrentBlock returns the HeaderModel of the highest existing block in the output.
+// In the "dump" case, this is always nil.
+func (sdi *StateDiffIndexer) CurrentBlock() (*models.HeaderModel, error) {
+	return nil, nil
+}
+
+// DetectGaps returns a list of gaps in the output found within the specified block range.
+// In the "dump" case this is always nil.
+func (sdi *StateDiffIndexer) DetectGaps(beginBlockNumber uint64, endBlockNumber uint64) ([]*interfaces.BlockGap, error) {
+	return nil, nil
+}
+
 // HasBlock checks whether the indicated block already exists in the output.
 // In the "file" case this is presumed to be false.
 func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {

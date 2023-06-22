@@ -219,9 +219,19 @@ func (sdi *StateDiffIndexer) PushBlock(block *types.Block, receipts types.Receip
 	return blockTx, err
 }
 
+// CurrentBlock returns the HeaderModel of the highest existing block in the database.
+func (sdi *StateDiffIndexer) CurrentBlock() (*models.HeaderModel, error) {
+	return sdi.dbWriter.maxHeader()
+}
+
 // HasBlock checks whether the indicated block already exists in the database.
 func (sdi *StateDiffIndexer) HasBlock(hash common.Hash, number uint64) (bool, error) {
 	return sdi.dbWriter.hasHeader(hash, number)
+}
+
+// DetectGaps returns a list of gaps in the database found within the specified block range.
+func (sdi *StateDiffIndexer) DetectGaps(beginBlockNumber uint64, endBlockNumber uint64) ([]*interfaces.BlockGap, error) {
+	return sdi.dbWriter.detectGaps(beginBlockNumber, endBlockNumber)
 }
 
 // processHeader publishes and indexes a header IPLD in Postgres

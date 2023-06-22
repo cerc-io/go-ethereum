@@ -41,8 +41,12 @@ type DB struct {
 	sql.Driver
 }
 
+func (db *DB) MaxHeaderStm() string {
+	return fmt.Sprintf("SELECT block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase FROM %s ORDER BY block_number DESC LIMIT 1", schema.TableHeader.Name)
+}
+
 func (db *DB) ExistsHeaderStm() string {
-	return fmt.Sprintf("SELECT EXISTS(SELECT 1 from %s WHERE block_number = $1 AND block_hash = $2 LIMIT 1)", schema.TableHeader.Name)
+	return fmt.Sprintf("SELECT EXISTS(SELECT 1 from %s WHERE block_number = $1::BIGINT AND block_hash = $2::TEXT LIMIT 1)", schema.TableHeader.Name)
 }
 
 // InsertHeaderStm satisfies the sql.Statements interface

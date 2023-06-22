@@ -36,6 +36,10 @@ type Config struct {
 	ClientName string
 	// Whether to enable writing state diffs directly to track blockchain head
 	EnableWriteLoop bool
+	// The maximum number of blocks to backfill when tracking head.
+	BackfillMaxHeadGap uint64
+	// The maximum number of blocks behind the startup position to check for gaps.
+	BackfillCheckPastBlocks uint64
 	// Size of the worker pool
 	NumWorkers uint
 	// Should the statediff service wait until geth has synced to the head of the blockchain?

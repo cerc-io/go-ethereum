@@ -18,6 +18,7 @@ package statediff
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -137,6 +138,9 @@ type Service struct {
 	indexer interfaces.StateDiffIndexer
 	// Whether to enable writing state diffs directly to track blockchain head.
 	enableWriteLoop bool
+	// Settings to use for backfilling state diffs (plugging gaps when tracking head)
+	backfillMaxHeadGap      uint64
+	backfillCheckPastBlocks uint64
 	// Size of the worker pool
 	numWorkers uint
 	// Number of retry for aborted transactions due to deadlock.
@@ -211,24 +215,26 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 	}
 
 	sds := &Service{
-		Mutex:              sync.Mutex{},
-		BlockChain:         blockChain,
-		Builder:            NewBuilder(blockChain.StateCache()),
-		QuitChan:           quitCh,
-		Subscriptions:      make(map[common.Hash]map[rpc.ID]Subscription),
-		SubscriptionTypes:  make(map[common.Hash]Params),
-		BlockCache:         NewBlockCache(workers),
-		BackendAPI:         backend,
-		WaitForSync:        params.WaitForSync,
-		indexer:            indexer,
-		enableWriteLoop:    params.EnableWriteLoop,
-		numWorkers:         workers,
-		maxRetry:           defaultRetryLimit,
-		jobStatusSubs:      map[rpc.ID]statusSubscription{},
-		currentJobs:        map[uint64]JobID{},
-		currentJobsMutex:   sync.Mutex{},
-		currentBlocks:      map[string]bool{},
-		currentBlocksMutex: sync.Mutex{},
+		Mutex:                   sync.Mutex{},
+		BlockChain:              blockChain,
+		Builder:                 NewBuilder(blockChain.StateCache()),
+		QuitChan:                quitCh,
+		Subscriptions:           make(map[common.Hash]map[rpc.ID]Subscription),
+		SubscriptionTypes:       make(map[common.Hash]Params),
+		BlockCache:              NewBlockCache(workers),
+		BackendAPI:              backend,
+		WaitForSync:             params.WaitForSync,
+		indexer:                 indexer,
+		enableWriteLoop:         params.EnableWriteLoop,
+		backfillMaxHeadGap:      params.BackfillMaxHeadGap,
+		backfillCheckPastBlocks: params.BackfillCheckPastBlocks,
+		numWorkers:              workers,
+		maxRetry:                defaultRetryLimit,
+		jobStatusSubs:           map[rpc.ID]statusSubscription{},
+		currentJobs:             map[uint64]JobID{},
+		currentJobsMutex:        sync.Mutex{},
+		currentBlocks:           map[string]bool{},
+		currentBlocksMutex:      sync.Mutex{},
 	}
 	stack.RegisterLifecycle(sds)
 	stack.RegisterAPIs(sds.APIs())
@@ -251,24 +257,26 @@ func NewService(blockChain blockChain, cfg Config, backend ethapi.Backend, index
 
 	quitCh := make(chan bool)
 	sds := &Service{
-		Mutex:              sync.Mutex{},
-		BlockChain:         blockChain,
-		Builder:            NewBuilder(blockChain.StateCache()),
-		QuitChan:           quitCh,
-		Subscriptions:      make(map[common.Hash]map[rpc.ID]Subscription),
-		SubscriptionTypes:  make(map[common.Hash]Params),
-		BlockCache:         NewBlockCache(workers),
-		BackendAPI:         backend,
-		WaitForSync:        cfg.WaitForSync,
-		indexer:            indexer,
-		enableWriteLoop:    cfg.EnableWriteLoop,
-		numWorkers:         workers,
-		maxRetry:           defaultRetryLimit,
-		jobStatusSubs:      map[rpc.ID]statusSubscription{},
-		currentJobs:        map[uint64]JobID{},
-		currentJobsMutex:   sync.Mutex{},
-		currentBlocks:      map[string]bool{},
-		currentBlocksMutex: sync.Mutex{},
+		Mutex:                   sync.Mutex{},
+		BlockChain:              blockChain,
+		Builder:                 NewBuilder(blockChain.StateCache()),
+		QuitChan:                quitCh,
+		Subscriptions:           make(map[common.Hash]map[rpc.ID]Subscription),
+		SubscriptionTypes:       make(map[common.Hash]Params),
+		BlockCache:              NewBlockCache(workers),
+		BackendAPI:              backend,
+		WaitForSync:             cfg.WaitForSync,
+		indexer:                 indexer,
+		enableWriteLoop:         cfg.EnableWriteLoop,
+		backfillMaxHeadGap:      cfg.BackfillMaxHeadGap,
+		backfillCheckPastBlocks: cfg.BackfillCheckPastBlocks,
+		numWorkers:              workers,
+		maxRetry:                defaultRetryLimit,
+		jobStatusSubs:           map[rpc.ID]statusSubscription{},
+		currentJobs:             map[uint64]JobID{},
+		currentJobsMutex:        sync.Mutex{},
+		currentBlocks:           map[string]bool{},
+		currentBlocksMutex:      sync.Mutex{},
 	}
 
 	if indexer != nil {
@@ -317,6 +325,145 @@ type workerParams struct {
 	chainEventCh <-chan core.ChainEvent
 	wg           *sync.WaitGroup
 	id           uint
+}
+
+func (sds *Service) backfillDetectedGaps(blockGaps []*interfaces.BlockGap) {
+	var ch = make(chan uint64)
+	var wg sync.WaitGroup
+	for i := uint(0); i < sds.numWorkers; i++ {
+		wg.Add(1)
+		go func(w uint) {
+			defer wg.Done()
+			for {
+				select {
+				case num, ok := <-ch:
+					if !ok {
+						log.Info("Backfill: detected gap fill done", "worker", w)
+						return
+					}
+					log.Info("Backfill: backfilling detected gap", "block", num, "worker", w)
+					err := sds.writeStateDiffAt(num, writeLoopParams.Params)
+					if err != nil {
+						log.Error("Backfill error: " + err.Error())
+					}
+				case <-sds.QuitChan:
+					log.Info("Backfill: quitting before finish", "worker", w)
+					return
+				}
+			}
+		}(i)
+	}
+
+	for _, gap := range blockGaps {
+		for num := gap.FirstMissing; num <= gap.LastMissing; num++ {
+			ch <- num
+		}
+	}
+	close(ch)
+	wg.Wait()
+}
+
+func (sds *Service) backfillHeadGap(indexerBlockNumber uint64, chainBlockNumber uint64) {
+	headGap := chainBlockNumber - indexerBlockNumber
+	var ch = make(chan uint64, headGap)
+	for bn := indexerBlockNumber; bn < chainBlockNumber; bn++ {
+		ch <- bn
+	}
+
+	var wg sync.WaitGroup
+	for i := uint(0); i < sds.numWorkers; i++ {
+		wg.Add(1)
+		go func(w uint) {
+			defer wg.Done()
+			for {
+				select {
+				case num, ok := <-ch:
+					if !ok {
+						log.Info("Backfill: headGap done", "worker", w)
+						return
+					}
+					log.Info("Backfill: backfilling head gap", "block", num, "worker", w)
+					err := sds.writeStateDiffAt(num, writeLoopParams.Params)
+					if err != nil {
+						log.Error("Backfill error: " + err.Error())
+					}
+				case <-sds.QuitChan:
+					log.Info("Backfill: quitting before finish", "worker", w)
+					return
+				}
+			}
+		}(i)
+	}
+	close(ch)
+	wg.Wait()
+}
+
+func (sds *Service) Backfill() {
+	chainBlock := sds.BlockChain.CurrentBlock()
+	if nil == chainBlock {
+		log.Info("Backfill: No previous chain block, nothing to backfill.")
+		return
+	}
+
+	chainBlockNumber := chainBlock.Number.Uint64()
+	if chainBlockNumber == 0 {
+		log.Info("Backfill: At start of chain, nothing to backfill.")
+		return
+	}
+
+	indexerBlock, err := sds.indexer.CurrentBlock()
+	if nil == indexerBlock {
+		log.Info("Backfill: No previous indexer block, nothing to backfill.")
+		return
+	}
+	if nil != err {
+		log.Error("Backfill error: " + err.Error())
+		return
+	}
+
+	indexerBlockNumber, err := strconv.ParseUint(indexerBlock.BlockNumber, 10, 64)
+	if nil != err {
+		log.Error("Backfill error: " + err.Error())
+		return
+	}
+
+	headGap := chainBlockNumber - indexerBlockNumber
+	log.Info(
+		"Backfill: initial positions",
+		"chain", chainBlockNumber,
+		"indexer", indexerBlockNumber,
+		"headGap", headGap,
+	)
+
+	if sds.backfillMaxHeadGap > 0 && headGap > 0 {
+		if headGap < sds.backfillMaxHeadGap {
+			sds.backfillHeadGap(indexerBlockNumber, chainBlockNumber)
+			log.Info("Backfill: all workers done filling headGap.")
+		} else {
+			log.Error("Backfill: headGap too large to fill.")
+		}
+	}
+
+	if sds.backfillCheckPastBlocks > 0 {
+		var gapCheckBeginNumber uint64 = 0
+		if indexerBlockNumber > sds.backfillCheckPastBlocks {
+			gapCheckBeginNumber = indexerBlockNumber - sds.backfillCheckPastBlocks
+		}
+		blockGaps, err := sds.indexer.DetectGaps(gapCheckBeginNumber, chainBlockNumber)
+		if nil != err {
+			log.Error("Backfill error: " + err.Error())
+			return
+		}
+
+		if nil != blockGaps && len(blockGaps) > 0 {
+			gapsMsg, _ := json.Marshal(blockGaps)
+			log.Info("Backfill: detected gaps in range", "begin", gapCheckBeginNumber, "end", chainBlockNumber, "gaps", string(gapsMsg))
+			sds.backfillDetectedGaps(blockGaps)
+			log.Info("Backfill: done processing detected gaps in range", "begin", gapCheckBeginNumber, "end", chainBlockNumber, "gaps", string(gapsMsg))
+		} else {
+			log.Info("Backfill: no gaps detected in range", "begin", gapCheckBeginNumber, "end", chainBlockNumber)
+		}
+	}
 }
 
 func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
@@ -692,6 +839,8 @@ func (sds *Service) Start() error {
 	go sds.Loop(chainEventCh)
 
 	if sds.enableWriteLoop {
+		log.Info("Starting statediff DB backfill", "params", writeLoopParams.Params)
+		go sds.Backfill()
 		log.Info("Starting statediff DB write loop", "params", writeLoopParams.Params)
 		chainEventCh := make(chan core.ChainEvent, chainEventChanSize)
 		go sds.WriteLoop(chainEventCh)
