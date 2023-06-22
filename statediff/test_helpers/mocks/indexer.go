@@ -17,9 +17,10 @@
 package mocks
 
 import (
-	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/statediff/indexer/models"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
