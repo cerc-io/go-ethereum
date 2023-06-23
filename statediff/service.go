@@ -1185,12 +1185,7 @@ func (sds *Service) Backfill() {
 // A gap can be created in this way if there is some problem in statediffing (eg, DB connectivity is lost,
 // while the chain keeps syncing), if the process is terminated with a statediff in-flight, etc.
 func (sds *Service) backfillHeadGap(indexerBlockNumber uint64, chainBlockNumber uint64) {
-	headGap := chainBlockNumber - indexerBlockNumber
-	var ch = make(chan uint64, headGap)
-	for bn := indexerBlockNumber; bn <= chainBlockNumber; bn++ {
-		ch <- bn
-	}
-
+	var ch = make(chan uint64)
 	var wg sync.WaitGroup
 	for i := uint(0); i < sds.numWorkers; i++ {
 		wg.Add(1)
@@ -1214,6 +1209,10 @@ func (sds *Service) backfillHeadGap(indexerBlockNumber uint64, chainBlockNumber 
 				}
 			}
 		}(i)
+	}
+
+	for bn := indexerBlockNumber; bn <= chainBlockNumber; bn++ {
+		ch <- bn
 	}
 	close(ch)
 	wg.Wait()
