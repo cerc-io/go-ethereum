@@ -1211,7 +1211,7 @@ func (sds *Service) backfillHeadGap(indexerBlockNumber uint64, chainBlockNumber 
 		}(i)
 	}
 
-	for bn := indexerBlockNumber; bn <= chainBlockNumber; bn++ {
+	for bn := indexerBlockNumber + 1; bn <= chainBlockNumber; bn++ {
 		ch <- bn
 	}
 	close(ch)
