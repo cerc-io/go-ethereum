@@ -41,8 +41,19 @@ type DB struct {
 	sql.Driver
 }
 
+// MaxHeaderStm satisfies the sql.Statements interface
+func (db *DB) MaxHeaderStm() string {
+	return fmt.Sprintf("SELECT block_number, block_hash, parent_hash, cid, td, node_ids, reward, state_root, tx_root, receipt_root, uncles_hash, bloom, timestamp, coinbase FROM %s ORDER BY block_number DESC LIMIT 1", schema.TableHeader.Name)
+}
+
+// ExistsHeaderStm satisfies the sql.Statements interface
 func (db *DB) ExistsHeaderStm() string {
-	return fmt.Sprintf("SELECT EXISTS(SELECT 1 from %s WHERE block_number = $1 AND block_hash = $2 LIMIT 1)", schema.TableHeader.Name)
+	return fmt.Sprintf("SELECT EXISTS(SELECT 1 from %s WHERE block_number = $1::BIGINT AND block_hash = $2::TEXT LIMIT 1)", schema.TableHeader.Name)
+}
+
+// DetectGapsStm satisfies the sql.Statements interface
+func (db *DB) DetectGapsStm() string {
+	return fmt.Sprintf("SELECT block_number + 1 AS first_missing, (next_bn - 1) AS last_missing FROM (SELECT block_number, LEAD(block_number) OVER (ORDER BY block_number) AS next_bn FROM %s WHERE block_number >= $1::BIGINT AND block_number <= $2::BIGINT) h WHERE next_bn > block_number + 1", schema.TableHeader.Name)
 }
 
 // InsertHeaderStm satisfies the sql.Statements interface

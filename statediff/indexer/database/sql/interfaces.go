@@ -45,6 +45,8 @@ type Driver interface {
 
 // Statements interface to accommodate different SQL query syntax
 type Statements interface {
+	DetectGapsStm() string
+	MaxHeaderStm() string
 	ExistsHeaderStm() string
 	InsertHeaderStm() string
 	InsertUncleStm() string

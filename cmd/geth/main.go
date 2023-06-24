@@ -176,6 +176,8 @@ var (
 		utils.StateDiffUpsert,
 		utils.StateDiffLogStatements,
 		utils.StateDiffCopyFrom,
+		utils.StateDiffBackfillCheckPastBlocks,
+		utils.StateDiffBackfillMaxHeadGap,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 

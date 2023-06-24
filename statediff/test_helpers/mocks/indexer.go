@@ -20,6 +20,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/statediff/indexer/models"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/statediff/indexer/interfaces"
@@ -31,6 +33,14 @@ var _ interfaces.Batch = &batch{}
 
 // StateDiffIndexer is a mock state diff indexer
 type StateDiffIndexer struct{}
+
+func (sdi *StateDiffIndexer) DetectGaps(beginBlock uint64, endBlock uint64) ([]*interfaces.BlockGap, error) {
+	return nil, nil
+}
+
+func (sdi *StateDiffIndexer) CurrentBlock() (*models.HeaderModel, error) {
+	return nil, nil
+}
 
 type batch struct{}
 
