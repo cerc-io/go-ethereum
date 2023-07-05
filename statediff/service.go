@@ -357,25 +357,28 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 					lastHeight = initialPos.indexerBlockNumber
 				}
 				nextHeight := chainEvent.Block.Number().Uint64()
-				distance := nextHeight - lastHeight
-				if distance < 1 {
+				if nextHeight > lastHeight {
+					distance := nextHeight - lastHeight
+					if distance == 1 {
+						log.Info("WriteLoop: received expected block", "next height", nextHeight, "last height", lastHeight)
+						blockFwd <- chainEvent.Block
+						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
+					} else {
+						log.Warn("WriteLoop: received unexpected block from the future", "next height", nextHeight, "last height", lastHeight)
+						if distance <= sds.backfillMaxHeadGap {
+							for i := lastHeight + 1; i < nextHeight; i++ {
+								log.Info("WriteLoop: backfilling gap to head", "block", i, "next height", nextHeight, "last height", lastHeight, "gap", distance)
+								blockFwd <- sds.BlockChain.GetBlockByNumber(i)
+							}
+						} else {
+							log.Warn("WriteLoop: gap to head too large to backfill", "next height", nextHeight, "last height", lastHeight, "gap", distance)
+						}
+						blockFwd <- chainEvent.Block
+						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
+					}
+				} else {
 					log.Warn("WriteLoop: received unexpected block from the past", "next height", nextHeight, "last height", lastHeight)
 					blockFwd <- chainEvent.Block
-				} else if distance > 1 {
-					log.Warn("WriteLoop: received unexpected block from the future", "next height", nextHeight, "last height", lastHeight)
-					if distance <= sds.backfillMaxHeadGap {
-						for i := lastHeight + 1; i < nextHeight; i++ {
-							log.Info("WriteLoop: backfilling gap to head", "block", i, "next height", nextHeight, "last height", lastHeight, "gap", distance)
-							blockFwd <- sds.BlockChain.GetBlockByNumber(i)
-						}
-					} else {
-						log.Warn("WriteLoop: gap to head too large to backfill", "next height", nextHeight, "last height", lastHeight, "gap", distance)
-					}
-					blockFwd <- chainEvent.Block
-					defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
-				} else {
-					blockFwd <- chainEvent.Block
-					defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
 				}
 				defaultStatediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
 			case err := <-errCh:
