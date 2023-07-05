@@ -360,24 +360,24 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 				if nextHeight > lastHeight {
 					distance := nextHeight - lastHeight
 					if distance == 1 {
-						log.Info("WriteLoop: received expected block", "next height", nextHeight, "last height", lastHeight)
+						log.Info("WriteLoop: received expected block", "block height", nextHeight, "last height", lastHeight)
 						blockFwd <- chainEvent.Block
 						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
 					} else {
-						log.Warn("WriteLoop: received unexpected block from the future", "next height", nextHeight, "last height", lastHeight)
+						log.Warn("WriteLoop: received unexpected block from the future", "block height", nextHeight, "last height", lastHeight)
 						if distance <= sds.backfillMaxHeadGap {
 							for i := lastHeight + 1; i < nextHeight; i++ {
-								log.Info("WriteLoop: backfilling gap to head", "block", i, "next height", nextHeight, "last height", lastHeight, "gap", distance)
+								log.Info("WriteLoop: backfilling gap to head", "block", i, "block height", nextHeight, "last height", lastHeight)
 								blockFwd <- sds.BlockChain.GetBlockByNumber(i)
 							}
 						} else {
-							log.Warn("WriteLoop: gap to head too large to backfill", "next height", nextHeight, "last height", lastHeight, "gap", distance)
+							log.Warn("WriteLoop: gap to head too large to backfill", "block height", nextHeight, "last height", lastHeight, "gap", distance)
 						}
 						blockFwd <- chainEvent.Block
 						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
 					}
 				} else {
-					log.Warn("WriteLoop: received unexpected block from the past", "next height", nextHeight, "last height", lastHeight)
+					log.Warn("WriteLoop: received unexpected block from the past", "block height", nextHeight, "last height", lastHeight)
 					blockFwd <- chainEvent.Block
 				}
 				defaultStatediffMetrics.writeLoopChannelLen.Update(int64(len(chainEventCh)))
