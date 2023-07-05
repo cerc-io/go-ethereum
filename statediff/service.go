@@ -1218,6 +1218,7 @@ func (sds *Service) backfillDetectedGaps(blockGaps []*interfaces.BlockGap) {
 	wg.Wait()
 }
 
+// currentPosition returns the current block height for both the BlockChain and the statediff indexer.
 func (sds *Service) currentPosition() servicePosition {
 	ret := servicePosition{}
 	chainBlock := sds.BlockChain.CurrentBlock()
