@@ -1127,7 +1127,7 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 	}
 	StateDiffBackfillMaxHeadGap = &cli.Uint64Flag{
 		Name:  "statediff.backfillmaxheadgap",
-		Usage: "The maximum gap between the startup statediff and startup head positions that can be backfilled.",
+		Usage: "The maximum gap between the current statediff and head positions that can be backfilled.",
 		Value: 7200,
 	}
 )
