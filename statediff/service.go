@@ -468,6 +468,8 @@ func (sds *Service) Loop(chainEventCh chan core.ChainEvent) {
 		select {
 		//Notify chain event channel of events
 		case chainEvent := <-chainEventCh:
+			// TODO: Do we need to track the last streamed block as we do for the WriteLoop  so that we can detect
+			// and plug any gaps in the events?  If not, we risk presenting an incomplete record.
 			defaultStatediffMetrics.serviceLoopChannelLen.Update(int64(len(chainEventCh)))
 			log.Debug("Loop(): chain event received", "event", chainEvent)
 			// if we don't have any subscribers, do not process a statediff
