@@ -934,11 +934,7 @@ func (sds *Service) statediffInProgress(block *types.Block) bool {
 	defer sds.currentBlocksMutex.Unlock()
 
 	key := fmt.Sprintf("%s,%d", block.Hash().Hex(), block.NumberU64())
-	if sds.currentBlocks[key] {
-		return true
-	}
-
-	return false
+	return sds.currentBlocks[key]
 }
 
 // Writes a state diff from the current block, parent state root, and provided params
