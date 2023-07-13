@@ -139,7 +139,7 @@ type Service struct {
 	// Whether to enable writing state diffs directly to track blockchain head.
 	enableWriteLoop bool
 	// Settings to use for backfilling state diffs (plugging gaps when tracking head)
-	backfillMaxHeadGap      uint64
+	backfillMaxDepth        uint64
 	backfillCheckPastBlocks uint64
 	// Size of the worker pool
 	numWorkers uint
@@ -232,7 +232,7 @@ func New(stack *node.Node, ethServ *eth.Ethereum, cfg *ethconfig.Config, params 
 		WaitForSync:             params.WaitForSync,
 		indexer:                 indexer,
 		enableWriteLoop:         params.EnableWriteLoop,
-		backfillMaxHeadGap:      params.BackfillMaxHeadGap,
+		backfillMaxDepth:        params.BackfillMaxDepth,
 		backfillCheckPastBlocks: params.BackfillCheckPastBlocks,
 		numWorkers:              workers,
 		maxRetry:                defaultRetryLimit,
@@ -274,7 +274,7 @@ func NewService(blockChain blockChain, cfg Config, backend ethapi.Backend, index
 		WaitForSync:             cfg.WaitForSync,
 		indexer:                 indexer,
 		enableWriteLoop:         cfg.EnableWriteLoop,
-		backfillMaxHeadGap:      cfg.BackfillMaxHeadGap,
+		backfillMaxDepth:        cfg.BackfillMaxDepth,
 		backfillCheckPastBlocks: cfg.BackfillCheckPastBlocks,
 		numWorkers:              workers,
 		maxRetry:                defaultRetryLimit,
@@ -365,14 +365,6 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
 					} else {
 						log.Warn("WriteLoop: received unexpected block from the future", "block height", nextHeight, "last height", lastHeight)
-						if distance <= sds.backfillMaxHeadGap {
-							for i := lastHeight + 1; i < nextHeight; i++ {
-								log.Info("WriteLoop: backfilling gap to head", "block", i, "block height", nextHeight, "last height", lastHeight)
-								blockFwd <- sds.BlockChain.GetBlockByNumber(i)
-							}
-						} else {
-							log.Warn("WriteLoop: gap to head too large to backfill", "block height", nextHeight, "last height", lastHeight, "gap", distance)
-						}
 						blockFwd <- chainEvent.Block
 						defaultStatediffMetrics.lastEventHeight.Update(int64(nextHeight))
 					}
@@ -409,9 +401,7 @@ func (sds *Service) WriteLoop(chainEventCh chan core.ChainEvent) {
 func (sds *Service) writeGenesisStateDiff(currBlock *types.Block, workerId uint) {
 	// For genesis block we need to return the entire state trie hence we diff it with an empty trie.
 	log.Info("Writing state diff", "block height", genesisBlockNumber, "worker", workerId)
-	writeLoopParams.RLock()
-	err := sds.writeStateDiffWithRetry(currBlock, common.Hash{}, writeLoopParams.Params)
-	writeLoopParams.RUnlock()
+	err := sds.writeStateDiffWithRetry(currBlock, common.Hash{}, writeLoopParams.CopyParams())
 	if err != nil {
 		log.Error("statediff.Service.WriteLoop: processing error", "block height",
 			genesisBlockNumber, "error", err.Error(), "worker", workerId)
@@ -422,27 +412,78 @@ func (sds *Service) writeGenesisStateDiff(currBlock *types.Block, workerId uint)
 
 func (sds *Service) writeLoopWorker(params workerParams) {
 	defer params.wg.Done()
+
+	// statediffs the indicated block, and while maxBackfill > 0, backfills missing parent blocks.
+	var writeBlockWithParents func(*types.Block, uint64, Params) error
+	writeBlockWithParents = func(block *types.Block, maxBackfill uint64, writeParams Params) error {
+		parentBlock := sds.BlockCache.getParentBlock(block, sds.BlockChain)
+		if parentBlock == nil {
+			log.Error("Parent block is nil, skipping this block", "block height", block.Number())
+			return nil
+		}
+
+		parentIsGenesis := parentBlock.Number().Uint64() == genesisBlockNumber
+
+		// chainEvent streams block from block 1, but we also need to include data from the genesis block.
+		if parentIsGenesis {
+			sds.writeGenesisStateDiff(parentBlock, params.id)
+		}
+
+		log.Info("Writing state diff", "block height", block.Number().Uint64(), "worker", params.id)
+		err := sds.writeStateDiffWithRetry(block, parentBlock.Root(), writeParams)
+		if err != nil {
+			log.Error("statediff.Service.WriteLoop: processing error",
+				"number", block.Number().Uint64(),
+				"hash", block.Hash().Hex(),
+				"error", err.Error(),
+				"worker", params.id)
+			return err
+		}
+
+		if !parentIsGenesis {
+			// We do this _after_ indexing the requested block.  This makes sure that if a child of ours arrives for
+			// statediffing while we are still working on missing ancestors, its regress stops at us, and only we
+			// continue working backward.
+			parentIndexed, err := sds.indexedOrInProgress(parentBlock)
+			if err != nil {
+				log.Error("Error checking for indexing status of parent block.",
+					"number", block.Number(), "hash", block.Hash().String(),
+					"parent number", parentBlock.NumberU64(), "parent hash", parentBlock.Hash().Hex(),
+					"error", err.Error(),
+					"worker", params.id)
+			} else if !parentIndexed {
+				if maxBackfill > 0 {
+					log.Info("Parent block not indexed. Indexing now.",
+						"number", block.Number(), "hash", block.Hash().Hex(),
+						"parent number", parentBlock.NumberU64(), "parent hash", parentBlock.Hash().Hex(),
+						"worker", params.id)
+					err = writeBlockWithParents(parentBlock, maxBackfill-1, writeParams)
+					if err != nil {
+						log.Error("Error indexing parent block.",
+							"number", block.Number(), "hash", block.Hash().Hex(),
+							"parent number", parentBlock.NumberU64(), "parent hash", parentBlock.Hash().Hex(),
+							"error", err.Error(),
+							"worker", params.id)
+					}
+				} else {
+					log.Error("ERROR: Parent block not indexed but max backfill depth exceeded. Index MUST be corrected manually.",
+						"number", block.Number(), "hash", block.Hash().String(),
+						"parent number", parentBlock.NumberU64(), "parent hash", parentBlock.Hash().String(),
+						"worker", params.id)
+				}
+			}
+		}
+
+		return nil
+	}
+
 	for {
 		select {
 		//Notify chain event channel of events
 		case chainEvent := <-params.blockCh:
 			log.Debug("WriteLoop(): chain event received", "event", chainEvent)
 			currentBlock := chainEvent
-			parentBlock := sds.BlockCache.getParentBlock(currentBlock, sds.BlockChain)
-			if parentBlock == nil {
-				log.Error("Parent block is nil, skipping this block", "block height", currentBlock.Number())
-				continue
-			}
-
-			// chainEvent streams block from block 1, but we also need to include data from the genesis block.
-			if parentBlock.Number().Uint64() == genesisBlockNumber {
-				sds.writeGenesisStateDiff(parentBlock, params.id)
-			}
-
-			log.Info("Writing state diff", "block height", currentBlock.Number().Uint64(), "worker", params.id)
-			writeLoopParams.RLock()
-			err := sds.writeStateDiffWithRetry(currentBlock, parentBlock.Root(), writeLoopParams.Params)
-			writeLoopParams.RUnlock()
+			err := writeBlockWithParents(currentBlock, sds.backfillMaxDepth, writeLoopParams.CopyParams())
 			if err != nil {
 				log.Error("statediff.Service.WriteLoop: processing error",
 					"block height", currentBlock.Number().Uint64(),
@@ -861,6 +902,14 @@ func (sds *Service) WriteStateDiffFor(blockHash common.Hash, params Params) erro
 	return sds.writeStateDiffWithRetry(currentBlock, parentRoot, params)
 }
 
+// indexedOrInProgress returns true if the block has already been statediffed or is in progress, else false.
+func (sds *Service) indexedOrInProgress(block *types.Block) (bool, error) {
+	if sds.statediffInProgress(block) {
+		return true, nil
+	}
+	return sds.indexer.HasBlock(block.Hash(), block.NumberU64())
+}
+
 // Claim exclusive access for state diffing the specified block.
 // Returns true and a function to release access if successful, else false, nil.
 func (sds *Service) claimExclusiveAccess(block *types.Block) (bool, func()) {
@@ -877,6 +926,19 @@ func (sds *Service) claimExclusiveAccess(block *types.Block) (bool, func()) {
 		defer sds.currentBlocksMutex.Unlock()
 		delete(sds.currentBlocks, key)
 	}
+}
+
+// statediffInProgress returns true if statediffing is currently in progress for the block, else false.
+func (sds *Service) statediffInProgress(block *types.Block) bool {
+	sds.currentBlocksMutex.Lock()
+	defer sds.currentBlocksMutex.Unlock()
+
+	key := fmt.Sprintf("%s,%d", block.Hash().Hex(), block.NumberU64())
+	if sds.currentBlocks[key] {
+		return true
+	}
+
+	return false
 }
 
 // Writes a state diff from the current block, parent state root, and provided params
@@ -1202,7 +1264,7 @@ func (sds *Service) backfillDetectedGaps(blockGaps []*interfaces.BlockGap) {
 						return
 					}
 					log.Info("Backfill: backfilling detected gap", "block", num, "worker", w)
-					err := sds.writeStateDiffAt(num, writeLoopParams.Params)
+					err := sds.writeStateDiffAt(num, writeLoopParams.CopyParams())
 					if err != nil {
 						log.Error("Backfill error: " + err.Error())
 					}

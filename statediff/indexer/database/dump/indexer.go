@@ -186,6 +186,7 @@ func (sdi *StateDiffIndexer) processHeader(tx *BatchTx, header *types.Header, he
 		UnclesHash:      header.UncleHash.String(),
 		Timestamp:       header.Time,
 		Coinbase:        header.Coinbase.String(),
+		Canonical:       true,
 	}
 	_, err := fmt.Fprintf(sdi.dump, "%+v\r\n", mod)
 	return headerID, err

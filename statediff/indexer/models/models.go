@@ -41,6 +41,7 @@ type HeaderModel struct {
 	Bloom           []byte         `db:"bloom"`
 	Timestamp       uint64         `db:"timestamp"`
 	Coinbase        string         `db:"coinbase"`
+	Canonical       bool           `db:"canonical"`
 }
 
 // UncleModel is the db model for eth.uncle_cids

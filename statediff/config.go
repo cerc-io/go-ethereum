@@ -37,7 +37,7 @@ type Config struct {
 	// Whether to enable writing state diffs directly to track blockchain head
 	EnableWriteLoop bool
 	// The maximum number of blocks to backfill when tracking head.
-	BackfillMaxHeadGap uint64
+	BackfillMaxDepth uint64
 	// The maximum number of blocks behind the startup position to check for gaps.
 	BackfillCheckPastBlocks uint64
 	// Size of the worker pool
@@ -66,10 +66,31 @@ func (p *Params) ComputeWatchedAddressesLeafPaths() {
 	}
 }
 
+func (p *Params) Copy() Params {
+	ret := Params{
+		IncludeBlock:    p.IncludeBlock,
+		IncludeReceipts: p.IncludeReceipts,
+		IncludeTD:       p.IncludeTD,
+		IncludeCode:     p.IncludeCode,
+	}
+	ret.WatchedAddresses = make([]common.Address, len(p.WatchedAddresses))
+	copy(ret.WatchedAddresses, p.WatchedAddresses)
+
+	return ret
+}
+
 // ParamsWithMutex allows to lock the parameters while they are being updated | read from
 type ParamsWithMutex struct {
 	Params
 	sync.RWMutex
+}
+
+// CopyParams returns a defensive copy of the Params
+func (p *ParamsWithMutex) CopyParams() Params {
+	p.RLock()
+	defer p.RUnlock()
+
+	return p.Params.Copy()
 }
 
 // Args bundles the arguments for the state diff builder

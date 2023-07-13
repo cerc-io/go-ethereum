@@ -92,6 +92,7 @@ func (w *Writer) maxHeader() (*models.HeaderModel, error) {
 		&model.Bloom,
 		&model.Timestamp,
 		&model.Coinbase,
+		&model.Canonical,
 	)
 	model.BlockNumber = strconv.FormatUint(number, 10)
 	model.TotalDifficulty = strconv.FormatUint(td, 10)
@@ -120,11 +121,22 @@ func (w *Writer) upsertHeaderCID(tx Tx, header models.HeaderModel) error {
 		header.UnclesHash,
 		header.Bloom,
 		header.Timestamp,
-		header.Coinbase)
+		header.Coinbase,
+		header.Canonical,
+	)
 	if err != nil {
 		return insertError{"eth.header_cids", err, w.db.InsertHeaderStm(), header}
 	}
 	metrics.IndexerMetrics.BlocksCounter.Inc(1)
+
+	_, err = tx.Exec(w.db.Context(), w.db.SetCanonicalHeaderStm(),
+		header.BlockNumber,
+		header.BlockHash,
+	)
+	if err != nil {
+		return insertError{"eth.header_cids", err, w.db.SetCanonicalHeaderStm(), header}
+	}
+
 	return nil
 }
 
