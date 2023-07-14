@@ -634,7 +634,6 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			RctRoot:         mockBlock.ReceiptHash().String(),
 			UnclesHash:      mockBlock.UncleHash().String(),
 			Coinbase:        mocks.MockHeader.Coinbase.String(),
-			Canonical:       true,
 		},
 		{
 			BlockNumber:     mockNonCanonicalBlock.Number().String(),
@@ -645,7 +644,6 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			RctRoot:         mockNonCanonicalBlock.ReceiptHash().String(),
 			UnclesHash:      mockNonCanonicalBlock.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader.Coinbase.String(),
-			Canonical:       true,
 		},
 		{
 			BlockNumber:     mockNonCanonicalBlock2.Number().String(),
@@ -656,7 +654,6 @@ func TestPublishAndIndexHeaderNonCanonical(t *testing.T, db sql.Database) {
 			RctRoot:         mockNonCanonicalBlock2.ReceiptHash().String(),
 			UnclesHash:      mockNonCanonicalBlock2.UncleHash().String(),
 			Coinbase:        mocks.MockNonCanonicalHeader2.Coinbase.String(),
-			Canonical:       true,
 		},
 	}
 	expectedRes[0].Reward = shared.CalcEthBlockReward(mockBlock.Header(), mockBlock.Uncles(), mockBlock.Transactions(), mocks.MockReceipts).String()

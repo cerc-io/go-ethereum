@@ -234,7 +234,8 @@ func (csw *CSVWriter) upsertHeaderCID(header models.HeaderModel) {
 	var values []interface{}
 	values = append(values, header.BlockNumber, header.BlockHash, header.ParentHash, header.CID,
 		header.TotalDifficulty, header.NodeIDs, header.Reward, header.StateRoot, header.TxRoot,
-		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase)
+		header.RctRoot, header.UnclesHash, header.Bloom, strconv.FormatUint(header.Timestamp, 10), header.Coinbase,
+		header.Canonical)
 	csw.rows <- tableRow{schema.TableHeader, values}
 	metrics.IndexerMetrics.BlocksCounter.Inc(1)
 }
