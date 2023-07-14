@@ -62,7 +62,7 @@ jobs:
 
       - name: Build ipld-eth-db
         run: |
-          docker build -f ./ipld-eth-db/Dockerfile ./ipld-eth-db/
+          docker build -f ./ipld-eth-db/Dockerfile ./ipld-eth-db/ -t cerc/ipld-eth-db:local
 
       - name: Run docker compose
         run: |
