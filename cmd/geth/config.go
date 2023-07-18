@@ -281,7 +281,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 			NumWorkers:              ctx.Uint(utils.StateDiffWorkersFlag.Name),
 			WaitForSync:             ctx.Bool(utils.StateDiffWaitForSync.Name),
 			BackfillCheckPastBlocks: ctx.Uint64(utils.StateDiffBackfillCheckPastBlocks.Name),
-			BackfillMaxHeadGap:      ctx.Uint64(utils.StateDiffBackfillMaxHeadGap.Name),
+			BackfillMaxDepth:        ctx.Uint64(utils.StateDiffBackfillMaxDepth.Name),
 		}
 		utils.RegisterStateDiffService(stack, eth, &cfg.Eth, p, backend)
 	}

@@ -1125,9 +1125,9 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Usage: "The number of blocks behind the startup statediff position to check (and fill) for gaps when head tracking.",
 		Value: 7200,
 	}
-	StateDiffBackfillMaxHeadGap = &cli.Uint64Flag{
-		Name:  "statediff.backfillmaxheadgap",
-		Usage: "The maximum gap between the current statediff and head positions that can be backfilled.",
+	StateDiffBackfillMaxDepth = &cli.Uint64Flag{
+		Name:  "statediff.backfillmaxdepth",
+		Usage: "When statediffing head, the maximum number of missing parents that can be backfilled.",
 		Value: 7200,
 	}
 )

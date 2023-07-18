@@ -246,6 +246,7 @@ func (sdi *StateDiffIndexer) processHeader(header *types.Header, headerNode ipld
 		UnclesHash:      header.UncleHash.String(),
 		Timestamp:       header.Time,
 		Coinbase:        header.Coinbase.String(),
+		Canonical:       true,
 	})
 	return headerID
 }

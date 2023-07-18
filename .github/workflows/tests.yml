@@ -5,7 +5,7 @@ on:
 
 env:
   stack-orchestrator-ref: ${{ github.event.inputs.stack-orchestrator-ref  || 'e62830c982d4dfc5f3c1c2b12c1754a7e9b538f1'}}
-  ipld-eth-db-ref: ${{ github.event.inputs.ipld-eth-db-ref  || '66cd1d9e696cfa72f9d272927f9e945905c9f093' }}
+  ipld-eth-db-ref: ${{ github.event.inputs.ipld-eth-db-ref  || '1b922dbff350bfe2a9aec5fe82079e9d855ea7ed' }}
   GOPATH: /tmp/go
 
 jobs:
@@ -52,6 +52,17 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.ipld-eth-db-ref }}
+          repository: cerc-io/ipld-eth-db
+          path: "./ipld-eth-db/"
+          fetch-depth: 0
+
+      - name: Build ipld-eth-db
+        run: |
+          docker build -f ./ipld-eth-db/Dockerfile ./ipld-eth-db/ -t cerc/ipld-eth-db:local
 
       - name: Run docker compose
         run: |

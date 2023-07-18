@@ -49,6 +49,7 @@ type Statements interface {
 	MaxHeaderStm() string
 	ExistsHeaderStm() string
 	InsertHeaderStm() string
+	SetCanonicalHeaderStm() string
 	InsertUncleStm() string
 	InsertTxStm() string
 	InsertRctStm() string

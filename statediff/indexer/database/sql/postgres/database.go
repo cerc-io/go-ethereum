@@ -62,6 +62,12 @@ func (db *DB) InsertHeaderStm() string {
 	return schema.TableHeader.ToInsertStatement(db.upsert)
 }
 
+// SetCanonicalHeaderStm satisfies the sql.Statements interface
+// Stm == Statement
+func (db *DB) SetCanonicalHeaderStm() string {
+	return fmt.Sprintf("UPDATE %s SET canonical = false WHERE block_number = $1::BIGINT AND block_hash <> $2::TEXT AND canonical = true", schema.TableHeader.Name)
+}
+
 // InsertUncleStm satisfies the sql.Statements interface
 func (db *DB) InsertUncleStm() string {
 	return schema.TableUncle.ToInsertStatement(db.upsert)

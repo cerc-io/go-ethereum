@@ -54,6 +54,7 @@ var TableHeader = Table{
 		{Name: "bloom", Type: Dbytea},
 		{Name: "timestamp", Type: Dnumeric},
 		{Name: "coinbase", Type: Dvarchar},
+		{Name: "canonical", Type: Dboolean},
 	},
 	UpsertClause: OnConflict("block_number", "block_hash").Set(
 		"parent_hash",
@@ -68,6 +69,7 @@ var TableHeader = Table{
 		"bloom",
 		"timestamp",
 		"coinbase",
+		"canonical",
 	)}
 
 var TableStateNode = Table{
