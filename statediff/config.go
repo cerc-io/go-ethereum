@@ -88,9 +88,9 @@ type ParamsWithMutex struct {
 // CopyParams returns a defensive copy of the Params
 func (p *ParamsWithMutex) CopyParams() Params {
 	p.RLock()
-	defer p.RUnlock()
-
 	copy := p.Params.Copy()
+	p.RUnlock()
+
 	copy.ComputeWatchedAddressesLeafPaths()
 	return copy
 }
