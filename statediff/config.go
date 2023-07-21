@@ -90,7 +90,9 @@ func (p *ParamsWithMutex) CopyParams() Params {
 	p.RLock()
 	defer p.RUnlock()
 
-	return p.Params.Copy()
+	copy := p.Params.Copy()
+	copy.ComputeWatchedAddressesLeafPaths()
+	return copy
 }
 
 // Args bundles the arguments for the state diff builder
