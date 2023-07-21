@@ -23,7 +23,7 @@ jobs:
       - name: Tag docker image
         run: docker tag git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}} git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.tag}}
       - name: Docker Login
-        run: echo ${{ secrets.GITEA_TOKEN }} | docker login https://git.vdb.to -u cerccicd --password-stdin
+        run: echo ${{ secrets.GITEA_PUBLISH_TOKEN }} | docker login https://git.vdb.to -u cerccicd --password-stdin
       - name: Docker Push
         run: docker push git.vdb.to/cerc-io/go-ethereum/go-ethereum:${{steps.vars.outputs.sha}}
       - name: Docker Push TAGGED
@@ -33,4 +33,4 @@ jobs:
       - name: curl
         uses: enflo/curl-action@master
         with:
-          curl: --user cerccicd:${{ secrets.GITEA_TOKEN }} --upload-file geth-linux-amd64 https://git.vdb.to/api/packages/cerc-io/generic/go-ethereum/${{steps.vars.outputs.tag}}/geth-linux-amd64
+          curl: --user cerccicd:${{ secrets.GITEA_PUBLISH_TOKEN }} --upload-file geth-linux-amd64 https://git.vdb.to/api/packages/cerc-io/generic/go-ethereum/${{steps.vars.outputs.tag}}/geth-linux-amd64
